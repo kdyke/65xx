@@ -39,7 +39,9 @@ wire [3:0] load_flags;
 // Internal busses
 reg [7:0] adh;
 reg [7:0] adl;
-reg [7:0] db;
+reg [7:0] db_in; 
+reg [7:0] db_out;
+
 reg [7:0] sb;
 
 // Internal registers
@@ -96,24 +98,11 @@ end
 assign ir_sel = t == 1 ? data_i : ir;
 assign address = { abh, abl };
 assign write = write_cycle;
-assign data_o = db;
+assign data_o = db_out;
 
 // Branch-to-self detection
 // synthesis translate_off
 reg [15:0] last_fetch_addr;
-always @(posedge clk)
-begin
-  if(t == 1)
-  begin
-     if(last_fetch_addr == { adh, adl })
-     begin
-      $display("Halting, branch to self detected: %04x   A: %02x X: %02x Y: %02x S: %02x P: %02x ",last_fetch_addr,
-        reg_a, reg_x, reg_y, reg_s, reg_p);
-      $finish;
-    end
-    last_fetch_addr <= { adh, adl };
-  end
-end
 // synthesis translate_on
 
 // predecode signals
@@ -226,6 +215,16 @@ begin
   else if(t == 1)
   begin
     ir <= data_i;
+     // synthesis translate off
+     if(last_fetch_addr == address)
+     begin
+      $display("Halting, branch to self detected: %04x   A: %02x X: %02x Y: %02x S: %02x P: %02x ",last_fetch_addr,
+        reg_a, reg_x, reg_y, reg_s, reg_p);
+      $finish;
+    end
+    last_fetch_addr <= address;
+     // synthesis translate on
+    
     //$display("FETCH ADDR: %04x byte: %02x  TWOCYCLE: %d",address,data_i,twocycle);
   end
 end
@@ -269,22 +268,37 @@ begin
   //$display("ADL: t: %d adl_sel: %d adl: %02x",t,adl_sel,adl);
 end
 
-// Internal DB input mux
+// DB input mux
 always @(*)
 begin
   case(db_sel)  // synthesis full_case parallel_case
-    `DB_FF  : db = 8'hFF;
-    `DB_DI  : db = data_i;
-    `DB_A   : db = reg_a;
-    `DB_SB  : db = sb;
-    `DB_PCL : db = pcl;
-    `DB_PCH : db = pch;
-    `DB_P   : db = reg_p | 8'h30;      // Temp kludge until interrupts are implmented and I have a mechanism for pusing P with B set to 0
-    `DB_BO  : db = {8{alua_reg[7]}};   // The high bit of the last ALU A input is the sign bit for branch offsets
+    `DB_FF  : db_in = 8'hFF;
+    `DB_DI  : db_in = data_i;
+    `DB_A   : db_in = reg_a;
+//    `DB_SB  : db_in = sb;
+//    `DB_PCL : db_in = pcl;
+//    `DB_PCH : db_in = pch;
+//    `DB_P   : db_in = reg_p | 8'h30;      // Temp kludge until interrupts are implmented and I have a mechanism for pusing P with B set to 0
+    `DB_BO  : db_in = {8{alua_reg[7]}};   // The high bit of the last ALU A input is the sign bit for branch offsets
   endcase
 end
 
-// Internal SB input mux
+// DB output mux
+always @(*)
+begin
+  case(db_sel)  // synthesis full_case parallel_case
+//    `DB_FF  : db_out = 8'hFF;
+//    `DB_DI  : db_out = data_i;
+    `DB_A   : db_out = reg_a;
+    `DB_SB  : db_out = sb;
+    `DB_PCL : db_out = pcl;
+    `DB_PCH : db_out = pch;
+    `DB_P   : db_out = reg_p | 8'h30;      // Temp kludge until interrupts are implmented and I have a mechanism for pusing P with B set to 0
+//    `DB_BO  : db_out = {8{alua_reg[7]}};   // The high bit of the last ALU A input is the sign bit for branch offsets
+  endcase
+end
+
+// SB input mux
 always @(*)
 begin
   case(sb_sel)  // synthesis full_case parallel_case
@@ -294,7 +308,7 @@ begin
     `SB_SP  : sb = reg_s;
     `SB_ALU : sb = alu_out;
     `SB_ADH : sb = adh;
-    `SB_DB  : sb = db;
+    `SB_DB  : sb = db_in;
     `SB_FF  : sb = 8'hFF;
   endcase
     //$display("sb_sel: %d  sb: %02x",sb_sel,sb);
@@ -323,8 +337,8 @@ end
 always @(*)
 begin
   case(alu_b)  // synthesis full_case parallel_case
-    `ALU_B_DB  : alub_in = db;
-    `ALU_B_NDB : alub_in = ~db;
+    `ALU_B_DB  : alub_in = db_in;
+    `ALU_B_NDB : alub_in = ~db_in;
     `ALU_B_ADL : alub_in = adl;
   endcase
     //$display("alu_b: %d  alub_in: %02x",alu_b,alub_in);
@@ -394,8 +408,8 @@ end
 
 wire db_z;
 
-assign db_z = ~|db;
-assign db_n = db[7];
+assign sb_z = ~|sb;
+assign sb_n = sb[7];
 
 // TODO - Consider turning this into a bigger bitfield with individual control bits for which
 // flags to update (and from where) rather than needing all of the decode control logic.  Microcode
@@ -404,13 +418,13 @@ always @(posedge clk)
 begin
   if(load_flags == `FLAGS_DB)
   begin
-    reg_p <= db;
+    reg_p <= db_in;
     //$display("LOAD P from DB: %02x",db);
   end
   else if(load_flags == `FLAGS_DBZN)
     begin
-      reg_p[`PF_Z] <= db_z;
-      reg_p[`PF_N] <= db_n;
+      reg_p[`PF_Z] <= sb_z;
+      reg_p[`PF_N] <= sb_n;
     end
   else if(load_flags == `FLAGS_D)
     reg_p[`PF_D] <= ir[5];
@@ -421,35 +435,35 @@ begin
   else if(load_flags == `FLAGS_V)
     reg_p[`PF_V] <= 0;
   else if(load_flags == `FLAGS_Z)
-    reg_p[`PF_Z] <= db_z;
+    reg_p[`PF_Z] <= sb_z;
   else if(load_flags == `FLAGS_SETI)
     reg_p[`PF_I] <= 1;
   else if(load_flags == `FLAGS_CNZ)
     begin
       reg_p[`PF_C] <= alu_carry_out;
       //$display("status register C = %d",alu_carry_out);
-      reg_p[`PF_Z] <= db_z;
+      reg_p[`PF_Z] <= sb_z;
       //$display("status register Z = %d",db_z);
-      reg_p[`PF_N] <= db_n; 
+      reg_p[`PF_N] <= sb_n; 
       //$display("status register N = %d",db_n);
     end
   else if(load_flags == `FLAGS_ALU)
     begin
       reg_p[`PF_C] <= alu_carry_out;
       //$display("status register C = %d",alu_carry_out);
-      reg_p[`PF_Z] <= db_z;
+      reg_p[`PF_Z] <= sb_z;
       //$display("status register Z = %d",db_z);
       reg_p[`PF_V] <= alu_overflow_out;
       //$display("status register V = %d",alu_overflow_out);
-      reg_p[`PF_N] <= db_n;
+      reg_p[`PF_N] <= sb_n;
       //$display("status register N = %d",db_n);
     end
   else if(load_flags == `FLAGS_BIT)
     begin
-      reg_p[`PF_V] <= db[6];
-      //$display("status register Z = %d",db_z);
-      reg_p[`PF_N] <= db_n; 
-      //$display("status register N = %d",db_n);
+      reg_p[`PF_V] <= db_in[6];
+      //$display("status register Z = %d",db_in[6]);
+      reg_p[`PF_N] <= db_in[7]; 
+      //$display("status register N = %d",db_in[7]);
     end
 end
 
