@@ -92,6 +92,8 @@
 `define FLAGS_V     4'h7
 `define FLAGS_SETI  4'h8
 `define FLAGS_CNZ   4'h9
+`define FLAGS_BIT   4'ha
+`define FLAGS_Z     4'hb
 
 `define ALUF_C 0
 `define ALUF_Z 1

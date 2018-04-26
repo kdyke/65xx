@@ -396,6 +396,11 @@ begin
     end
 end
 
+wire db_z;
+
+assign db_z = ~|db;
+assign db_n = db[7];
+
 // TODO - Consider turning this into a bigger bitfield with individual control bits for which
 // flags to update (and from where) rather than needing all of the decode control logic.  Microcode
 // bits are cheap. ;)
@@ -408,8 +413,8 @@ begin
   end
   else if(load_flags == `FLAGS_DBZN)
     begin
-      reg_p[`PF_Z] <= ~|db;
-      reg_p[`PF_N] <= db[7];
+      reg_p[`PF_Z] <= db_z;
+      reg_p[`PF_N] <= db_n;
     end
   else if(load_flags == `FLAGS_D)
     reg_p[`PF_D] <= ir[5];
@@ -419,15 +424,17 @@ begin
     reg_p[`PF_C] <= ir[5];
   else if(load_flags == `FLAGS_V)
     reg_p[`PF_V] <= 0;
+  else if(load_flags == `FLAGS_Z)
+    reg_p[`PF_Z] <= db_z;
   else if(load_flags == `FLAGS_SETI)
     reg_p[`PF_I] <= 1;
   else if(load_flags == `FLAGS_CNZ)
     begin
       reg_p[`PF_C] <= alu_carry_out;
       //$display("status register C = %d",alu_carry_out);
-      reg_p[`PF_Z] <= alu_flags_out[`ALUF_Z];
+      reg_p[`PF_Z] <= db_z;
       //$display("status register Z = %d",alu_flags_out[`ALUF_Z]);
-      reg_p[`PF_N] <= alu_flags_out[`ALUF_N];
+      reg_p[`PF_N] <= db_n; 
       //$display("status register N = %d",alu_flags_out[`ALUF_N]);
     end
   else if(load_flags == `FLAGS_ALU)
@@ -439,6 +446,13 @@ begin
       reg_p[`PF_V] <= alu_flags_out[`ALUF_V];
       //$display("status register V = %d",alu_flags_out[`ALUF_V]);
       reg_p[`PF_N] <= alu_flags_out[`ALUF_N];
+      //$display("status register N = %d",alu_flags_out[`ALUF_N]);
+    end
+  else if(load_flags == `FLAGS_BIT)
+    begin
+      reg_p[`PF_V] <= db[6];
+      //$display("status register Z = %d",alu_flags_out[`ALUF_Z]);
+      reg_p[`PF_N] <= db_n; 
       //$display("status register N = %d",alu_flags_out[`ALUF_N]);
     end
 end
