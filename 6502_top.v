@@ -38,9 +38,13 @@ wire [3:0] load_flags;
 
 // Internal busses
 reg [7:0] adh;
-reg [7:0] adl;
 reg [7:0] db_in; 
 reg [7:0] db_out;
+
+reg [7:0] abl_adl;      // ADL that feeds into ABL and ALUB input
+reg [7:0] pcls_adl;     // ADL that feeds only into PCLS
+
+reg [7:0] pchs_adh;     // ADH that feeds only into PCHS
 
 reg [7:0] sb;
 
@@ -75,6 +79,30 @@ wire [7:0] ir_sel;
 // reset flip flip
 reg reset_f;
 
+reg [7:0] alua_reg;
+reg [7:0] alub_reg;
+
+wire [7:0] decadj_out;
+wire dec_add, dec_sub;
+wire alu_carry_out,alu_half_carry_out, alu_decimal_enable;
+
+// Branch-to-self detection
+// synthesis translate_off
+reg [15:0] last_fetch_addr;
+// synthesis translate_on
+
+// predecode signals
+reg twocycle;
+
+// PCL select in/out
+reg [7:0] pcls_in;
+// Extra bit for carry output
+reg [8:0] pcls;
+
+// PCH select in/out
+reg [7:0] pchs_in;
+reg [7:0] pchs;
+
 always @(posedge clk or posedge reset)
 begin
   if(reset)
@@ -99,14 +127,6 @@ assign ir_sel = t == 1 ? data_i : ir;
 assign address = { abh, abl };
 assign write = write_cycle;
 assign data_o = db_out;
-
-// Branch-to-self detection
-// synthesis translate_off
-reg [15:0] last_fetch_addr;
-// synthesis translate_on
-
-// predecode signals
-reg twocycle;
 
 // A page is crossed if the carry result is different than the sign of the branch offset input
 assign branch_page_cross = alu_carry_out ^ alua_reg[7];
@@ -170,41 +190,24 @@ begin
   t <= t_next;
 end
 
-// PCL select in/out
-reg [7:0] pcls_in;
-// Extra bit for carry output
-reg [8:0] pcls;
-
 always @(*)
 begin
   if(pcls_sel == `PCLS_PCL)
     pcls_in = pcl;
   else
-    pcls_in = adl;
-
+    pcls_in = pcls_adl;
   pcls = pcls_in + pc_inc;
   //$display("pls_sel: %d pcl: %02x adl: %02x pcls_in: %02x pcls: %02x",pcls_sel,pcl,adl,pcls_in,pcls);
 end
-
-// PCH select in/out
-reg [7:0] pchs_in;
-reg [7:0] pchs;
 
 always @(*)
 begin
   if(pchs_sel == `PCHS_PCH)
     pchs_in = pch;
   else
-    pchs_in = adh;
+    pchs_in = pchs_adh;
   pchs = pchs_in + pcls[8];
   //$display("phs_sel: %d pch: %02x adh: %02x pchs_in: %02x pchs: %02x",pchs_sel,pch,adh,pchs_in,pchs);
-end
-
-// PCH/PCL always take value of PCHS/PCLS
-always @(posedge clk)
-begin
-    pch <= pchs;
-    pcl <= pcls;
 end
 
 // IR is always loaded from data_i during t1  (data_i was fetched during t0)
@@ -229,20 +232,6 @@ begin
   end
 end
 
-// ADH mux
-always @(*)
-begin
-  case(adh_sel)  // synthesis full_case parallel_case
-    `ADH_DI  : adh = data_i;
-    `ADH_PCHS: adh = pchs;
-    `ADH_SB  : adh = sb;
-    `ADH_0   : adh = 8'h00;
-    `ADH_1   : adh = 8'h01;
-    `ADH_FF  : adh = 8'hFF;
-  endcase
-  //$display("ADH: t: %d adh_sel: %d adh: %02x ",t,adh_sel,adh);
-end
-
 // Temporary hack for CPU bootstrapping until I get interrupts hooked up
 reg [7:0] vector_lo;
 
@@ -254,16 +243,53 @@ begin
     vector_lo = 8'hFC;
 end
 
-// ADL mux
+// ADH -> PCHS
+always @(*)
+begin
+  pchs_adh = data_i;
+  case(adh_sel)  // synthesis full_case parallel_case
+    `ADH_DI  : pchs_adh = data_i;
+    `ADH_ALU : pchs_adh = alu_out;
+  endcase
+  //$display("ADH: t: %d adh_sel: %d adh: %02x ",t,adh_sel,adh);
+end
+
+
+// ADH mux
+always @(*)
+begin
+  case(adh_sel)  // synthesis full_case parallel_case
+    `ADH_DI  : adh = data_i;
+    `ADH_PCHS: adh = pchs;
+    `ADH_ALU : adh = alu_out;
+    `ADH_0   : adh = 8'h00;
+    `ADH_1   : adh = 8'h01;
+    `ADH_FF  : adh = 8'hFF;
+  endcase
+  //$display("ADH: t: %d adh_sel: %d adh: %02x ",t,adh_sel,adh);
+end
+
+// ADL -> PCLS
+always @(*)
+begin
+  pcls_adl = data_i;
+  case(adl_sel) // synthesis full_case parallel_case
+    `ADL_DI    : pcls_adl = data_i;
+    `ADL_S     : pcls_adl = reg_s;
+    `ADL_ALU   : pcls_adl = alu_out;
+  endcase
+end
+
+// ADL -> ABL
 always @(*)
 begin
   case(adl_sel) // synthesis full_case parallel_case
-    `ADL_DI    : adl = data_i;
-    `ADL_PCLS  : adl = pcls;
-    `ADL_S     : adl = reg_s;
-    `ADL_ALU   : adl = alu_out;
-    `ADL_VECLO : adl = vector_lo;
-    `ADL_VECHI : adl = vector_lo | 1;
+    `ADL_DI    : abl_adl = data_i;
+    `ADL_PCLS  : abl_adl = pcls;
+    `ADL_S     : abl_adl = reg_s;
+    `ADL_ALU   : abl_adl = alu_out;
+    `ADL_VECLO : abl_adl = vector_lo;
+    `ADL_VECHI : abl_adl = vector_lo | 1;
   endcase
   //$display("ADL: t: %d adl_sel: %d adl: %02x",t,adl_sel,adl);
 end
@@ -314,15 +340,6 @@ begin
     //$display("sb_sel: %d  sb: %02x",sb_sel,sb);
 end
 
-// ABL/ADH registers
-always @(posedge clk)
-begin
-  if(load_abh)
-    abh <= adh;
-  if(load_abl)
-    abl <= adl;
-end
-
 // ALU A input select
 always @(*)
 begin
@@ -339,7 +356,7 @@ begin
   case(alu_b)  // synthesis full_case parallel_case
     `ALU_B_DB  : alub_in = db_in;
     `ALU_B_NDB : alub_in = ~db_in;
-    `ALU_B_ADL : alub_in = adl;
+    `ALU_B_ADL : alub_in = abl_adl;
   endcase
     //$display("alu_b: %d  alub_in: %02x",alu_b,alub_in);
 end
@@ -355,8 +372,6 @@ begin
   endcase
 end
 
-reg [7:0] alua_reg;
-reg [7:0] alub_reg;
 
 // clocked ALU inputs (only A and B, everything else is "live") and outputs
 always @(posedge clk)
@@ -371,9 +386,26 @@ begin
   alu_carry_out_last <= alu_carry_out;
 end
 
-wire [7:0] decadj_out;
-wire dec_add, dec_sub;
-wire alu_carry_out,alu_half_carry_out, alu_decimal_enable;
+// ABL/ADH registers
+always @(posedge clk)
+begin
+  if(load_abh)
+  begin
+    if(adh_sel == `ADH_PCHS)
+      abh <= pchs;
+    else
+      abh <= adh;
+  end
+  if(load_abl)
+      abl <= abl_adl;
+end
+
+// PCH/PCL always take value of PCHS/PCLS
+always @(posedge clk)
+begin
+    pch <= pchs;
+    pcl <= pcls;
+end
 
 // FIXME - This is kinda hacky right now.  Really should have a pair of dedicated microcode bits for this.
 assign dec_add = reg_p[`PF_D] & (load_flags == `FLAGS_ALU) & (alu_op == `ALU_ADC);
@@ -471,7 +503,10 @@ end
 alu_unit alu_inst(alua_reg, alub_reg, alu_out, aluc_in, dec_add, alu_op, alu_carry_out, alu_half_carry_out, alu_overflow_out);
 
 // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
-microcode mc_inst(.clk, .ir(ir_sel), .t(t_next), .tnext(tnext_mc), .adh_sel, .adl_sel, .pchs_sel, .pcls_sel, .alu_op, .alu_a, .alu_b, .alu_c, .db_sel, .sb_sel,
-                  .load_a, .load_x, .load_y, .load_sp, .load_abh, .load_abl, .load_flags, .write_cycle, .pc_inc);
+microcode mc_inst(.clk(clk), .ir(ir_sel), .t(t_next), .tnext(tnext_mc), .adh_sel(adh_sel), .adl_sel(adl_sel),
+                  .pchs_sel(pchs_sel), .pcls_sel(pcls_sel), .alu_op(alu_op), .alu_a(alu_a), .alu_b(alu_b), .alu_c(alu_c),
+                  .db_sel(db_sel), .sb_sel(sb_sel),
+                  .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_sp(load_sp),
+                  .load_abh(load_abh), .load_abl(load_abl), .load_flags(load_flags), .write_cycle(write_cycle), .pc_inc(pc_inc));
 
 endmodule

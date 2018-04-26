@@ -1,7 +1,7 @@
 `include "6502_inc.vh"
 
 module microcode(clk, ir, t, tnext, adh_sel, adl_sel, db_sel, sb_sel, pchs_sel, pcls_sel, alu_op, alu_a, alu_b, alu_c,
-                  load_a, load_x, load_y, load_sp, load_p, load_abh, load_abl, load_pch, load_pcl, load_flags, write_cycle, pc_inc);
+                  load_a, load_x, load_y, load_sp, load_abh, load_abl, load_flags, write_cycle, pc_inc);
 
 input clk;
 input [7:0] ir;
@@ -20,55 +20,47 @@ output [1:0] alu_c;
 output load_a;
 output load_x;
 output load_y;
-
 output load_sp;
-output load_p;
-output load_ir;
-
 output load_abh;
 output load_abl;
-output load_pch;
-output load_pcl;
-
 output [3:0] load_flags;
 output write_cycle;
 output pc_inc;
 
-reg [60:0] mc_out;
+reg [37:0] mc_out;
 
-reg [60:0] mc[0:2047];
+(* rom_style = "block" *) reg [37:0] mc[0:2047];
 
 reg [12:0] i;
 
 initial begin
 
-`define TNEXT_BITS      59:56
-`define ADH_BITS        55:53
-`define ADL_BITS        52:50
-`define DB_BITS         49:47
-`define SB_BITS         46:44
-`define ALU_BITS        43:40
-`define ALU_A_BITS      39:39
-`define ALU_B_BITS      38:37
-`define ALU_C_BITS      36:35
-`define LOAD_A_BITS     34:34
-`define LOAD_X_BITS     33:33
-`define LOAD_Y_BITS     32:32
-`define LOAD_DL_BITS    31:31       // Obsolete
-`define LOAD_SP_BITS    30:30
-`define LOAD_ABH_BITS   29:29
-`define LOAD_ABL_BITS   28:28
-`define LOAD_FLAGS_BITS 24:21
-`define WRITE_BITS      20:20
-`define PC_INC_BITS     19:19
-`define PCHS_BITS       18:18
-`define PCLS_BITS       17:17
+`define TNEXT_BITS      37:35
+`define ADH_BITS        34:32
+`define ADL_BITS        31:29
+`define DB_BITS         28:26
+`define SB_BITS         25:23
+`define ALU_BITS        22:19
+`define ALU_A_BITS      18:18
+`define ALU_B_BITS      17:16
+`define ALU_C_BITS      15:14
+`define LOAD_A_BITS     13:13
+`define LOAD_X_BITS     12:12
+`define LOAD_Y_BITS     11:11
+`define LOAD_SP_BITS    10:10
+`define LOAD_ABH_BITS   9:9
+`define LOAD_ABL_BITS   8:8
+`define LOAD_FLAGS_BITS 7:4
+`define WRITE_BITS      3:3
+`define PC_INC_BITS     2:2
+`define PCHS_BITS       1:1
+`define PCLS_BITS       0:0
 
 `define FIELD_SHIFT(_x) (0?_x)
 `define _X(_x)  (`_x)
 
 // Init all microcode slots we haven't implemented with a state that halts
-for( i = 0; i < 2048; i++ ) 
+for( i = 0; i < 2048; i = i + 1 ) 
 begin
    mc[i][`TNEXT_BITS] = `TKL;
    //$display("init %d",i);
@@ -178,14 +170,14 @@ mc[(_ins << 3) | _t] = ( \
 // BPL
 `MICROCODE(  8'h10,  2, `TBR, `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h10,  3, `TBE, `ADH_PCHS, `ADL_ALU,  `DB_BO, `SB_ADH, `PCHS_PCH, `PCLS_ADL,  `ALU_SUM,`ALU_A_SB, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h10,  0, `Tn , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h10,  0, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h10,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
 // ORA (zp),y
 `MICROCODE(  8'h11,  2, `Tn , `ADH_0,    `ADL_DI,   `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h11,  3, `Tn , `ADH_0,    `ADL_ALU,  `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_SB,`ALU_B_DB, `ALU_C_1,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h11,  4, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h11,  5, `T0 , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h11,  5, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h11,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h11,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_ORA,    `none,     `none, `ALU_C_0,  1,  0,  0,  0,  1,  1, `FLAGS_DBZN, 0, 1)
 
@@ -210,21 +202,21 @@ mc[(_ins << 3) | _t] = ( \
 // ORA abs,y
 `MICROCODE(  8'h19,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h19,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h19,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h19,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h19,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h19,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_ORA,    `none,     `none, `ALU_C_0,  1,  0,  0,  0,  1,  1, `FLAGS_DBZN, 0, 1)
 
 // ORA abs,x
 `MICROCODE(  8'h1D,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h1D,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h1D,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h1D,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h1D,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h1D,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_ORA,    `none,     `none, `ALU_C_0,  1,  0,  0,  0,  1,  1, `FLAGS_DBZN, 0, 1)
 
 // ASL abs,x
 `MICROCODE(  8'h1E,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h1E,  3, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h1E,  4, `Tn , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h1E,  4, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h1E,  5, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  0,  0,       `none, 0, 0)
 `MICROCODE(  8'h1E,  6, `T0 , `ADH_PCHS, `ADL_ALU,  `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_ADL, `ALU_C_0,  0,  0,  0,  0,  0,  0,  `FLAGS_CNZ, 0, 0)
 `MICROCODE(  8'h1E,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 1, 0)
@@ -306,14 +298,14 @@ mc[(_ins << 3) | _t] = ( \
 // BMI
 `MICROCODE(  8'h30,  2, `TBR, `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h30,  3, `TBE, `ADH_PCHS, `ADL_ALU,  `DB_BO, `SB_ADH, `PCHS_PCH, `PCLS_ADL,  `ALU_SUM,`ALU_A_SB, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h30,  0, `Tn , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h30,  0, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h30,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
 // AND (zp),y
 `MICROCODE(  8'h31,  2, `Tn , `ADH_0,    `ADL_DI,   `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h31,  3, `Tn , `ADH_0,    `ADL_ALU,  `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_SB,`ALU_B_DB, `ALU_C_1,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h31,  4, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h31,  5, `T0 , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h31,  5, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h31,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h31,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_AND,    `none,     `none, `ALU_C_P,  1,  0,  0,  0,  1,  1, `FLAGS_DBZN, 0, 1)
 
@@ -338,21 +330,21 @@ mc[(_ins << 3) | _t] = ( \
 // AND abs,y
 `MICROCODE(  8'h39,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h39,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h39,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h39,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h39,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h39,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_AND,    `none,     `none, `ALU_C_P,  1,  0,  0,  0,  1,  1, `FLAGS_DBZN, 0, 1)
 
 // AND abs,x
 `MICROCODE(  8'h3D,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h3D,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h3D,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h3D,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h3D,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h3D,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_AND,    `none,     `none, `ALU_C_P,  1,  0,  0,  0,  1,  1,  `FLAGS_DBZN, 0, 1)
 
 // ROL abs,x
 `MICROCODE(  8'h3E,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h3E,  3, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h3E,  4, `Tn , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h3E,  4, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h3E,  5, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  0,  0,       `none, 0, 0)
 `MICROCODE(  8'h3E,  6, `T0 , `ADH_PCHS, `ADL_ALU,  `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_ADL, `ALU_C_P,  0,  0,  0,  0,  0,  0,  `FLAGS_CNZ, 0, 0)
 `MICROCODE(  8'h3E,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 1, 0)
@@ -428,14 +420,14 @@ mc[(_ins << 3) | _t] = ( \
 // BVC
 `MICROCODE(  8'h50,  2, `TBR, `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h50,  3, `TBE, `ADH_PCHS, `ADL_ALU,  `DB_BO, `SB_ADH, `PCHS_PCH, `PCLS_ADL,  `ALU_SUM,`ALU_A_SB, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h50,  0, `Tn , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h50,  0, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h50,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
 // EOR (zp),y
 `MICROCODE(  8'h51,  2, `Tn , `ADH_0,    `ADL_DI,   `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h51,  3, `Tn , `ADH_0,    `ADL_ALU,  `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_SB,`ALU_B_DB, `ALU_C_1,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h51,  4, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h51,  5, `T0 , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h51,  5, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h51,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h51,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_EOR,    `none,     `none, `ALU_C_P,  1,  0,  0,  0,  1,  1, `FLAGS_DBZN, 0, 1)
 
@@ -460,21 +452,21 @@ mc[(_ins << 3) | _t] = ( \
 // EOR abs,y
 `MICROCODE(  8'h59,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h59,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h59,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h59,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h59,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h59,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_EOR,    `none,     `none, `ALU_C_P,  1,  0,  0,  0,  1,  1, `FLAGS_DBZN, 0, 1)
 
 // EOR abs,x
 `MICROCODE(  8'h5D,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h5D,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h5D,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h5D,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h5D,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h5D,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_EOR,    `none,     `none, `ALU_C_P,  1,  0,  0,  0,  1,  1, `FLAGS_DBZN, 0, 1)
 
 // LSR abs,x
 `MICROCODE(  8'h5E,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h5E,  3, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h5E,  4, `Tn , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h5E,  4, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h5E,  5, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  0,  0,       `none, 0, 0)
 `MICROCODE(  8'h5E,  6, `T0 , `ADH_PCHS, `ADL_ALU,  `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_ROR, `ALU_A_0,`ALU_B_ADL, `ALU_C_0,  0,  0,  0,  0,  0,  0,  `FLAGS_CNZ, 0, 0)
 `MICROCODE(  8'h5E,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 1, 0)
@@ -552,14 +544,14 @@ mc[(_ins << 3) | _t] = ( \
 // BVS
 `MICROCODE(  8'h70,  2, `TBR, `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h70,  3, `TBE, `ADH_PCHS, `ADL_ALU,  `DB_BO, `SB_ADH, `PCHS_PCH, `PCLS_ADL,  `ALU_SUM,`ALU_A_SB, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h70,  0, `Tn , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h70,  0, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h70,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
 // ADC (zp),y
 `MICROCODE(  8'h71,  2, `Tn , `ADH_0,    `ADL_DI,   `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h71,  3, `Tn , `ADH_0,    `ADL_ALU,  `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_SB,`ALU_B_DB, `ALU_C_1,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h71,  4, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h71,  5, `T0 , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h71,  5, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h71,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h71,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_ADC,    `none,     `none, `ALU_C_P,  1,  0,  0,  0,  1,  1,  `FLAGS_ALU, 0, 1)
 
@@ -584,21 +576,21 @@ mc[(_ins << 3) | _t] = ( \
 // ADC abs,y
 `MICROCODE(  8'h79,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h79,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h79,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h79,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h79,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h79,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_ADC,    `none,     `none, `ALU_C_P,  1,  0,  0,  0,  1,  1,  `FLAGS_ALU, 0, 1)
 
 // ADC abs,x
 `MICROCODE(  8'h7D,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h7D,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h7D,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h7D,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h7D,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h7D,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_ADC,    `none,     `none, `ALU_C_P,  1,  0,  0,  0,  1,  1,  `FLAGS_ALU, 0, 1)
 
 // ROR abs,x
 `MICROCODE(  8'h7E,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h7E,  3, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h7E,  4, `Tn , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h7E,  4, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h7E,  5, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  0,  0,       `none, 0, 0)
 `MICROCODE(  8'h7E,  6, `T0 , `ADH_PCHS, `ADL_ALU,  `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_ROR, `ALU_A_0,`ALU_B_ADL, `ALU_C_P,  0,  0,  0,  0,  0,  0,  `FLAGS_CNZ, 0, 0)
 `MICROCODE(  8'h7E,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 1, 0)
@@ -656,14 +648,14 @@ mc[(_ins << 3) | _t] = ( \
 // BCC
 `MICROCODE(  8'h90,  2, `TBR, `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h90,  3, `TBE, `ADH_PCHS, `ADL_ALU,  `DB_BO, `SB_ADH, `PCHS_PCH, `PCLS_ADL,  `ALU_SUM,`ALU_A_SB, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h90,  0, `Tn , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h90,  0, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h90,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
 // STA (zp),y
 `MICROCODE(  8'h91,  2, `Tn , `ADH_0,    `ADL_DI,   `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h91,  3, `Tn , `ADH_0,    `ADL_ALU,  `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_SB,`ALU_B_DB, `ALU_C_1,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'h91,  4, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h91,  5, `T0 , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h91,  5, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h91,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 1, 0)
 `MICROCODE(  8'h91,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
@@ -692,7 +684,7 @@ mc[(_ins << 3) | _t] = ( \
 // STA abs,y
 `MICROCODE(  8'h99,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h99,  3, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h99,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h99,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h99,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_A,  `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 1, 0)
 `MICROCODE(  8'h99,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
@@ -703,7 +695,7 @@ mc[(_ins << 3) | _t] = ( \
 // STA abs,x
 `MICROCODE(  8'h9D,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'h9D,  3, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h9D,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'h9D,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'h9D,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_A,  `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 1, 0)
 `MICROCODE(  8'h9D,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
@@ -772,14 +764,14 @@ mc[(_ins << 3) | _t] = ( \
 `MICROCODE(  8'hB1,  2, `Tn , `ADH_0,    `ADL_DI,   `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hB1,  3, `Tn , `ADH_0,    `ADL_ALU,  `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_SB,`ALU_B_DB, `ALU_C_1,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'hB1,  4, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'hB1,  5, `T0 , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hB1,  5, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hB1,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  1,  0,  0,  0,  1,  1, `FLAGS_DBZN, 0, 0)
 `MICROCODE(  8'hB1,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
 // BCS
 `MICROCODE(  8'hB0,  2, `TBR, `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hB0,  3, `TBE, `ADH_PCHS, `ADL_ALU,  `DB_BO, `SB_ADH, `PCHS_PCH, `PCLS_ADL,  `ALU_SUM,`ALU_A_SB, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'hB0,  0, `Tn , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'hB0,  0, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'hB0,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
 // LDY zp,x
@@ -807,7 +799,7 @@ mc[(_ins << 3) | _t] = ( \
 // LDA abs,y
 `MICROCODE(  8'hB9,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hB9,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'hB9,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hB9,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hB9,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  1,  0,  0,  0,  1,  1, `FLAGS_DBZN, 0, 0)
 `MICROCODE(  8'hB9,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
@@ -818,21 +810,21 @@ mc[(_ins << 3) | _t] = ( \
 // LDY abs,x
 `MICROCODE(  8'hBC,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hBC,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'hBC,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hBC,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hBC,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  1,  0,  1,  1, `FLAGS_DBZN, 0, 0)
 `MICROCODE(  8'hBC,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
 // LDA abs,x
 `MICROCODE(  8'hBD,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hBD,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'hBD,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hBD,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hBD,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  1,  0,  0,  0,  1,  1, `FLAGS_DBZN, 0, 0)
 `MICROCODE(  8'hBD,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
 // LDX abs,y
 `MICROCODE(  8'hBE,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hBE,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'hBE,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hBE,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hBE,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  1,  0,  0,  1,  1, `FLAGS_DBZN, 0, 0)
 `MICROCODE(  8'hBE,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
@@ -910,14 +902,14 @@ mc[(_ins << 3) | _t] = ( \
 // BCS
 `MICROCODE(  8'hD0,  2, `TBR, `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hD0,  3, `TBE, `ADH_PCHS, `ADL_ALU,  `DB_BO, `SB_ADH, `PCHS_PCH, `PCLS_ADL,  `ALU_SUM,`ALU_A_SB, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'hD0,  0, `Tn , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'hD0,  0, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'hD0,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
 // CMP (zp),y
 `MICROCODE(  8'hD1,  2, `Tn , `ADH_0,    `ADL_DI,   `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hD1,  3, `Tn , `ADH_0,    `ADL_ALU,  `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_SB,`ALU_B_DB, `ALU_C_1,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'hD1,  4, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'hD1,  5, `T0 , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hD1,  5, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hD1,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_NDB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'hD1,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_1,  0,  0,  0,  0,  1,  1,  `FLAGS_CNZ, 0, 1)
 
@@ -942,21 +934,21 @@ mc[(_ins << 3) | _t] = ( \
 // CMP abs,y
 `MICROCODE(  8'hD9,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hD9,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'hD9,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hD9,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hD9,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_NDB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'hD9,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_1,  0,  0,  0,  0,  1,  1,  `FLAGS_CNZ, 0, 1)
 
 // CMP abs,x
 `MICROCODE(  8'hDD,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hDD,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'hDD,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hDD,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hDD,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_NDB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'hDD,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_1,  0,  0,  0,  0,  1,  1,  `FLAGS_CNZ, 0, 1)
 
 // DEC abs,x
 `MICROCODE(  8'hDE,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hDE,  3, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'hDE,  4, `Tn , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hDE,  4, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hDE,  5, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_FF,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  0,  0,  0,  0,  0,  0,       `none, 0, 0)
 `MICROCODE(  8'hDE,  6, `T0 , `ADH_PCHS, `ADL_ALU,  `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_0, `ALU_B_ADL, `ALU_C_0,  0,  0,  0,  0,  0,  0, `FLAGS_DBZN, 0, 0)
 `MICROCODE(  8'hDE,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 1, 0)
@@ -1026,14 +1018,14 @@ mc[(_ins << 3) | _t] = ( \
 // BEQ
 `MICROCODE(  8'hF0,  2, `TBR, `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hF0,  3, `TBE, `ADH_PCHS, `ADL_ALU,  `DB_BO, `SB_ADH, `PCHS_PCH, `PCLS_ADL,  `ALU_SUM,`ALU_A_SB, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'hF0,  0, `Tn , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'hF0,  0, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'hF0,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 
 // SBC (zp),y
 `MICROCODE(  8'hF1,  2, `Tn , `ADH_0,    `ADL_DI,   `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hF1,  3, `Tn , `ADH_0,    `ADL_ALU,  `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_SB,`ALU_B_DB, `ALU_C_1,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'hF1,  4, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'hF1,  5, `T0 , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hF1,  5, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hF1,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_NDB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'hF1,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SBC,    `none,     `none, `ALU_C_P,  1,  0,  0,  0,  1,  1,  `FLAGS_ALU, 0, 1)
 
@@ -1058,21 +1050,21 @@ mc[(_ins << 3) | _t] = ( \
 // SBC abs,y
 `MICROCODE(  8'hF9,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_Y,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hF9,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'hF9,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hF9,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hF9,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_NDB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'hF9,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SBC,    `none,     `none, `ALU_C_P,  1,  0,  0,  0,  1,  1,  `FLAGS_ALU, 0, 1)
 
 // SBC abs,x
 `MICROCODE(  8'hFD,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hFD,  3, `TNC, `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'hFD,  4, `T0 , `ADH_SB,   `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hFD,  4, `T0 , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hFD,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_NDB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
 `MICROCODE(  8'hFD,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SBC,    `none,     `none, `ALU_C_P,  1,  0,  0,  0,  1,  1,  `FLAGS_ALU, 0, 1)
 
 // INC abs,x
 `MICROCODE(  8'hFE,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_X,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_SB,`ALU_B_DB,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
 `MICROCODE(  8'hFE,  3, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ADH, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,  `ALU_A_0,`ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'hFE,  4, `Tn , `ADH_SB,   `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
+`MICROCODE(  8'hFE,  4, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  0,  0,  0,  0,  1,  0,       `none, 0, 0)
 `MICROCODE(  8'hFE,  5, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB,    `none,  0,  0,  0,  0,  0,  0,       `none, 0, 0)
 `MICROCODE(  8'hFE,  6, `T0 , `ADH_PCHS, `ADL_ALU,  `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_ADL, `ALU_C_1,  0,  0,  0,  0,  0,  0, `FLAGS_DBZN, 0, 0)
 `MICROCODE(  8'hFE,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 1, 0)

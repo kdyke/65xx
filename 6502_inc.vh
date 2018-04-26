@@ -34,7 +34,7 @@
 // Internal ADH bus input select
 `define ADH_DI      0       // ADH is data bus input (not latched)
 `define ADH_PCHS    1       // ADH is current PCHS out
-`define ADH_SB      2       // ADH is current value on SB
+`define ADH_ALU     2       // ADH is current value from ALU
 `define ADH_0       3       // This would eventually be the base page register
 `define ADH_1       4       // This would eventually be the stack page register
 `define ADH_FF      5
@@ -109,10 +109,5 @@
 `define TBE   3'd3        // Go to T0 if no branch page crossing
 `define TBR   3'd4        // Go to T1 if branch condition code check fails
 `define TKL   3'd7        // Halt CPU - Unimplemented microcode entry
-
-`define TNC   4'h8        // 0 if no carray
-`define TBE   4'h9        // 0 if no branch page crossing
-`define TBR   4'ha        // 1 if branch CC check fails
-`define TKL   4'hf        // unimplemented microcode
 
 `endif //_6502_inc_vh_
