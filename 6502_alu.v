@@ -4,30 +4,26 @@
 
 module decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub, half);
   input [3:0] dec_in;
-  output [3:0] dec_out;
   input carry_in;
   input dec_add;
   input dec_sub;
   input half;
+  output [3:0] dec_out;
   
-	reg [3:0] correction_factor;
-  reg [3:0] dec_out;
-  
-  always @(*)
-  begin
-    if(dec_add & carry_in)
-      correction_factor = 4'h6;
-    else if(dec_sub & ~carry_in)
-      correction_factor = 4'ha;
-    else
-      correction_factor = 4'h0;
-  
-    dec_out = dec_in + correction_factor;
+	wire [3:0] correction_factor;
+  wire [3:0] dec_out;
 
-    //$strobe(" dec%d: %x + %x = %x    cin: %d add: %d sub: %d",
-    //  half,dec_in,correction_factor,dec_out,carry_in,dec_add,dec_sub);
+  wire add_adj, sub_adj;
+  
+  assign add_adj = dec_add & carry_in;
+  assign sub_adj = dec_sub & ~carry_in;
+  
+  assign correction_factor = {sub_adj,add_adj,add_adj|sub_adj,1'b0};
+  assign dec_out = dec_in + correction_factor;
+  
+  //$strobe(" dec%d: %x + %x = %x    cin: %d add: %d sub: %d",
+  //  half,dec_in,correction_factor,dec_out,carry_in,dec_add,dec_sub);
     
-  end
 endmodule
 
 module decadj_adder(dec_in, dec_out, carry_in, half_carry_in, dec_add, dec_sub);
@@ -97,105 +93,67 @@ module alu_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, half_ca
 endmodule
 
 // Input muxing is done outside of the core ALU unit.
-module alu_unit(a,b,alu_out,c_in,dec_add,flags_out,op,carry_out,half_carry_out);
-   input [7:0] a;
-   input [7:0] b;
+module alu_unit(a,b,alu_out,c_in,dec_add,op,carry_out,half_carry_out,overflow_out);
+  input [7:0] a;
+  input [7:0] b;
 	input [3:0] op;
 	input c_in;
 	input dec_add;
-  input dec_sub;
-   output [7:0] alu_out;
-	output [3:0] flags_out;
+
+  output [7:0] alu_out;
   output carry_out;
   output half_carry_out;
+  output overflow_out;
   
-	reg c, v, n;
+	reg c;
 	
-	reg [3:0] flags_out;
-  reg [7:0] b_in;
 	wire [7:0] add_out;
-
 	reg [7:0] tmp;
  	reg [7:0] alu_out;
-	reg add_cin;
+
   wire adder_carry_out;
   wire half_carry_out;
+  wire overflow_out;
+  
   reg carry_out;
   
-  // FIXME/TODO - The negative input should come from microcode not ALU op
-  always @(*) begin
-  	case(op) // synthesis full_case parallel_case
-  		`ALU_CMP: begin : CMP0
-  			add_cin = 1;
-        b_in = ~b;
-  			end
-//  		`ALU_SBC: begin: SBC0
-//  			add_cin = c_in;
-//        b_in = ~b;
-//  			end
-  		default: begin
-  			add_cin = c_in;
-        b_in = b;
-  			end
-  	endcase
-  end
-
-  wire hco;
-	alu_adder add_u(a, b_in, add_cin, dec_add, add_out, adder_carry_out, half_carry_out);
+	alu_adder add_u(a, b, c_in, dec_add, add_out, adder_carry_out, half_carry_out);
 	
+  assign overflow_out = a[7] == b[7] && a[7] != add_out[7];
+  
 always @(*) begin
 	case(op) // synthesis full_case parallel_case
 		`ALU_ORA: begin : ORA
+      c = 0;
 			tmp = a | b;
-			c = c_in;
-			v = 0;
-			n = 0;
 			end
 		`ALU_AND: begin : AND
+      c = 0;
 			tmp = a & b;
-			c = c_in;
-			v = 0;
-			n = 0;
 			end
 		`ALU_EOR: begin : EOR
+      c = 0;
 			tmp = a ^ b;
-			c = c_in;
-			v = 0;
-			n = 0;
-      //$display("ALU EOR: %02x ^ %02x = %02x  c: %d v: %d n: %d",a,b,tmp,c,v,n);
 			end
 		`ALU_ADC, `ALU_SBC: 
       begin : ADC
-			{c,tmp} = {adder_carry_out,add_out};
-      //$display("ALD_ADC: carry_out: %d add_out: %02x",carry_out,add_out);
-			if(a[7] == b_in[7] && tmp[7] != a[7])
-				v = 1;
-			else
-				v = 0;
-			n = tmp[7];
+      c = adder_carry_out;
+      tmp = add_out;
 			end
-		`ALU_BIT: begin : BIT
-			{c,tmp} = {c_in,a & b};
-			n = b[7];
-			v = b[6];
-			end
-		`ALU_ROR, `ALU_LSR: begin : ROR
+		`ALU_ROR: begin : ROR
 			{tmp,c} = {c_in,a};
-			n = tmp[7];
       end
     `ALU_PSA: begin : PSA
 			c = 0;
-			v = 0;
-			n = 0;
       tmp = a;
 			end
 
 	endcase
-	flags_out = {n,v,~|tmp,c};
+
 	alu_out = tmp;
   carry_out = c;
-  //$strobe("ALU a: %02x b: %02x add_cin: %d cin: %d fcin: %d -> %02x daa: %d dsa: %d flags nvzc: %d%d%d%d hc: %d",a,b,add_cin,c_in,tmp,dec_add,dec_sub,n,v,flags_out[1],c,half_carry_out);
-  //$strobe("ALU a: %02x b: %02x c: %d -> %02x d: %d flags nvzc: %d%d%d%d hc: %d",a,b,add_cin,alu_out,decimal,flags_out[3],flags_out[2],flags_out[1],flags_out[0],half_carry_out);
+  
+  //$strobe("ALU a: %02x b: %02x c_in: %d -> %02x daa: %d flags vc: %d%d hc: %d",a,b,c_in,tmp,dec_add,overflow_out,carry_out,half_carry_out);
 	end
 
 endmodule

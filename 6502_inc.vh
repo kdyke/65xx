@@ -69,19 +69,14 @@
 `define ALU_C_P     2       // Carry from status register
 `define ALU_C_AC    3       // Carry from previous accumulator carry
 
-// ALU ops
+// ALU ops - some extra space for "illegal" ops in the future when I get to it.
 `define ALU_ADC   4'b0000
 `define ALU_ORA   4'b0001
 `define ALU_AND   4'b0010
 `define ALU_EOR   4'b0011
-`define ALU_CMP   4'b0100
-`define ALU_SBC   4'b0101
-`define ALU_BIT   4'b0110
-`define ALU_ASL   4'b0111   // This is really just ADC with both inputs the same?
-`define ALU_LSR   4'b1000
-`define ALU_ROL   4'b1001   // This is really just ADC with both inputs the same + carry?
-`define ALU_ROR   4'b1010
-`define ALU_PSA   4'b1011   // Just pass A input through - Used for JSR passthrough
+`define ALU_SBC   4'b0100
+`define ALU_ROR   4'b0101
+`define ALU_PSA   4'b1111   // Just pass A input through - Used for JSR passthrough
 
 `define FLAGS_DB    4'h1
 `define FLAGS_DBZN  4'h2

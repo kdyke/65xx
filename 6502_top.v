@@ -63,7 +63,6 @@ reg [7:0] alua_in;
 reg [7:0] alub_in;
 reg aluc_in;
 wire [7:0] alu_out;
-wire [3:0] alu_flags_out;
 wire alu_d;
 
 reg taken_branch;
@@ -433,32 +432,32 @@ begin
       reg_p[`PF_C] <= alu_carry_out;
       //$display("status register C = %d",alu_carry_out);
       reg_p[`PF_Z] <= db_z;
-      //$display("status register Z = %d",alu_flags_out[`ALUF_Z]);
+      //$display("status register Z = %d",db_z);
       reg_p[`PF_N] <= db_n; 
-      //$display("status register N = %d",alu_flags_out[`ALUF_N]);
+      //$display("status register N = %d",db_n);
     end
   else if(load_flags == `FLAGS_ALU)
     begin
       reg_p[`PF_C] <= alu_carry_out;
       //$display("status register C = %d",alu_carry_out);
-      reg_p[`PF_Z] <= alu_flags_out[`ALUF_Z];
-      //$display("status register Z = %d",alu_flags_out[`ALUF_Z]);
-      reg_p[`PF_V] <= alu_flags_out[`ALUF_V];
-      //$display("status register V = %d",alu_flags_out[`ALUF_V]);
-      reg_p[`PF_N] <= alu_flags_out[`ALUF_N];
-      //$display("status register N = %d",alu_flags_out[`ALUF_N]);
+      reg_p[`PF_Z] <= db_z;
+      //$display("status register Z = %d",db_z);
+      reg_p[`PF_V] <= alu_overflow_out;
+      //$display("status register V = %d",alu_overflow_out);
+      reg_p[`PF_N] <= db_n;
+      //$display("status register N = %d",db_n);
     end
   else if(load_flags == `FLAGS_BIT)
     begin
       reg_p[`PF_V] <= db[6];
-      //$display("status register Z = %d",alu_flags_out[`ALUF_Z]);
+      //$display("status register Z = %d",db_z);
       reg_p[`PF_N] <= db_n; 
-      //$display("status register N = %d",alu_flags_out[`ALUF_N]);
+      //$display("status register N = %d",db_n);
     end
 end
 
 // Instantiate ALU
-alu_unit alu_inst(alua_reg, alub_reg, alu_out, aluc_in, dec_add, alu_flags_out, alu_op, alu_carry_out, alu_half_carry_out);
+alu_unit alu_inst(alua_reg, alub_reg, alu_out, aluc_in, dec_add, alu_op, alu_carry_out, alu_half_carry_out, alu_overflow_out);
 
 // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
 microcode mc_inst(.clk, .ir(ir_sel), .t(t_next), .tnext(tnext_mc), .adh_sel, .adl_sel, .pchs_sel, .pcls_sel, .alu_op, .alu_a, .alu_b, .alu_c, .db_sel, .sb_sel,
