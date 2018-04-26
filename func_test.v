@@ -2136,7 +2136,11 @@ end
 always @(posedge clk)
 begin
     if(we)
+    begin
         ram[addr] <= di;
+        if(addr == 16'h0200)
+          $display("last test: %d",di);
+    end
     do <= ram[addr];
 end
 

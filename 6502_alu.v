@@ -97,7 +97,7 @@ module alu_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, half_ca
 endmodule
 
 // Input muxing is done outside of the core ALU unit.
-module alu_unit(a,b,alu_out,c_in,flags_in,dec_add,flags_out,op,half_carry_out);
+module alu_unit(a,b,alu_out,c_in,dec_add,flags_out,op,carry_out,half_carry_out);
    input [7:0] a;
    input [7:0] b;
 	input [3:0] op;
@@ -105,8 +105,8 @@ module alu_unit(a,b,alu_out,c_in,flags_in,dec_add,flags_out,op,half_carry_out);
 	input dec_add;
   input dec_sub;
    output [7:0] alu_out;
-	input [3:0] flags_in;
 	output [3:0] flags_out;
+  output carry_out;
   output half_carry_out;
   
 	reg c, v, n;
@@ -118,8 +118,9 @@ module alu_unit(a,b,alu_out,c_in,flags_in,dec_add,flags_out,op,half_carry_out);
 	reg [7:0] tmp;
  	reg [7:0] alu_out;
 	reg add_cin;
-  reg half_carry_out;
-  wire carry_out;
+  wire adder_carry_out;
+  wire half_carry_out;
+  reg carry_out;
   
   // FIXME/TODO - The negative input should come from microcode not ALU op
   always @(*) begin
@@ -140,7 +141,7 @@ module alu_unit(a,b,alu_out,c_in,flags_in,dec_add,flags_out,op,half_carry_out);
   end
 
   wire hco;
-	alu_adder add_u(a, b_in, add_cin, dec_add, add_out, carry_out, hco);
+	alu_adder add_u(a, b_in, add_cin, dec_add, add_out, adder_carry_out, half_carry_out);
 	
 always @(*) begin
 	case(op) // synthesis full_case parallel_case
@@ -148,13 +149,13 @@ always @(*) begin
 			tmp = a | b;
 			c = c_in;
 			v = 0;
-			n = tmp[7];
+			n = 0;
 			end
 		`ALU_AND: begin : AND
 			tmp = a & b;
-			c = flags_in[0];
-			v = flags_in[2];
-			n = tmp[7];
+			c = c_in;
+			v = 0;
+			n = 0;
 			end
 		`ALU_EOR: begin : EOR
 			tmp = a ^ b;
@@ -165,7 +166,7 @@ always @(*) begin
 			end
 		`ALU_ADC, `ALU_SBC: 
       begin : ADC
-			{c,tmp} = {carry_out,add_out};
+			{c,tmp} = {adder_carry_out,add_out};
       //$display("ALD_ADC: carry_out: %d add_out: %02x",carry_out,add_out);
 			if(a[7] == b_in[7] && tmp[7] != a[7])
 				v = 1;
@@ -192,9 +193,9 @@ always @(*) begin
 	endcase
 	flags_out = {n,v,~|tmp,c};
 	alu_out = tmp;
-  half_carry_out = hco;
-  //$strobe("ALU a: %02x b: %02x add_cin: %d cin: %d fcin: %d -> %02x daa: %d dsa: %d flags nvzc: %d%d%d%d hc: %d",a,b,add_cin,c_in,flags_in[0],tmp,dec_add,dec_sub,n,v,flags_out[1],c,half_carry_out);
-  //$strobe("ALU a: %02x b: %02x c: %d -> %02x d: %d flags nvzc: %d%d%d%d hc: %d",a,b,add_cin /*flags_in[0] */,alu_out,decimal,flags_out[3],flags_out[2],flags_out[1],flags_out[0],half_carry_out);
+  carry_out = c;
+  //$strobe("ALU a: %02x b: %02x add_cin: %d cin: %d fcin: %d -> %02x daa: %d dsa: %d flags nvzc: %d%d%d%d hc: %d",a,b,add_cin,c_in,tmp,dec_add,dec_sub,n,v,flags_out[1],c,half_carry_out);
+  //$strobe("ALU a: %02x b: %02x c: %d -> %02x d: %d flags nvzc: %d%d%d%d hc: %d",a,b,add_cin,alu_out,decimal,flags_out[3],flags_out[2],flags_out[1],flags_out[0],half_carry_out);
 	end
 
 endmodule

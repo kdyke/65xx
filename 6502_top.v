@@ -63,12 +63,11 @@ reg [7:0] alua_in;
 reg [7:0] alub_in;
 reg aluc_in;
 wire [7:0] alu_out;
-wire [3:0] alu_flags_in;
 wire [3:0] alu_flags_out;
 wire alu_d;
 
 reg taken_branch;
-reg alu_carry_out;
+reg alu_carry_out_last;
 wire branch_page_cross;
 wire [7:0] ir_sel;
 
@@ -122,7 +121,7 @@ end
 reg twocycle;
 
 // A page is crossed if the carry result is different than the sign of the branch offset input
-assign branch_page_cross = alu_flags_out[`ALUF_C] ^ alua_reg[7];
+assign branch_page_cross = alu_carry_out ^ alua_reg[7];
 
 // This detects the instruction patterns where we need to go immediately to T0 instead of T2.
 always @(*)
@@ -149,9 +148,9 @@ begin
     t_next = 0;
   else if(tnext_mc == `TNC)
   begin
-    if(alu_flags_out[`ALUF_C] == 0)
+    if(alu_carry_out == 0)
       t_next = 0;
-      //$display("TNC t: %d carry: %d t_next: %d",t,alu_flags_out[`ALUF_C],t_next);
+      //$display("TNC t: %d carry: %d t_next: %d",t,alu_carry_out,t_next);
   end
   else if(tnext_mc == `TBR)
   begin
@@ -168,7 +167,7 @@ begin
     else
       t_next = 1;
     //$display("t: %d tn = TBE, taken_branch, alu_a: %02x alu_b: %02x alu_c: %d alu_out: %02x alu_c_out: %d branch page cross = %d t_next = %d",t,
-    //  alua_reg, alub_reg, aluc_in, alu_out, alu_flags_out[`ALUF_C],
+    //  alua_reg, alub_reg, aluc_in, alu_out, alu_carry_out,
     //  branch_page_cross,t_next
     //  );
   end
@@ -342,7 +341,7 @@ begin
     `ALU_C_0 : aluc_in = 0;
     `ALU_C_1 : aluc_in = 1;
     `ALU_C_P : aluc_in = reg_p[0];
-    `ALU_C_AC : aluc_in = alu_carry_out;    // last clocked out carry
+    `ALU_C_AC : aluc_in = alu_carry_out_last;    // last clocked out carry
   endcase
 end
 
@@ -359,17 +358,17 @@ begin
     alub_reg <= alub_in;
     //$display("ALUB = %02x",alub_in);
   end
-  alu_carry_out <= alu_flags_out[`ALUF_C];
+  alu_carry_out_last <= alu_carry_out;
 end
 
 wire [7:0] decadj_out;
 wire dec_add, dec_sub;
-wire alu_half_carry_out, alu_decimal_enable;
+wire alu_carry_out,alu_half_carry_out, alu_decimal_enable;
 
 // FIXME - This is kinda hacky right now.  Really should have a pair of dedicated microcode bits for this.
 assign dec_add = reg_p[`PF_D] & (load_flags == `FLAGS_ALU) & (alu_op == `ALU_ADC);
 assign dec_sub = reg_p[`PF_D] & (load_flags == `FLAGS_ALU) & (alu_op == `ALU_SBC);
-  decadj_adder dadj(sb, decadj_out, alu_flags_out[`ALUF_C], alu_half_carry_out, dec_add, dec_sub);
+  decadj_adder dadj(sb, decadj_out, alu_carry_out, alu_half_carry_out, dec_add, dec_sub);
 
 always @(posedge clk)
 begin
@@ -382,7 +381,7 @@ begin
     begin
       reg_x <= sb;
     //$display("LOAD X alu_a: %02x alu_b: %02x alu_c: %d alu_out: %02x alu_c_out: %d ",
-    //  alua_reg, alub_reg, aluc_in, alu_out, alu_flags_out[`ALUF_C]);
+    //  alua_reg, alub_reg, aluc_in, alu_out, alu_carry_out);
       //$display("X = %02x",sb);
     end
   if(load_y)
@@ -424,8 +423,8 @@ begin
     reg_p[`PF_I] <= 1;
   else if(load_flags == `FLAGS_CNZ)
     begin
-      reg_p[`PF_C] <= alu_flags_out[`ALUF_C];
-      //$display("status register C = %d",alu_flags_out[`ALUF_C]);
+      reg_p[`PF_C] <= alu_carry_out;
+      //$display("status register C = %d",alu_carry_out);
       reg_p[`PF_Z] <= alu_flags_out[`ALUF_Z];
       //$display("status register Z = %d",alu_flags_out[`ALUF_Z]);
       reg_p[`PF_N] <= alu_flags_out[`ALUF_N];
@@ -433,8 +432,8 @@ begin
     end
   else if(load_flags == `FLAGS_ALU)
     begin
-      reg_p[`PF_C] <= alu_flags_out[`ALUF_C];
-      //$display("status register C = %d",alu_flags_out[`ALUF_C]);
+      reg_p[`PF_C] <= alu_carry_out;
+      //$display("status register C = %d",alu_carry_out);
       reg_p[`PF_Z] <= alu_flags_out[`ALUF_Z];
       //$display("status register Z = %d",alu_flags_out[`ALUF_Z]);
       reg_p[`PF_V] <= alu_flags_out[`ALUF_V];
@@ -444,13 +443,8 @@ begin
     end
 end
 
-assign alu_flags_in[`ALUF_C] = reg_p[`PF_C];
-assign alu_flags_in[`ALUF_Z] = reg_p[`PF_Z];
-assign alu_flags_in[`ALUF_V] = reg_p[`PF_V];
-assign alu_flags_in[`ALUF_N] = reg_p[`PF_N];
-
 // Instantiate ALU
-alu_unit alu_inst(alua_reg, alub_reg, alu_out, aluc_in, alu_flags_in, dec_add, alu_flags_out, alu_op, alu_half_carry_out);
+alu_unit alu_inst(alua_reg, alub_reg, alu_out, aluc_in, dec_add, alu_flags_out, alu_op, alu_carry_out, alu_half_carry_out);
 
 // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
 microcode mc_inst(.clk, .ir(ir_sel), .t(t_next), .tnext(tnext_mc), .adh_sel, .adl_sel, .pchs_sel, .pcls_sel, .alu_op, .alu_a, .alu_b, .alu_c, .db_sel, .sb_sel,
