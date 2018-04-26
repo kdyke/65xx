@@ -123,27 +123,32 @@ module alu_unit(a,b,alu_out,c_in,dec_add,op,carry_out,half_carry_out,overflow_ou
   
 always @(*) begin
 	case(op) // synthesis full_case parallel_case
-		`ALU_ORA: begin : ORA
+		`ALU_ORA: 
+      begin
       c = 0;
 			tmp = a | b;
 			end
-		`ALU_AND: begin : AND
+		`ALU_AND: 
+      begin
       c = 0;
 			tmp = a & b;
 			end
-		`ALU_EOR: begin : EOR
+		`ALU_EOR: 
+      begin
       c = 0;
 			tmp = a ^ b;
 			end
 		`ALU_ADC, `ALU_SBC: 
-      begin : ADC
+      begin
       c = adder_carry_out;
       tmp = add_out;
 			end
-		`ALU_ROR: begin : ROR
+		`ALU_ROR: 
+      begin
 			{tmp,c} = {c_in,a};
       end
-    `ALU_PSA: begin : PSA
+    `ALU_PSA: 
+      begin
 			c = 0;
       tmp = a;
 			end

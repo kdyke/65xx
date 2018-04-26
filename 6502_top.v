@@ -141,9 +141,9 @@ begin
   t_next = t+1;
   if(reset)
     t_next = 5;
-  else if(tnext_mc == `T0)
-    t_next = 0;
   else if(t == 1 && twocycle == 1)
+    t_next = 0;
+  else if(tnext_mc == `T0)
     t_next = 0;
   else if(tnext_mc == `TNC)
   begin
@@ -156,8 +156,6 @@ begin
     //$display("tn = TBR, taken_branch = %d",taken_branch);
      if(taken_branch == 0)
         t_next = 1;
-     else
-        t_next = 3;
   end
   else if(tnext_mc == `TBE)
   begin
@@ -195,7 +193,7 @@ begin
   else
     pcls_in = adl;
 
-  pcls <= pcls_in + pc_inc;
+  pcls = pcls_in + pc_inc;
   //$display("pls_sel: %d pcl: %02x adl: %02x pcls_in: %02x pcls: %02x",pcls_sel,pcl,adl,pcls_in,pcls);
 end
 
@@ -209,7 +207,7 @@ begin
     pchs_in = pch;
   else
     pchs_in = adh;
-  pchs <= pchs_in + pcls[8];
+  pchs = pchs_in + pcls[8];
   //$display("phs_sel: %d pch: %02x adh: %02x pchs_in: %02x pchs: %02x",pchs_sel,pch,adh,pchs_in,pchs);
 end
 
@@ -235,14 +233,13 @@ end
 // ADH mux
 always @(*)
 begin
-  case(adh_sel)
-    `ADH_DI  : adh <= data_i;
-    `ADH_PCH : adh <= pch;
-    `ADH_PCHS: adh <= pchs;
-    `ADH_SB  : adh <= sb;
-    `ADH_0   : adh <= 8'h00;
-    `ADH_1   : adh <= 8'h01;
-    `ADH_FF  : adh <= 8'hFF;
+  case(adh_sel)  // synthesis full_case parallel_case
+    `ADH_DI  : adh = data_i;
+    `ADH_PCHS: adh = pchs;
+    `ADH_SB  : adh = sb;
+    `ADH_0   : adh = 8'h00;
+    `ADH_1   : adh = 8'h01;
+    `ADH_FF  : adh = 8'hFF;
   endcase
   //$display("ADH: t: %d adh_sel: %d adh: %02x ",t,adh_sel,adh);
 end
@@ -261,7 +258,7 @@ end
 // ADL mux
 always @(*)
 begin
-  case(adl_sel)
+  case(adl_sel) // synthesis full_case parallel_case
     `ADL_DI    : adl = data_i;
     `ADL_PCLS  : adl = pcls;
     `ADL_S     : adl = reg_s;
@@ -275,7 +272,7 @@ end
 // Internal DB input mux
 always @(*)
 begin
-  case(db_sel)
+  case(db_sel)  // synthesis full_case parallel_case
     `DB_FF  : db = 8'hFF;
     `DB_DI  : db = data_i;
     `DB_A   : db = reg_a;
@@ -290,7 +287,7 @@ end
 // Internal SB input mux
 always @(*)
 begin
-  case(sb_sel)
+  case(sb_sel)  // synthesis full_case parallel_case
     `SB_A   : sb = reg_a;
     `SB_X   : sb = reg_x;
     `SB_Y   : sb = reg_y;
@@ -315,7 +312,7 @@ end
 // ALU A input select
 always @(*)
 begin
-  case(alu_a)
+  case(alu_a)  // synthesis full_case parallel_case
     `ALU_A_0  : alua_in = 8'h00;
     `ALU_A_SB : alua_in = sb;
   endcase
@@ -325,7 +322,7 @@ end
 // ALU B input select
 always @(*)
 begin
-  case(alu_b)
+  case(alu_b)  // synthesis full_case parallel_case
     `ALU_B_DB  : alub_in = db;
     `ALU_B_NDB : alub_in = ~db;
     `ALU_B_ADL : alub_in = adl;
@@ -336,7 +333,7 @@ end
 // ALU C (carry) input select
 always @(*)
 begin
-  case(alu_c)
+  case(alu_c)  // synthesis full_case parallel_case
     `ALU_C_0 : aluc_in = 0;
     `ALU_C_1 : aluc_in = 1;
     `ALU_C_P : aluc_in = reg_p[0];

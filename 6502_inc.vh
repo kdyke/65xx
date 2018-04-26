@@ -1,6 +1,7 @@
 `ifndef _6502_inc_vh_
 `define _6052_inc_vh_
 
+// This is just the universal "don't care" or "default"
 `define none          0
 
 `define ABUS_PCHPCL   3'd0
@@ -26,27 +27,25 @@
 `define SB_Y        2
 `define SB_SP       3
 `define SB_ALU      4
-`define SB_ADH      5         // Is this needed?
-`define SB_DB       6         // Is this needed?
+`define SB_ADH      5
+`define SB_DB       6
 `define SB_FF       7
 
 // Internal ADH bus input select
 `define ADH_DI      0       // ADH is data bus input (not latched)
-`define ADH_PCH     1       // ADH is current PCH
-`define ADH_PCHS    2       // ADH is current PCHS out
-`define ADH_SB      3       // ADH is current value on SB
-`define ADH_0       4       // This would eventually be the base page register
-`define ADH_1       5       // This would eventually be the stack page register
-`define ADH_FF      6
+`define ADH_PCHS    1       // ADH is current PCHS out
+`define ADH_SB      2       // ADH is current value on SB
+`define ADH_0       3       // This would eventually be the base page register
+`define ADH_1       4       // This would eventually be the stack page register
+`define ADH_FF      5
 
 // Internal ADL bus input select
 `define ADL_DI      0       // ADL is data bus input (not latched)
-//`define ADL_ABL     1       // ADL is current ABL (i.e. hold prior value)
-`define ADL_PCLS    2       // ADL is current PCLS out
-`define ADL_S       3       // ADL is current stack pointer
-`define ADL_ALU     4       // ADL is ALU output
-`define ADL_VECLO   5       // ADL is low vector address
-`define ADL_VECHI   6       // ADL is high vector address
+`define ADL_PCLS    1       // ADL is current PCLS out
+`define ADL_S       2       // ADL is current stack pointer
+`define ADL_ALU     3       // ADL is ALU output
+`define ADL_VECLO   4       // ADL is low vector address
+`define ADL_VECHI   5       // ADL is high vector address
 
 `define PCLS_PCL    0
 `define PCLS_ADL    1
@@ -71,6 +70,7 @@
 
 // ALU ops - some extra space for "illegal" ops in the future when I get to it.
 `define ALU_ADC   4'b0000
+`define ALU_SUM   4'b0000
 `define ALU_ORA   4'b0001
 `define ALU_AND   4'b0010
 `define ALU_EOR   4'b0011
