@@ -25,28 +25,16 @@ output load_y;
 output load_sp;
 output load_abh;
 output load_abl;
-`ifdef DECODED_LOAD_FLAGS
 output [14:0] load_flags;
-`else
-output [3:0] load_flags;
-`endif
 output write_cycle;
 output pc_inc;
 
-`ifdef DECODED_LOAD_FLAGS
 reg [52:0] mc_out;
 (* rom_style = "block" *) reg [52:0] mc[0:2047];
-`else
-reg [37:0] mc_out;
-(* rom_style = "block" *) reg [37:0] mc[0:2047];
-`endif
 
 reg [12:0] i;
 
 initial begin
-
-`define REORDER_MC 1
-`ifdef REORDER_MC
 
 `define TNEXT_BITS      2:0
 `define WRITE_BITS      3:3
@@ -68,40 +56,7 @@ initial begin
 `define LOAD_ABL_BITS   33:33
 `define LOAD_SP_BITS    34:34
 
-`ifdef DECODED_LOAD_FLAGS
 `define LOAD_FLAGS_BITS 50:36
-`else
-`define LOAD_FLAGS_BITS 39:36
-`endif
-
-`else
-
-`define TNEXT_BITS      37:35
-`define ADH_BITS        34:32
-`define ADL_BITS        31:29
-`define DB_BITS         28:26
-`define SB_BITS         25:23
-`define ALU_BITS        22:19
-`define ALU_A_BITS      18:18
-`define ALU_B_BITS      17:16
-`define ALU_C_BITS      15:14
-`define LOAD_A_BITS     13:13
-`define LOAD_X_BITS     12:12
-`define LOAD_Y_BITS     11:11
-`define LOAD_SP_BITS    10:10
-`define LOAD_ABH_BITS   9:9
-`define LOAD_ABL_BITS   8:8
-`ifdef DECODED_LOAD_FLAGS
-`define LOAD_FLAGS_BITS 52:38
-`else
-`define LOAD_FLAGS_BITS 7:4
-`endif
-`define WRITE_BITS      3:3
-`define PC_INC_BITS     2:2
-`define PCHS_BITS       1:1
-`define PCLS_BITS       0:0
-
-`endif
 
 `define FIELD_SHIFT(_x) (0?_x)
 `define _X(_x)  (`_x)

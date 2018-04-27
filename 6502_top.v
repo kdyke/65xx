@@ -443,32 +443,7 @@ wire db_z;
 assign sb_z = ~|sb;
 assign sb_n = sb[7];
 
-`define NEW_FLAGS 1
-`ifdef NEW_FLAGS
-
-`ifdef DECODED_LOAD_FLAGS
 wire [14:0] load_flag_decode;
-`else
-reg [14:0] load_flag_decode;
-
-always @(*)
-begin
-  load_flag_decode = 0;
-  case(load_flags) // synthesis full_case parallel_case
-    `FLAGS_DB     : load_flag_decode = `LF_C_DB0 | `LF_Z_DB1 | `LF_I_DB2 | `LF_D_DB3 | `LF_V_DB6 | `LF_N_DB7;
-    `FLAGS_DBZN   : load_flag_decode = `LF_Z_SBZ | `LF_N_SBN;
-    `FLAGS_D      : load_flag_decode = `LF_D_IR5;
-    `FLAGS_I      : load_flag_decode = `LF_I_IR5;
-    `FLAGS_C      : load_flag_decode = `LF_C_IR5;
-    `FLAGS_V      : load_flag_decode = `LF_V_0;
-    `FLAGS_Z      : load_flag_decode = `LF_Z_SBZ;
-    `FLAGS_CNZ    : load_flag_decode = `LF_C_ACR | `LF_Z_SBZ | `LF_N_SBN;
-    `FLAGS_ALU    : load_flag_decode = `LF_C_ACR | `LF_V_AVR | `LF_Z_SBZ | `LF_N_SBN;
-    `FLAGS_BIT    : load_flag_decode = `LF_V_DB6 | `LF_N_DB7;
-    `FLAGS_SETI   : load_flag_decode = `LF_I_1;
-  endcase
-end
-`endif
 
 always @(posedge clk)
 begin
@@ -511,64 +486,6 @@ begin
       reg_p[`PF_N] = db_in[7];
       
 end
-`else
-
-// TODO - Consider turning this into a bigger bitfield with individual control bits for which
-// flags to update (and from where) rather than needing all of the decode control logic.  Microcode
-// bits are cheap. ;)
-always @(posedge clk)
-begin
-  if(load_flags == `FLAGS_DB)
-  begin
-    reg_p <= db_in;
-    //$display("LOAD P from DB: %02x",db);
-  end
-  else if(load_flags == `FLAGS_DBZN)
-    begin
-      reg_p[`PF_Z] <= sb_z;
-      reg_p[`PF_N] <= sb_n;
-    end
-  else if(load_flags == `FLAGS_D)
-    reg_p[`PF_D] <= ir[5];
-  else if(load_flags == `FLAGS_I)
-    reg_p[`PF_I] <= ir[5];
-  else if(load_flags == `FLAGS_C)
-    reg_p[`PF_C] <= ir[5];
-  else if(load_flags == `FLAGS_V)
-    reg_p[`PF_V] <= 0;
-  else if(load_flags == `FLAGS_Z)
-    reg_p[`PF_Z] <= sb_z;
-  else if(load_flags == `FLAGS_SETI)
-    reg_p[`PF_I] <= 1;
-  else if(load_flags == `FLAGS_CNZ)
-    begin
-      reg_p[`PF_C] <= alu_carry_out;
-      //$display("status register C = %d",alu_carry_out);
-      reg_p[`PF_Z] <= sb_z;
-      //$display("status register Z = %d",db_z);
-      reg_p[`PF_N] <= sb_n; 
-      //$display("status register N = %d",db_n);
-    end
-  else if(load_flags == `FLAGS_ALU)
-    begin
-      reg_p[`PF_C] <= alu_carry_out;
-      //$display("status register C = %d",alu_carry_out);
-      reg_p[`PF_Z] <= sb_z;
-      //$display("status register Z = %d",db_z);
-      reg_p[`PF_V] <= alu_overflow_out;
-      //$display("status register V = %d",alu_overflow_out);
-      reg_p[`PF_N] <= sb_n;
-      //$display("status register N = %d",db_n);
-    end
-  else if(load_flags == `FLAGS_BIT)
-    begin
-      reg_p[`PF_V] <= db_in[6];
-      //$display("status register Z = %d",db_in[6]);
-      reg_p[`PF_N] <= db_in[7]; 
-      //$display("status register N = %d",db_in[7]);
-    end
-end
-`endif
 
 // Instantiate ALU
 alu_unit alu_inst(alua_reg, alub_reg, alu_out, aluc_in, dec_add, alu_op, alu_carry_out, alu_half_carry_out, alu_overflow_out);
@@ -579,11 +496,7 @@ microcode mc_inst(.clk(clk), .ir(ir_sel), .t(t_next), .tnext(tnext_mc), .adh_sel
                   .db_sel(db_sel), .sb_sel(sb_sel),
                   .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_sp(load_sp),
                   .load_abh(load_abh), .load_abl(load_abl), 
-                  `ifdef DECODED_LOAD_FLAGS
                   .load_flags(load_flag_decode), 
-                  `else
-                  .load_flags(load_flags), 
-                  `endif
                   .write_cycle(write_cycle), .pc_inc(pc_inc));
 
 endmodule
