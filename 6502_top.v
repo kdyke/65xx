@@ -443,6 +443,76 @@ wire db_z;
 assign sb_z = ~|sb;
 assign sb_n = sb[7];
 
+`define NEW_FLAGS 1
+`ifdef NEW_FLAGS
+
+`ifdef DECODED_LOAD_FLAGS
+wire [14:0] load_flag_decode;
+`else
+reg [14:0] load_flag_decode;
+
+always @(*)
+begin
+  load_flag_decode = 0;
+  case(load_flags) // synthesis full_case parallel_case
+    `FLAGS_DB     : load_flag_decode = `LF_C_DB0 | `LF_Z_DB1 | `LF_I_DB2 | `LF_D_DB3 | `LF_V_DB6 | `LF_N_DB7;
+    `FLAGS_DBZN   : load_flag_decode = `LF_Z_SBZ | `LF_N_SBN;
+    `FLAGS_D      : load_flag_decode = `LF_D_IR5;
+    `FLAGS_I      : load_flag_decode = `LF_I_IR5;
+    `FLAGS_C      : load_flag_decode = `LF_C_IR5;
+    `FLAGS_V      : load_flag_decode = `LF_V_0;
+    `FLAGS_Z      : load_flag_decode = `LF_Z_SBZ;
+    `FLAGS_CNZ    : load_flag_decode = `LF_C_ACR | `LF_Z_SBZ | `LF_N_SBN;
+    `FLAGS_ALU    : load_flag_decode = `LF_C_ACR | `LF_V_AVR | `LF_Z_SBZ | `LF_N_SBN;
+    `FLAGS_BIT    : load_flag_decode = `LF_V_DB6 | `LF_N_DB7;
+    `FLAGS_SETI   : load_flag_decode = `LF_I_1;
+  endcase
+end
+`endif
+
+always @(posedge clk)
+begin
+    //$display("lfd: %15b",load_flag_decode);
+    
+    if(load_flag_decode[0])
+      reg_p[`PF_C] = db_in[0];
+    else if(load_flag_decode[1])
+      reg_p[`PF_C] = ir[5];
+    else if(load_flag_decode[2])
+      reg_p[`PF_C] = alu_carry_out;
+
+    if(load_flag_decode[3])
+      reg_p[`PF_Z] = sb_z;
+    else if(load_flag_decode[4])
+      reg_p[`PF_Z] = db_in[1];
+    
+    if(load_flag_decode[5])
+      reg_p[`PF_I] = db_in[2];
+    else if(load_flag_decode[6])
+      reg_p[`PF_I] = ir[5];
+    else if(load_flag_decode[14])
+      reg_p[`PF_I] = 1;
+
+    if(load_flag_decode[7])
+      reg_p[`PF_D] = db_in[3];
+    else if(load_flag_decode[8])
+      reg_p[`PF_D] = ir[5];
+    
+    if(load_flag_decode[9])
+      reg_p[`PF_V] = db_in[6];
+    else if(load_flag_decode[10])
+      reg_p[`PF_V] = alu_overflow_out;
+    else if(load_flag_decode[11])
+      reg_p[`PF_V] = 0;
+      
+    if(load_flag_decode[12])
+      reg_p[`PF_N] = sb_n;
+    else if(load_flag_decode[13])
+      reg_p[`PF_N] = db_in[7];
+      
+end
+`else
+
 // TODO - Consider turning this into a bigger bitfield with individual control bits for which
 // flags to update (and from where) rather than needing all of the decode control logic.  Microcode
 // bits are cheap. ;)
@@ -498,6 +568,7 @@ begin
       //$display("status register N = %d",db_in[7]);
     end
 end
+`endif
 
 // Instantiate ALU
 alu_unit alu_inst(alua_reg, alub_reg, alu_out, aluc_in, dec_add, alu_op, alu_carry_out, alu_half_carry_out, alu_overflow_out);
@@ -507,6 +578,12 @@ microcode mc_inst(.clk(clk), .ir(ir_sel), .t(t_next), .tnext(tnext_mc), .adh_sel
                   .pchs_sel(pchs_sel), .pcls_sel(pcls_sel), .alu_op(alu_op), .alu_a(alu_a), .alu_b(alu_b), .alu_c(alu_c),
                   .db_sel(db_sel), .sb_sel(sb_sel),
                   .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_sp(load_sp),
-                  .load_abh(load_abh), .load_abl(load_abl), .load_flags(load_flags), .write_cycle(write_cycle), .pc_inc(pc_inc));
+                  .load_abh(load_abh), .load_abl(load_abl), 
+                  `ifdef DECODED_LOAD_FLAGS
+                  .load_flags(load_flag_decode), 
+                  `else
+                  .load_flags(load_flags), 
+                  `endif
+                  .write_cycle(write_cycle), .pc_inc(pc_inc));
 
 endmodule

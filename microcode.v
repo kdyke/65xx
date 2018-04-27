@@ -1,7 +1,9 @@
 `include "6502_inc.vh"
 
-module microcode(clk, ir, t, tnext, adh_sel, adl_sel, db_sel, sb_sel, pchs_sel, pcls_sel, alu_op, alu_a, alu_b, alu_c,
-                  load_a, load_x, load_y, load_sp, load_abh, load_abl, load_flags, write_cycle, pc_inc);
+(* keep_hierarchy = "yes" *) module microcode(clk, ir, t, tnext, adh_sel, adl_sel, db_sel, sb_sel, pchs_sel, pcls_sel, alu_op, alu_a, alu_b, alu_c,
+                  load_a, load_x, load_y, load_sp, load_abh, load_abl, 
+                  load_flags,
+                  write_cycle, pc_inc);
 
 input clk;
 input [7:0] ir;
@@ -23,17 +25,56 @@ output load_y;
 output load_sp;
 output load_abh;
 output load_abl;
+`ifdef DECODED_LOAD_FLAGS
+output [14:0] load_flags;
+`else
 output [3:0] load_flags;
+`endif
 output write_cycle;
 output pc_inc;
 
+`ifdef DECODED_LOAD_FLAGS
+reg [52:0] mc_out;
+(* rom_style = "block" *) reg [52:0] mc[0:2047];
+`else
 reg [37:0] mc_out;
-
 (* rom_style = "block" *) reg [37:0] mc[0:2047];
+`endif
 
 reg [12:0] i;
 
 initial begin
+
+`define REORDER_MC 1
+`ifdef REORDER_MC
+
+`define TNEXT_BITS      2:0
+`define WRITE_BITS      3:3
+`define PCHS_BITS       4:4
+`define ADH_BITS        7:5
+`define PCLS_BITS       8:8
+`define ADL_BITS        11:9
+`define DB_BITS         14:12
+`define SB_BITS         17:15
+`define PC_INC_BITS     18:18
+`define ALU_BITS        22:19
+`define ALU_A_BITS      23:23
+`define ALU_B_BITS      26:24
+`define ALU_C_BITS      28:27
+`define LOAD_A_BITS     29:29
+`define LOAD_X_BITS     30:30
+`define LOAD_Y_BITS     31:31
+`define LOAD_ABH_BITS   32:32
+`define LOAD_ABL_BITS   33:33
+`define LOAD_SP_BITS    34:34
+
+`ifdef DECODED_LOAD_FLAGS
+`define LOAD_FLAGS_BITS 50:36
+`else
+`define LOAD_FLAGS_BITS 39:36
+`endif
+
+`else
 
 `define TNEXT_BITS      37:35
 `define ADH_BITS        34:32
@@ -50,21 +91,29 @@ initial begin
 `define LOAD_SP_BITS    10:10
 `define LOAD_ABH_BITS   9:9
 `define LOAD_ABL_BITS   8:8
+`ifdef DECODED_LOAD_FLAGS
+`define LOAD_FLAGS_BITS 52:38
+`else
 `define LOAD_FLAGS_BITS 7:4
+`endif
 `define WRITE_BITS      3:3
 `define PC_INC_BITS     2:2
 `define PCHS_BITS       1:1
 `define PCLS_BITS       0:0
 
+`endif
+
 `define FIELD_SHIFT(_x) (0?_x)
 `define _X(_x)  (`_x)
 
+// synthesis translate off
 // Init all microcode slots we haven't implemented with a state that halts
 for( i = 0; i < 2048; i = i + 1 ) 
 begin
    mc[i][`TNEXT_BITS] = `TKL;
    //$display("init %d",i);
 end
+// synthesis translate on
 
 `define MICROCODE(_ins, _t, _tnext, _adh_sel, _adl_sel, _db_sel, _sb_sel, _pchs_sel, _pcls_sel, _alu_sel, _alu_a, _alu_b, _alu_c, _load_a, _load_x, _load_y, _load_sp, _load_abh, _load_abl, _load_flags, _write, _pc_inc) \
 mc[(_ins << 3) | _t] = ( \

@@ -78,6 +78,36 @@
 `define ALU_ROR   4'b0101
 `define ALU_PSA   4'b1111   // Just pass A input through - Used for JSR passthrough
 
+`define LF_C_DB0      15'b000000000000001
+`define LF_C_IR5      15'b000000000000010
+`define LF_C_ACR      15'b000000000000100
+`define LF_Z_SBZ      15'b000000000001000
+`define LF_Z_DB1      15'b000000000010000
+`define LF_I_DB2      15'b000000000100000
+`define LF_I_IR5      15'b000000001000000
+`define LF_D_DB3      15'b000000010000000
+`define LF_D_IR5      15'b000000100000000
+`define LF_V_DB6      15'b000001000000000
+`define LF_V_AVR      15'b000010000000000
+`define LF_V_0        15'b000100000000000
+`define LF_N_SBN      15'b001000000000000
+`define LF_N_DB7      15'b010000000000000
+`define LF_I_1        15'b100000000000000
+
+`define DECODED_LOAD_FLAGS 1
+`ifdef DECODED_LOAD_FLAGS
+`define FLAGS_DB        (`LF_C_DB0 | `LF_Z_DB1 | `LF_I_DB2 | `LF_D_DB3 | `LF_V_DB6 | `LF_N_DB7)
+`define FLAGS_DBZN      (`LF_Z_SBZ | `LF_N_SBN)
+`define FLAGS_D         (`LF_D_IR5)
+`define FLAGS_I         (`LF_I_IR5)
+`define FLAGS_C         (`LF_C_IR5)
+`define FLAGS_V         (`LF_V_0)
+`define FLAGS_Z         (`LF_Z_SBZ)
+`define FLAGS_CNZ       (`LF_C_ACR | `LF_Z_SBZ | `LF_N_SBN)
+`define FLAGS_ALU       (`LF_C_ACR | `LF_V_AVR | `LF_Z_SBZ | `LF_N_SBN)
+`define FLAGS_BIT       (`LF_V_DB6 | `LF_N_DB7)
+`define FLAGS_SETI      (`LF_I_1)
+`else
 `define FLAGS_DB    4'h1
 `define FLAGS_DBZN  4'h2
 `define FLAGS_ALU   4'h3
@@ -89,6 +119,7 @@
 `define FLAGS_CNZ   4'h9
 `define FLAGS_BIT   4'ha
 `define FLAGS_Z     4'hb
+`endif
 
 `define ALUF_C 0
 `define ALUF_Z 1
