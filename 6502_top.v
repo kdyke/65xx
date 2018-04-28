@@ -74,7 +74,7 @@ wire alu_d;
 reg taken_branch;
 reg alu_carry_out_last;
 wire branch_page_cross;
-wire [7:0] ir_sel;
+reg [7:0] ir_sel;
 
 // reset flip flip
 reg reset_f;
@@ -103,7 +103,7 @@ reg [8:0] pcls;
 reg [7:0] pchs_in;
 reg [7:0] pchs;
 
-always @(posedge clk or posedge reset)
+always @(posedge clk)
 begin
   if(reset)
     reset_f = 1;
@@ -121,12 +121,65 @@ begin
 		2'b11: taken_branch = (reg_p[1] == ir[5]);
 	endcase
 end
-  
+
+// IR input
+always @(*)
+begin
+  if(t == 1)
+  begin
+    if(intg)
+      ir_sel = 8'h00;
+    else
+      ir_sel = data_i;
+  end
+  else
+    ir_sel = ir;
+end
+
 // During t1, microcode input addr is selected directly from data_i
-assign ir_sel = t == 1 ? data_i : ir;
 assign address = { abh, abl };
-assign write = write_cycle;
+assign write = write_cycle & ~reset_f;
 assign data_o = db_out;
+
+// Delayed NMI for edge detection
+reg nmil;
+reg nmig;
+reg intp;
+reg intg;
+reg brk;    // Remembers whether we are doing a real BRK or IRQ/NMI.  Only gets set to 0 for IRQ, otherwise always a 1.
+
+// INT is always the last read value of the interrupt status
+always @(posedge clk)
+begin
+  intp <= irq;
+end
+
+// intg is the signal that actually causes interrupts to be processed. It 
+// can be updated from intp either during T0 or during T2 if the instruction
+// is a branch.
+always @(posedge clk)
+begin
+  // NMI edge detection
+  // This will be delayed by one cycle so if an NMI happens on T0 it won't get recognized
+  // until the next T0 or T2 of a branch.
+  if(nmi & ~nmil)
+    nmig <= 1;
+  nmil <= nmi;    // remember current state
+  
+  if(reset || 
+     (t == 0) ||
+     (tnext_mc == `TBR))
+  begin
+    if((intp & ~reg_p[`PF_I]) | nmig | reset)
+      intg <= 1;
+  end
+  // internal pending interrupt is always cleared at the same time we set interrupt mask.
+  else if(load_flag_decode[14])
+  begin
+      intg <= 0;
+      nmig <= 0;
+  end
+end
 
 // A page is crossed if the carry result is different than the sign of the branch offset input
 assign branch_page_cross = alu_carry_out ^ alua_reg[7];
@@ -149,7 +202,7 @@ begin
   // Defaults to next microcode t-state bottom 3 bits
   t_next = t+1;
   if(reset)
-    t_next = 5;
+    t_next = 2;
   else if(t == 1 && twocycle == 1)
     t_next = 0;
   else if(tnext_mc == `T0)
@@ -180,7 +233,7 @@ begin
   else if(t != 1 && tnext_mc == `TKL)
   begin
     $display("FETCH ADDR: %04x byte: %02x  TWOCYCLE: %d (Microcode KIL)",address,data_i,twocycle);
-    //$display("mc[%d | %d]",ir,t);
+    $display("mc[%d | %d]",ir,t);
     $finish;
   end
 end
@@ -217,7 +270,11 @@ begin
     ir <= 8'h00;
   else if(t == 1)
   begin
-    ir <= data_i;
+    if(intg)
+      brk <= 0;
+    else
+      brk <= 1;
+    ir <= ir_sel;
      // synthesis translate off
      if(last_fetch_addr == address)
      begin
@@ -232,15 +289,16 @@ begin
   end
 end
 
-// Temporary hack for CPU bootstrapping until I get interrupts hooked up
 reg [7:0] vector_lo;
 
 always @(*)
 begin
-  // Default BRK vector
-  vector_lo = 8'hFE;
   if(reset_f == 1)
     vector_lo = 8'hFC;
+  else if(nmig)
+    vector_lo = 8'hFA;
+  else
+    vector_lo = 8'hFE;
 end
 
 // ADH -> PCHS
@@ -319,7 +377,7 @@ begin
     `DB_SB  : db_out = sb;
     `DB_PCL : db_out = pcl;
     `DB_PCH : db_out = pch;
-    `DB_P   : db_out = reg_p | 8'h30;      // Temp kludge until interrupts are implmented and I have a mechanism for pusing P with B set to 0
+    `DB_P   : db_out = { reg_p[7],reg_p[6],1'b1,brk,reg_p[3],reg_p[2],reg_p[1],reg_p[0] };
 //    `DB_BO  : db_out = {8{alua_reg[7]}};   // The high bit of the last ALU A input is the sign bit for branch offsets
   endcase
 end
