@@ -1,7 +1,7 @@
 `include "6502_inc.vh"
 
 // This may be defined to "fix" the original 6502 BRK/NMI bug.
-//`define NMI_BUG_FIX      
+`define NMI_BUG_FIX      
 
 module cpu6502(clk, reset, nmi, irq, ready, write, address, data_i, data_o);
 
@@ -249,9 +249,9 @@ begin
   t <= t_next;
 end
 
-// Ugh, this is gross...
+// Disable PC increment when processing a BRK with recognized IRQ/NMI
 wire pc_hold;
-assign pc_hold = (intg && (t ==1 || ir == 8'h00));
+assign pc_hold = (intg && (ir_sel == 8'h00));
 
 always @(*)
 begin
