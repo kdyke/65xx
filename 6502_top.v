@@ -1,5 +1,8 @@
 `include "6502_inc.vh"
 
+// This may be defined to "fix" the original 6502 BRK/NMI bug.
+//`define NMI_BUG_FIX      
+
 module cpu6502(clk, reset, nmi, irq, ready, write, address, data_i, data_o);
 
 initial begin
@@ -177,7 +180,10 @@ begin
   else if(load_flag_decode[14])
   begin
       intg <= 0;
-      nmig <= 0;
+`ifdef NMI_BUG_FIX      
+      if(~reg_p[`PF_B])
+`endif
+        nmig <= 0;
   end
 end
 
@@ -243,14 +249,19 @@ begin
   t <= t_next;
 end
 
+// Ugh, this is gross...
+wire pc_hold;
+assign pc_hold = (intg && (t ==1 || ir == 8'h00));
+
 always @(*)
 begin
   if(pcls_sel == `PCLS_PCL)
     pcls_in = pcl;
   else
     pcls_in = pcls_adl;
-  pcls = pcls_in + pc_inc;
-  //$display("pls_sel: %d pcl: %02x adl: %02x pcls_in: %02x pcls: %02x",pcls_sel,pcl,adl,pcls_in,pcls);
+  pcls = pcls_in + (pc_inc & ~pc_hold);
+  //$display("pls_sel: %d pcl: %02x adl: %02x pcls_in: %02x pcls: %02x pc_inc: %d pc_hold: %d intg: %g t1: %d ir0: %d",pcls_sel,pcl,pcls_adl,pcls_in,pcls,
+  //  pc_inc,pc_hold,intg,t==1,ir == 8'h00);
 end
 
 always @(*)
@@ -267,25 +278,30 @@ end
 always @(posedge clk)
 begin
   if(reset)
+  begin
     ir <= 8'h00;
+    reg_s <= 0;
+    reg_p[`PF_B] <= 1;
+    reg_p[`PF_U] <= 1;
+  end
   else if(t == 1)
   begin
     if(intg)
-      brk <= 0;
+      reg_p[`PF_B] <= 0;
     else
-      brk <= 1;
+      reg_p[`PF_B] <= 1;
     ir <= ir_sel;
-     // synthesis translate off
-     if(last_fetch_addr == address)
-     begin
+    // synthesis translate off
+    if(last_fetch_addr == address)
+    begin
       $display("Halting, branch to self detected: %04x   A: %02x X: %02x Y: %02x S: %02x P: %02x ",last_fetch_addr,
         reg_a, reg_x, reg_y, reg_s, reg_p);
       $finish;
     end
     last_fetch_addr <= address;
-     // synthesis translate on
+    // synthesis translate on
     
-    //$display("FETCH ADDR: %04x byte: %02x  TWOCYCLE: %d",address,data_i,twocycle);
+    //$display("FETCH ADDR: %04x byte: %02x  TWOCYCLE: %d  pc_hold: %d intg: %g",address,ir_sel,twocycle,pc_hold, intg);
   end
 end
 
@@ -295,7 +311,11 @@ always @(*)
 begin
   if(reset_f == 1)
     vector_lo = 8'hFC;
-  else if(nmig)
+  else if(nmig 
+`ifdef NMI_BUG_FIX    
+    & ~reg_p[`PF_B]
+`endif
+    )
     vector_lo = 8'hFA;
   else
     vector_lo = 8'hFE;
@@ -359,10 +379,6 @@ begin
     `DB_FF  : db_in = 8'hFF;
     `DB_DI  : db_in = data_i;
     `DB_A   : db_in = reg_a;
-//    `DB_SB  : db_in = sb;
-//    `DB_PCL : db_in = pcl;
-//    `DB_PCH : db_in = pch;
-//    `DB_P   : db_in = reg_p | 8'h30;      // Temp kludge until interrupts are implmented and I have a mechanism for pusing P with B set to 0
     `DB_BO  : db_in = {8{alua_reg[7]}};   // The high bit of the last ALU A input is the sign bit for branch offsets
   endcase
 end
@@ -371,14 +387,11 @@ end
 always @(*)
 begin
   case(db_sel)  // synthesis full_case parallel_case
-//    `DB_FF  : db_out = 8'hFF;
-//    `DB_DI  : db_out = data_i;
     `DB_A   : db_out = reg_a;
     `DB_SB  : db_out = sb;
     `DB_PCL : db_out = pcl;
     `DB_PCH : db_out = pch;
-    `DB_P   : db_out = { reg_p[7],reg_p[6],1'b1,brk,reg_p[3],reg_p[2],reg_p[1],reg_p[0] };
-//    `DB_BO  : db_out = {8{alua_reg[7]}};   // The high bit of the last ALU A input is the sign bit for branch offsets
+    `DB_P   : db_out = reg_p;
   endcase
 end
 
@@ -507,41 +520,26 @@ always @(posedge clk)
 begin
     //$display("lfd: %15b",load_flag_decode);
     
-    if(load_flag_decode[0])
-      reg_p[`PF_C] = db_in[0];
-    else if(load_flag_decode[1])
-      reg_p[`PF_C] = ir[5];
-    else if(load_flag_decode[2])
-      reg_p[`PF_C] = alu_carry_out;
+    if(load_flag_decode[`LF_C_ACR])       reg_p[`PF_C] = alu_carry_out;
+    else if(load_flag_decode[`LF_C_IR5])  reg_p[`PF_C] = ir[5];
+    else if(load_flag_decode[`LF_C_DB0])  reg_p[`PF_C] = db_in[0];
 
-    if(load_flag_decode[3])
-      reg_p[`PF_Z] = sb_z;
-    else if(load_flag_decode[4])
-      reg_p[`PF_Z] = db_in[1];
+    if(load_flag_decode[`LF_Z_SBZ])       reg_p[`PF_Z] = sb_z;
+    else if(load_flag_decode[`LF_Z_DB1])  reg_p[`PF_Z] = db_in[1];
     
-    if(load_flag_decode[5])
-      reg_p[`PF_I] = db_in[2];
-    else if(load_flag_decode[6])
-      reg_p[`PF_I] = ir[5];
-    else if(load_flag_decode[14])
-      reg_p[`PF_I] = 1;
+    if(load_flag_decode[`LF_I_DB2])       reg_p[`PF_I] = db_in[2];
+    else if(load_flag_decode[`LF_I_IR5])  reg_p[`PF_I] = ir[5];
+    else if(load_flag_decode[`LF_I_1])    reg_p[`PF_I] = 1;
 
-    if(load_flag_decode[7])
-      reg_p[`PF_D] = db_in[3];
-    else if(load_flag_decode[8])
-      reg_p[`PF_D] = ir[5];
+    if(load_flag_decode[`LF_D_DB3])       reg_p[`PF_D] = db_in[3];
+    else if(load_flag_decode[`LF_D_IR5])  reg_p[`PF_D] = ir[5];
     
-    if(load_flag_decode[9])
-      reg_p[`PF_V] = db_in[6];
-    else if(load_flag_decode[10])
-      reg_p[`PF_V] = alu_overflow_out;
-    else if(load_flag_decode[11])
-      reg_p[`PF_V] = 0;
+    if(load_flag_decode[`LF_V_AVR])       reg_p[`PF_V] = alu_overflow_out;
+    else if(load_flag_decode[`LF_V_DB6])  reg_p[`PF_V] = db_in[6];
+    else if(load_flag_decode[`LF_V_0])    reg_p[`PF_V] = 0;
       
-    if(load_flag_decode[12])
-      reg_p[`PF_N] = sb_n;
-    else if(load_flag_decode[13])
-      reg_p[`PF_N] = db_in[7];
+    if(load_flag_decode[`LF_N_SBN])       reg_p[`PF_N] = sb_n;
+    else if(load_flag_decode[`LF_N_DB7])  reg_p[`PF_N] = db_in[7];
       
 end
 

@@ -119,7 +119,7 @@ assign nmi = io_port[1];
   // Start driving memory and CPU clocks.
   always begin
   #1 memclk = ~memclk;
-    //$monitor($time,,"%m. memclk = %b clk = %b  addr: %x mem: %02x cpu: %02x w: %d ce: %d",memclk,clk,cpu_address,cpu_data_in,cpu_data_out,cpu_write,cpu_clock_enable);
+    //$monitor($time,,"%m. memclk = %b clk = %b  addr: %x mem: %02x cpu: %02x w: %d ce: %d irq: %d nmi: %d",memclk,clk,cpu_address,cpu_data_in,cpu_data_out,cpu_write,cpu_clock_enable,irq,nmi);
     if(cpu_clock_enable)
      clk = ~clk;
   #1 memclk = ~memclk;
@@ -137,8 +137,11 @@ assign nmi = io_port[1];
   // io_port writes
   always @(posedge clk)
   begin
-    if(io_port_cs)
+    if(io_port_cs && cpu_write)
+    begin
       io_port = cpu_data_out;
+      $display("io_port <= %08b",cpu_data_out);
+    end
   end
   
 endmodule

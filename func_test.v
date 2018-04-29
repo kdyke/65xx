@@ -2138,6 +2138,7 @@ begin
     if(we)
     begin
         ram[addr] <= di;
+        //$strobe("ram[%04x]: %02x",addr,di);
         if(addr == 16'h0200)
           $display("last test: %d",di);
     end
