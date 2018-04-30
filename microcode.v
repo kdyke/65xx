@@ -51,13 +51,13 @@ end
 //                                                                                                                                      Register Loads
 //            INS   T    Tn    Adh       Adl        Db,       Sb,     PCHs       PCLs        Alu_op      Alu_a      Alu_b     Alu_c    A   X   Y  SP  AH  AL         Flags W INC
 // BRK
-`MICROCODE(  8'h00,  2, `Tn , `ADH_1,   `ADL_S,    `DB_DI,  `SB_FF,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h00,  3, `Tn , `ADH_1,   `ADL_ALU,  `DB_PCH, `SB_FF,  `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,`ALU_B_ADL, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 1, 0)
-`MICROCODE(  8'h00,  4, `Tn , `ADH_1,   `ADL_ALU,  `DB_PCL, `SB_FF,  `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,`ALU_B_ADL, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 1, 0)
-`MICROCODE(  8'h00,  5, `Tn , `ADH_FF,  `ADL_VECLO,`DB_P,   `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  1,  1,  1,       `none, 1, 0)
-`MICROCODE(  8'h00,  6, `T0 , `ADH_FF,  `ADL_VECHI,`DB_DI,  `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1, `FLAGS_SETI, 0, 0)
-`MICROCODE(  8'h00,  0, `Tn , `ADH_DI,  `ADL_ALU,  `DB_DI,  `SB_A,   `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h00,  1, `Tn , `ADH_PCHS,`ADL_PCLS, `DB_DI,  `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h00,  2, `Tn , `ADH_1,   `ADL_S,    `DB_DI,  `SB_FF,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,   `none,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h00,  3, `Tn , `ADH_1,   `ADL_ALU,  `DB_PCH, `SB_FF,  `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,`ALU_B_ADL, `ALU_C_0,   `none,  1,  1,       `none, 1, 0)
+`MICROCODE(  8'h00,  4, `Tn , `ADH_1,   `ADL_ALU,  `DB_PCL, `SB_FF,  `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,`ALU_B_ADL, `ALU_C_0,   `none,  1,  1,       `none, 1, 0)
+`MICROCODE(  8'h00,  5, `Tn , `ADH_FF,  `ADL_VECLO,`DB_P,   `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0, `LOAD_S,  1,  1,       `none, 1, 0)
+`MICROCODE(  8'h00,  6, `T0 , `ADH_FF,  `ADL_VECHI,`DB_DI,  `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB, `ALU_C_0,   `none,  1,  1, `FLAGS_SETI, 0, 0)
+`MICROCODE(  8'h00,  0, `Tn , `ADH_DI,  `ADL_ALU,  `DB_DI,  `SB_A,   `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,   `none,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h00,  1, `Tn , `ADH_PCHS,`ADL_PCLS, `DB_DI,  `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,   `none,  1,  1,       `none, 0, 1)
 
 `ADDR_zp_x_ind(8'h01)       `ORA(8'h01,0)     // ORA (zp,x)
 `ADDR_zp(8'h05,`T0)         `ORA(8'h05,0)     // ORA zp
@@ -196,17 +196,17 @@ end
                             `FLAG_OP(8'hD8, `FLAGS_D) // CLD
                             `FLAG_OP(8'hF8, `FLAGS_D) // SED
 
-                            `Txx(8'h8A, `SB_X,  1, 0, 0, 0, `FLAGS_DBZN)  // TXA
-                            `Txx(8'h98, `SB_Y,  1, 0, 0, 0, `FLAGS_DBZN)  // TYA
-                            `Txx(8'h9A, `SB_X,  0, 0, 0, 1, `none)        // TXS
-                            `Txx(8'hA8, `SB_A,  0, 0, 1, 0, `FLAGS_DBZN)  // TAY
-                            `Txx(8'hAA, `SB_A,  0, 1, 0, 0, `FLAGS_DBZN)  // TAX
-                            `Txx(8'hBA, `SB_SP, 0, 1, 0, 0, `FLAGS_DBZN)  // TSX
+                            `Txx(8'h8A, `SB_X,  `LOAD_A, `FLAGS_DBZN)  // TXA
+                            `Txx(8'h98, `SB_Y,  `LOAD_A, `FLAGS_DBZN)  // TYA
+                            `Txx(8'h9A, `SB_X,  `LOAD_S, `none)        // TXS
+                            `Txx(8'hA8, `SB_A,  `LOAD_Y, `FLAGS_DBZN)  // TAY
+                            `Txx(8'hAA, `SB_A,  `LOAD_X, `FLAGS_DBZN)  // TAX
+                            `Txx(8'hBA, `SB_SP, `LOAD_X, `FLAGS_DBZN)  // TSX
 
-                            `DEC_REG(8'h88, `SB_Y, 0, 0, 1) // DEY
-                            `DEC_REG(8'hCA, `SB_X, 0, 1, 0) // DEX
-                            `INC_REG(8'hC8, `SB_Y, 0, 0, 1) // INY
-                            `INC_REG(8'hE8, `SB_X, 0, 1, 0) // INX
+                            `DEC_REG(8'h88, `SB_Y, `LOAD_Y) // DEY
+                            `DEC_REG(8'hCA, `SB_X, `LOAD_X) // DEX
+                            `INC_REG(8'hC8, `SB_Y, `LOAD_Y) // INY
+                            `INC_REG(8'hE8, `SB_X, `LOAD_X) // INX
 
 `ADDR_zp(8'hC6,`Tn)         `DEC_MEM(8'hC6, 3, 4)     // DEC zp
 `ADDR_abs(8'hCE,`Tn)        `DEC_MEM(8'hCE, 4, 5)     // DEC abs
@@ -218,86 +218,50 @@ end
 `ADDR_zp_x(8'hF6,`Tn)       `INC_MEM(8'hF6, 4, 5)     // INC zp,x
 `ADDR_abs_x(8'hFE,`Tn,`Tn)  `INC_MEM(8'hFE, 5, 6)     // INC abs,x
 
-// PHP
-`MICROCODE(  8'h08,  2, `T0 , `ADH_1,    `ADL_S,    `DB_FF, `SB_FF,  `PCHS_PCH, `PCLS_PCL,     `none, `ALU_A_SB,`ALU_B_ADL,   `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h08,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_P,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  1,  1,  1,       `none, 1, 0)
-`MICROCODE(  8'h08,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,     `none,    `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-
+                            `PUSH(8'h08, `DB_P)           // PHP
+                            `PUSH(8'h48, `DB_A)           // PHA
+                            `PULL(8'h28, `none,   `FLAGS_DB)    // PLP
+                            `PULL(8'h68, `LOAD_A, `FLAGS_DBZN)  // PLA
+                            
 // JSR - 0x20
-// Cycle 2 -- Reading low byte of branch address into SP, loading ALU B input register from ALU, ADL also loading from SP, increment PC by one
-// Cycle 3 -- SP contains low byte of branch address, ALU A input loading FF from SB, ALU B input register holds last value
-// Cycle 4 -- Writing low byte of PC, ALU summing 0xFF + SP for next cycle -> ADL, ALU B input loads from ADL (adder result)
-// Cycle 5 -- Writing high byte of current PC, ALU A loads from ALU output, ALU B input loads zero
-// Cycle 0 -- Reading high byte of next PC, feeds directly to ADH, ADL loads from stack, SB reads from ALU, which reloads SP, PC also loads from ADH/ADL
-// Cycle 1 -- Fetching next instruction - whew!
-`MICROCODE(  8'h20,  2, `Tn , `ADH_1,    `ADL_S,    `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,     `none, `ALU_A_0,`ALU_B_ADL,    `none,  0,  0,  0,  1,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h20,  3, `Tn , `ADH_1,    `ADL_ALU,  `DB_PCH,`SB_FF,  `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,    `none,     `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h20,  4, `Tn , `ADH_1,    `ADL_ALU,  `DB_PCH,`SB_FF,  `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,`ALU_B_ADL, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 1, 0)
-`MICROCODE(  8'h20,  5, `T0 , `ADH_PCHS, `ADL_PCLS, `DB_PCL,`SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,`ALU_B_DB,  `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 1, 0)
-`MICROCODE(  8'h20,  0, `Tn , `ADH_DI,   `ADL_S,    `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_ADL,  `ALU_PSA,    `none,     `none, `ALU_C_0,  0,  0,  0,  1,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h20,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-
-// PLP
-`MICROCODE(  8'h28,  2, `Tn , `ADH_1,    `ADL_S,    `DB_FF, `SB_FF,  `PCHS_PCH, `PCLS_PCL,     `none, `ALU_A_0,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h28,  3, `T0 , `ADH_1,    `ADL_ALU,  `DB_FF, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_1,  0,  0,  0,  1,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h28,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,     `none,    `none,     `none,    `none,  0,  0,  0,  0,  1,  1,   `FLAGS_DB, 0, 0)
-`MICROCODE(  8'h28,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,     `none,    `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h20,  2, `Tn , `ADH_1,    `ADL_S,    `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,     `none, `ALU_A_0,`ALU_B_ADL,    `none,  `LOAD_S,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h20,  3, `Tn , `ADH_1,    `ADL_ALU,  `DB_PCH,`SB_FF,  `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,    `none,     `none,    `none,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h20,  4, `Tn , `ADH_1,    `ADL_ALU,  `DB_PCH,`SB_FF,  `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,`ALU_B_ADL, `ALU_C_0,    `none,  1,  1,       `none, 1, 0)
+`MICROCODE(  8'h20,  5, `T0 , `ADH_PCHS, `ADL_PCLS, `DB_PCL,`SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,`ALU_B_DB,  `ALU_C_0,    `none,  1,  1,       `none, 1, 0)
+`MICROCODE(  8'h20,  0, `Tn , `ADH_DI,   `ADL_S,    `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_ADL,  `ALU_PSA,    `none,     `none, `ALU_C_0,  `LOAD_S,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h20,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
 
 // RTI - 0x40
-// Cycle 2 - Set up ADH/ADL for current stack read, set up ALU with SP
-// Cycle 3 - Set up ADH/ADL for incremented SP
-// Cycle 5 - Set up ADH/ADL for incremented SP, read processor status
-// Cycle 5 - Set up ADH/ADL for incremented SP, read low byte of return address (minus 1) into ALUB, reload SP from SB ALU
-// Cycle 6 - Read high byte of return address into ADH, read incremented return address from ALU into ADL, load PC from AD bus
-// Cycle 0 - Dummy read, but increment PC
-// Cycle 1 - Fetch
-`MICROCODE(  8'h40,  2, `Tn , `ADH_1,    `ADL_S,    `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h40,  3, `Tn , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_ADL, `ALU_C_1,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h40,  4, `Tn , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_ADL, `ALU_C_1,  0,  0,  0,  0,  1,  1,   `FLAGS_DB, 0, 0)
-`MICROCODE(  8'h40,  5, `T0 , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_DB,  `ALU_C_1,  0,  0,  0,  1,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h40,  0, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h40,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-
-// PHA
-`MICROCODE(  8'h48,  2, `T0 , `ADH_1,    `ADL_S,    `DB_FF, `SB_FF,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,   `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h48,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_A,  `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  1,  1,  1,       `none, 1, 0)
-`MICROCODE(  8'h48,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h40,  2, `Tn , `ADH_1,    `ADL_S,    `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0,`ALU_B_ADL,    `none,    `none,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h40,  3, `Tn , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_ADL, `ALU_C_1,    `none,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h40,  4, `Tn , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_ADL, `ALU_C_1,    `none,  1,  1,   `FLAGS_DB, 0, 0)
+`MICROCODE(  8'h40,  5, `T0 , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_DB,  `ALU_C_1,  `LOAD_S,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h40,  0, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,    `none,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h40,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
 
 // JMP abs
-`MICROCODE(  8'h4C,  2, `T0 , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h4C,  0, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h4C,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h4C,  2, `T0 , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB, `ALU_C_0,    `none,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h4C,  0, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,    `none,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h4C,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
 
 // RTS
-// Cycle 2 - Set up ADH/ADL for current stack read, set up ALU with SP
-// Cycle 3 - Set up ADH/ADL for incremented SP
-// Cycle 4 - Set up ADH/ADL for incremented SP, read low byte of return address (minus 1) into ALUB, reload SP from SB ALU
-// Cycle 5 - Read high byte of return address into ADH, read incremented return address from ALU into ADL, load PC from AD bus
-// Cycle 0 - Dummy read, but increment PC
-// Cycle 1 - Fetch
-`MICROCODE(  8'h60,  2, `Tn , `ADH_1,    `ADL_S,    `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,     `none, `ALU_A_0,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h60,  3, `Tn , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_ADL, `ALU_C_1,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h60,  4, `Tn , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_DB,  `ALU_C_1,  0,  0,  0,  1,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h60,  5, `T0 , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h60,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h60,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-
-// PLA
-`MICROCODE(  8'h68,  2, `Tn , `ADH_1,    `ADL_S,    `DB_FF, `SB_FF,  `PCHS_PCH, `PCLS_PCL,     `none, `ALU_A_0,`ALU_B_ADL,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h68,  3, `T0 , `ADH_1,    `ADL_ALU,  `DB_FF, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_1,  0,  0,  0,  1,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h68,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,     `none,    `none,     `none,    `none,  1,  0,  0,  0,  1,  1, `FLAGS_DBZN, 0, 0)
-`MICROCODE(  8'h68,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,     `none,    `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h60,  2, `Tn , `ADH_1,    `ADL_S,    `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,     `none, `ALU_A_0,`ALU_B_ADL,    `none,    `none,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h60,  3, `Tn , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_ADL, `ALU_C_1,    `none,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h60,  4, `Tn , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_DB,  `ALU_C_1,  `LOAD_S,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h60,  5, `T0 , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,    `none,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h60,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h60,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
 
 // JMP (abs)
-`MICROCODE(  8'h6C,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h6C,  3, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h6C,  4, `T0 , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h6C,  0, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h6C,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h6C,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB, `ALU_C_0,    `none,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h6C,  3, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,    `none,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h6C,  4, `T0 , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB, `ALU_C_0,    `none,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'h6C,  0, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,    `none,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'h6C,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
 
 // NOP
-`MICROCODE(  8'hEA,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'hEA,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  0,  0,  0,  0,  1,  1,       `none, 0, 1)
+`MICROCODE(  8'hEA,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 0)
+`MICROCODE(  8'hEA,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
 
 end
 
