@@ -1,7 +1,7 @@
 `include "6502_inc.vh"
 
 (* keep_hierarchy = "yes" *) module microcode(clk, ir, t, tnext, adh_sel, adl_sel, db_sel, sb_sel, pchs_sel, pcls_sel, alu_op, alu_a, alu_b, alu_c,
-                  load_a, load_x, load_y, load_sp, load_abh, load_abl, 
+                  load_a, load_x, load_y, load_s, load_abh, load_abl, 
                   load_flags,
                   write_cycle, pc_inc);
 
@@ -22,7 +22,7 @@ output [1:0] alu_c;
 output load_a;
 output load_x;
 output load_y;
-output load_sp;
+output load_s;
 output load_abh;
 output load_abl;
 output [14:0] load_flags;
@@ -45,20 +45,8 @@ begin
 end
 // synthesis translate on
 
-// Set up some generic macros for the major instruction groupings so each instruction doesn't have to be
-// fully spelled out, which makes making any kind of sweeping changes take that much longer.
-
-//                                                                                                                                      Register Loads
-//            INS   T    Tn    Adh       Adl        Db,       Sb,     PCHs       PCLs        Alu_op      Alu_a      Alu_b     Alu_c    A   X   Y  SP  AH  AL         Flags W INC
-// BRK
-`MICROCODE(  8'h00,  2, `Tn , `ADH_1,   `ADL_S,    `DB_DI,  `SB_FF,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,   `none,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h00,  3, `Tn , `ADH_1,   `ADL_ALU,  `DB_PCH, `SB_FF,  `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,`ALU_B_ADL, `ALU_C_0,   `none,  1,  1,       `none, 1, 0)
-`MICROCODE(  8'h00,  4, `Tn , `ADH_1,   `ADL_ALU,  `DB_PCL, `SB_FF,  `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,`ALU_B_ADL, `ALU_C_0,   `none,  1,  1,       `none, 1, 0)
-`MICROCODE(  8'h00,  5, `Tn , `ADH_FF,  `ADL_VECLO,`DB_P,   `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0, `LOAD_S,  1,  1,       `none, 1, 0)
-`MICROCODE(  8'h00,  6, `T0 , `ADH_FF,  `ADL_VECHI,`DB_DI,  `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB, `ALU_C_0,   `none,  1,  1, `FLAGS_SETI, 0, 0)
-`MICROCODE(  8'h00,  0, `Tn , `ADH_DI,  `ADL_ALU,  `DB_DI,  `SB_A,   `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,   `none,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h00,  1, `Tn , `ADH_PCHS,`ADL_PCLS, `DB_DI,  `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,   `none,  1,  1,       `none, 0, 1)
-
+                            `BRK(8'h00)       // BRK
+                            
 `ADDR_zp_x_ind(8'h01)       `ORA(8'h01,0)     // ORA (zp,x)
 `ADDR_zp(8'h05,`T0)         `ORA(8'h05,0)     // ORA zp
                             `ORA(8'h09,1)     // ORA #
@@ -201,7 +189,7 @@ end
                             `Txx(8'h9A, `SB_X,  `LOAD_S, `none)        // TXS
                             `Txx(8'hA8, `SB_A,  `LOAD_Y, `FLAGS_DBZN)  // TAY
                             `Txx(8'hAA, `SB_A,  `LOAD_X, `FLAGS_DBZN)  // TAX
-                            `Txx(8'hBA, `SB_SP, `LOAD_X, `FLAGS_DBZN)  // TSX
+                            `Txx(8'hBA, `SB_S, `LOAD_X, `FLAGS_DBZN)  // TSX
 
                             `DEC_REG(8'h88, `SB_Y, `LOAD_Y) // DEY
                             `DEC_REG(8'hCA, `SB_X, `LOAD_X) // DEX
@@ -222,46 +210,14 @@ end
                             `PUSH(8'h48, `DB_A)           // PHA
                             `PULL(8'h28, `none,   `FLAGS_DB)    // PLP
                             `PULL(8'h68, `LOAD_A, `FLAGS_DBZN)  // PLA
-                            
-// JSR - 0x20
-`MICROCODE(  8'h20,  2, `Tn , `ADH_1,    `ADL_S,    `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,     `none, `ALU_A_0,`ALU_B_ADL,    `none,  `LOAD_S,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h20,  3, `Tn , `ADH_1,    `ADL_ALU,  `DB_PCH,`SB_FF,  `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,    `none,     `none,    `none,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h20,  4, `Tn , `ADH_1,    `ADL_ALU,  `DB_PCH,`SB_FF,  `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,`ALU_B_ADL, `ALU_C_0,    `none,  1,  1,       `none, 1, 0)
-`MICROCODE(  8'h20,  5, `T0 , `ADH_PCHS, `ADL_PCLS, `DB_PCL,`SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,`ALU_A_SB,`ALU_B_DB,  `ALU_C_0,    `none,  1,  1,       `none, 1, 0)
-`MICROCODE(  8'h20,  0, `Tn , `ADH_DI,   `ADL_S,    `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_ADL,  `ALU_PSA,    `none,     `none, `ALU_C_0,  `LOAD_S,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h20,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
 
-// RTI - 0x40
-`MICROCODE(  8'h40,  2, `Tn , `ADH_1,    `ADL_S,    `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0,`ALU_B_ADL,    `none,    `none,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h40,  3, `Tn , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_ADL, `ALU_C_1,    `none,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h40,  4, `Tn , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_ADL, `ALU_C_1,    `none,  1,  1,   `FLAGS_DB, 0, 0)
-`MICROCODE(  8'h40,  5, `T0 , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_DB,  `ALU_C_1,  `LOAD_S,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h40,  0, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,    `none,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h40,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
+                            `JSR(8'h20)       // JSR
+                            `RTS(8'h60)       // RTS
+                            `RTI(8'h40)       // RTI
+                            `JMP(8'h4C, 2)    // JMP abs
+`ADDR_jmp_abs(8'h6C)        `JMP(8'h6C, 4)    // JMP (abs)
 
-// JMP abs
-`MICROCODE(  8'h4C,  2, `T0 , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB, `ALU_C_0,    `none,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h4C,  0, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,    `none,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h4C,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
-
-// RTS
-`MICROCODE(  8'h60,  2, `Tn , `ADH_1,    `ADL_S,    `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,     `none, `ALU_A_0,`ALU_B_ADL,    `none,    `none,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h60,  3, `Tn , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_ADL, `ALU_C_1,    `none,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h60,  4, `Tn , `ADH_1,    `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM, `ALU_A_0,`ALU_B_DB,  `ALU_C_1,  `LOAD_S,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h60,  5, `T0 , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,    `none,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h60,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h60,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
-
-// JMP (abs)
-`MICROCODE(  8'h6C,  2, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB, `ALU_C_0,    `none,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h6C,  3, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,    `none,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h6C,  4, `T0 , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,    `ALU_A_0, `ALU_B_DB, `ALU_C_0,    `none,  1,  1,       `none, 0, 1)
-`MICROCODE(  8'h6C,  0, `Tn , `ADH_DI,   `ADL_ALU,  `DB_DI, `SB_A,   `PCHS_ADH, `PCLS_ADL,  `ALU_SUM,    `none,     `none, `ALU_C_0,    `none,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'h6C,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
-
-// NOP
-`MICROCODE(  8'hEA,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 0)
-`MICROCODE(  8'hEA,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
+                            `NOP1(8'hEA)      // NOP
 
 end
 
@@ -278,7 +234,7 @@ assign alu_c = mc_out[`ALU_C_BITS];
 assign load_a = mc_out[`LOAD_A_BITS];
 assign load_x = mc_out[`LOAD_X_BITS];
 assign load_y = mc_out[`LOAD_Y_BITS];
-assign load_sp = mc_out[`LOAD_SP_BITS];
+assign load_s = mc_out[`LOAD_S_BITS];
 assign load_abh = mc_out[`LOAD_ABH_BITS];
 assign load_abl = mc_out[`LOAD_ABL_BITS];
 assign load_flags = mc_out[`LOAD_FLAGS_BITS];

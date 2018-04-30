@@ -32,7 +32,7 @@ wire [1:0] alu_c;
 wire load_a;
 wire load_x;
 wire load_y;
-wire load_sp;
+wire load_s;
 wire load_abh;
 wire load_abl;
 wire write_cycle;
@@ -402,7 +402,7 @@ begin
     `SB_A   : sb = reg_a;
     `SB_X   : sb = reg_x;
     `SB_Y   : sb = reg_y;
-    `SB_SP  : sb = reg_s;
+    `SB_S  : sb = reg_s;
     `SB_ALU : sb = alu_out;
     `SB_ADH : sb = adh;
     `SB_DB  : sb = db_in;
@@ -502,7 +502,7 @@ begin
       reg_y <= sb;
       //$display("Y = %02x",sb);
     end
-  if(load_sp)
+  if(load_s)
     begin
       reg_s <= sb;
       //$display("S = %02x",sb);
@@ -550,7 +550,7 @@ alu_unit alu_inst(alua_reg, alub_reg, alu_out, aluc_in, dec_add, alu_op, alu_car
 microcode mc_inst(.clk(clk), .ir(ir_sel), .t(t_next), .tnext(tnext_mc), .adh_sel(adh_sel), .adl_sel(adl_sel),
                   .pchs_sel(pchs_sel), .pcls_sel(pcls_sel), .alu_op(alu_op), .alu_a(alu_a), .alu_b(alu_b), .alu_c(alu_c),
                   .db_sel(db_sel), .sb_sel(sb_sel),
-                  .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_sp(load_sp),
+                  .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_s(load_s),
                   .load_abh(load_abh), .load_abl(load_abl), 
                   .load_flags(load_flag_decode), 
                   .write_cycle(write_cycle), .pc_inc(pc_inc));
