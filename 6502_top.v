@@ -26,7 +26,7 @@ wire [2:0] sb_sel;
 wire pchs_sel;
 wire pcls_sel;
 wire [3:0] alu_op;
-wire alu_a;
+wire [1:0] alu_a;
 wire [1:0] alu_b;
 wire [1:0] alu_c;
 wire load_a;
@@ -198,6 +198,11 @@ begin
     if((ir_sel & 8'b00011101) == 8'b00001001 || (ir_sel & 8'b10011101) == 8'b10000000 ||
       ((ir_sel & 8'b00001101) == 8'b00001000 && (ir_sel & 8'b10010010) != 8'b00000000))
       twocycle = 1;
+`ifdef CMOS      
+    // TODO - Clean this up once finalized.
+    if((ir_sel == 8'h5A) || (ir_sel == 8'h7A) || (ir_sel == 8'hDA) || (ir_sel == 8'hFA) || (ir_sel == 8'h80))
+      twocycle = 0;
+`endif
   end
   //$display("TWOCYCLE: %d",twocycle);
 end
@@ -301,7 +306,7 @@ begin
     last_fetch_addr <= address;
     // synthesis translate on
     
-    //$display("FETCH ADDR: %04x byte: %02x  TWOCYCLE: %d  pc_hold: %d intg: %g",address,ir_sel,twocycle,pc_hold, intg);
+//    $display("FETCH ADDR: %04x byte: %02x  TWOCYCLE: %d  pc_hold: %d intg: %g",address,ir_sel,twocycle,pc_hold, intg);
   end
 end
 
@@ -447,12 +452,15 @@ end
 // clocked ALU inputs (only A and B, everything else is "live") and outputs
 always @(posedge clk)
 begin
-  alua_reg <= alua_in;
-  //$display("ALUA = %02x",alua_in);
+  if(alu_a != 0)
+  begin
+    alua_reg <= alua_in;
+    $display("ALUA = %02x",alua_in);
+  end
   if(alu_b != 0)        // This is kindof a hack
   begin
     alub_reg <= alub_in;
-    //$display("ALUB = %02x",alub_in);
+    $display("ALUB = %02x",alub_in);
   end
   alu_carry_out_last <= alu_carry_out;
 end
@@ -488,24 +496,24 @@ begin
   if(load_a)
     begin
       reg_a <= decadj_out;
-      //$display("A = %02x",sb);
+      $display("A = %02x",sb);
     end
   if(load_x)
     begin
       reg_x <= sb;
     //$display("LOAD X alu_a: %02x alu_b: %02x alu_c: %d alu_out: %02x alu_c_out: %d ",
     //  alua_reg, alub_reg, aluc_in, alu_out, alu_carry_out);
-      //$display("X = %02x",sb);
+      $display("X = %02x",sb);
     end
   if(load_y)
     begin
       reg_y <= sb;
-      //$display("Y = %02x",sb);
+      $display("Y = %02x",sb);
     end
   if(load_s)
     begin
       reg_s <= sb;
-      //$display("S = %02x",sb);
+      $display("S = %02x",sb);
     end
 end
 

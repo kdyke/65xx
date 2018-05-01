@@ -25,7 +25,7 @@
 `define SB_A        0
 `define SB_X        1
 `define SB_Y        2
-`define SB_S       3
+`define SB_S        3
 `define SB_ALU      4
 `define SB_ADH      5
 `define SB_DB       6
@@ -54,8 +54,8 @@
 `define PCHS_ADH    1
 
 // ALU A input select - always loaded
-`define ALU_A_0     0
-`define ALU_A_SB    1
+`define ALU_A_0     1
+`define ALU_A_SB    2
 
 // ALU_B input select - 0 holds last input
 `define ALU_B_DB    1  
@@ -161,30 +161,48 @@
 `define TBR   3'd4        // Go to T1 if branch condition code check fails
 `define TKL   3'd7        // Halt CPU - Unimplemented microcode entry
 
+// Note: Try not to have any signals span 8 bit boundaries, which gives the synthesis more options
+// in choosing which signals go with which block rams.  Still to do: Figure out if there are better
+// groupings for signals that are likely to go to similar places.
+
+// Also... block RAMs are really 36 bits wide, so it's also useful to make sure those last 4 bits
+// are grouped together.  Although for Artix-7 the synthesis tools really wind up generating 3
+// 2K x 18bit block RAMs.  So the bit groupings really wind up being 3 groups of 18 bits.
+
+// 7:0
 `define TNEXT_BITS      2:0
-`define WRITE_BITS      3:3
+`define LOAD_ABH_BITS   3:3
 `define PCHS_BITS       4:4
 `define ADH_BITS        7:5
-`define PCLS_BITS       8:8
-`define ADL_BITS        11:9
-`define DB_BITS         14:12
-`define SB_BITS         17:15
-`define PC_INC_BITS     18:18
-`define ALU_BITS        22:19
-`define ALU_A_BITS      23:23
-`define ALU_B_BITS      26:24
-`define ALU_C_BITS      28:27
-`define LOAD_REG_BITS   32:29
-`define LOAD_A_BITS     29:29
-`define LOAD_X_BITS     30:30
-`define LOAD_Y_BITS     31:31
-`define LOAD_S_BITS    32:32
-`define LOAD_ABH_BITS   33:33
-`define LOAD_ABL_BITS   34:34
 
-`define LOAD_FLAGS_BITS 50:36
+// 15:8
+`define PC_INC_BITS     8:8
+`define PCLS_BITS       9:9
+`define ADL_BITS        12:10
+`define LOAD_ABL_BITS   13:13
 
-`define MICROCODE_BITS  50:0
+// 23:16
+`define ALU_A_BITS      19:18
+`define ALU_B_BITS      21:20
+`define ALU_C_BITS      23:22
+
+// 31:24
+`define ALU_BITS        27:24
+`define LOAD_REG_BITS   31:28
+`define LOAD_A_BITS     28:28
+`define LOAD_X_BITS     29:29
+`define LOAD_Y_BITS     30:30
+`define LOAD_S_BITS     31:31
+
+// 39:32
+`define DB_BITS         34:32
+`define WRITE_BITS      35:35
+`define SB_BITS         38:36
+
+// 55:40
+`define LOAD_FLAGS_BITS 53:39
+
+`define MICROCODE_BITS  53:0
 
 `define FIELD_SHIFT(_x) (0?_x)
 
@@ -215,7 +233,7 @@ mc[(_ins << 3) | _t] = ( \
   );
 
 //                                                                                                                                      Register Loads
-//            INS   T    Tn    Adh       Adl        Db,       Sb,     PCHs       PCLs        Alu_op      Alu_a      Alu_b     Alu_c    A   X   Y  S  AH  AL         Flags W INC
+//                 INS   T  Tn    Adh       Adl        Db,       Sb,     PCHs       PCLs        Alu_op      Alu_a      Alu_b     Alu_c    Load    AH  AL        Flags W INC
 
 `define BRK(_insbyte) \
 `MICROCODE(  _insbyte,  2, `Tn , `ADH_1,   `ADL_S,    `DB_DI,  `SB_FF,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,   `none,  1,  1,       `none, 0, 1) \
@@ -300,8 +318,8 @@ mc[(_ins << 3) | _t] = ( \
 `define LDX(_insbyte, _inc) `LDx(_insbyte, `LOAD_X, _inc)
 `define LDY(_insbyte, _inc) `LDx(_insbyte, `LOAD_Y, _inc)
 
-`define BRA(_insbyte) \
-`MICROCODE( _insbyte,  2, `TBR, `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,  `none,  1,  1,       `none, 0, 1) \
+`define BRA(_insbyte, t2) \
+`MICROCODE( _insbyte,  2,   t2, `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB,`ALU_B_ADL,    `none,  `none,  1,  1,       `none, 0, 1) \
 `MICROCODE( _insbyte,  3, `TBE, `ADH_PCHS, `ADL_ALU,  `DB_BO, `SB_ADH, `PCHS_PCH, `PCLS_ADL,  `ALU_SUM,`ALU_A_SB, `ALU_B_DB, `ALU_C_0,  `none,  1,  1,       `none, 0, 0) \
 `MICROCODE( _insbyte,  0, `Tn , `ADH_ALU,  `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_ADH, `PCLS_PCL,  `ALU_SUM,    `none,     `none,`ALU_C_AC,  `none,  1,  1,       `none, 0, 0) \
 `MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  `none,  1,  1,       `none, 0, 1)
@@ -354,10 +372,10 @@ mc[(_ins << 3) | _t] = ( \
 `MICROCODE(  _insbyte,   0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  `none,  1,  1,       `none, 1, 0) \
 `MICROCODE(  _insbyte,   1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  `none,  1,  1,       `none, 0, 1)
 
-`define PUSH(_insbyte, _reg) \
-`MICROCODE(  _insbyte,  2, `T0 , `ADH_1,    `ADL_S,    `DB_FF, `SB_FF,  `PCHS_PCH, `PCLS_PCL,     `none, `ALU_A_SB,`ALU_B_ADL,   `none,   `none,  1,  1,       `none, 0, 0) \
-`MICROCODE(  _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,   _reg, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0, `LOAD_S,  1,  1,       `none, 1, 0) \
-`MICROCODE(  _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,     `none,    `none,     `none,    `none,   `none,  1,  1,       `none, 0, 1)
+`define PUSH(_insbyte, _db, _sb) \
+`MICROCODE(  _insbyte,  2, `T0 , `ADH_1,    `ADL_S,    `DB_FF, `SB_FF,   `PCHS_PCH, `PCLS_PCL,    `none, `ALU_A_SB,`ALU_B_ADL,   `none,   `none,  1,  1,       `none, 0, 0) \
+`MICROCODE(  _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,    _db,     _sb,  `PCHS_PCH, `PCLS_PCL,    `none,    `none,     `none,    `none,   `none,  1,  1,       `none, 1, 0) \
+`MICROCODE(  _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_ALU,  `PCHS_PCH, `PCLS_PCL, `ALU_SUM,    `none,     `none, `ALU_C_0, `LOAD_S,  1,  1,       `none, 0, 1)
 
 `define PULL(_insbyte, _load, flags) \
 `MICROCODE(  _insbyte,  2, `Tn , `ADH_1,    `ADL_S,    `DB_FF, `SB_FF,  `PCHS_PCH, `PCLS_PCL,     `none, `ALU_A_0,`ALU_B_ADL,    `none,   `none,  1,  1,       `none, 0, 0) \

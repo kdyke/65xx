@@ -16,7 +16,7 @@ output [2:0] sb_sel;
 output [3:0] alu_op;
 output pchs_sel;
 output pcls_sel;
-output alu_a;
+output [1:0] alu_a;
 output [1:0] alu_b;
 output [1:0] alu_c;
 output load_a;
@@ -32,7 +32,9 @@ output pc_inc;
 reg [`MICROCODE_BITS] mc_out;
 (* rom_style = "block" *) reg [`MICROCODE_BITS] mc[0:2047];
 
+// synthesis translate off
 reg [12:0] i;
+// synthesis translate on
 
 initial begin
 
@@ -143,14 +145,17 @@ end
 `ADDR_abs_y(8'hF9)          `SBC(8'hF9,0)     // SBC abs,y
 `ADDR_abs_x(8'hFD,`TNC,`T0) `SBC(8'hFD,0)     // SBC abs,x
 
-                            `BRA(8'h10) // BPL
-                            `BRA(8'h30) // BMI
-                            `BRA(8'h50) // BVC
-                            `BRA(8'h70) // BVS
-                            `BRA(8'h90) // BCC
-                            `BRA(8'hB0) // BCS
-                            `BRA(8'hD0) // BNE
-                            `BRA(8'hF0) // BEQ
+                            `BRA(8'h10,`TBR) // BPL
+                            `BRA(8'h30,`TBR) // BMI
+                            `BRA(8'h50,`TBR) // BVC
+                            `BRA(8'h70,`TBR) // BVS
+                            `ifdef CMOS
+                            `BRA(8'h80,`Tn)  // BRA
+                            `endif
+                            `BRA(8'h90,`TBR) // BCC
+                            `BRA(8'hB0,`TBR) // BCS
+                            `BRA(8'hD0,`TBR) // BNE
+                            `BRA(8'hF0,`TBR) // BEQ
 
 `ADDR_zp(8'h06,`Tn)         `ASL_MEM(8'h06, 3, 4)     // ASL zp
                             `ASL_A(8'h0A)             // ASL a
@@ -206,8 +211,8 @@ end
 `ADDR_zp_x(8'hF6,`Tn)       `INC_MEM(8'hF6, 4, 5)     // INC zp,x
 `ADDR_abs_x(8'hFE,`Tn,`Tn)  `INC_MEM(8'hFE, 5, 6)     // INC abs,x
 
-                            `PUSH(8'h08, `DB_P)           // PHP
-                            `PUSH(8'h48, `DB_A)           // PHA
+                            `PUSH(8'h08, `DB_P, `SB_FF)           // PHP
+                            `PUSH(8'h48, `DB_A, `SB_FF)           // PHA
                             `PULL(8'h28, `none,   `FLAGS_DB)    // PLP
                             `PULL(8'h68, `LOAD_A, `FLAGS_DBZN)  // PLA
 
@@ -219,6 +224,12 @@ end
 
                             `NOP1(8'hEA)      // NOP
 
+`ifdef CMOS
+                            `PUSH(8'hDA, `DB_SB, `SB_X)           // PHX
+                            `PUSH(8'h5A, `DB_SB, `SB_Y)           // PHY
+                            `PULL(8'hFA, `LOAD_X, `FLAGS_DBZN)    // PLX
+                            `PULL(8'h7A, `LOAD_Y, `FLAGS_DBZN)    // PLY
+`endif
 end
 
 // microcode outputs wired to specific bits
