@@ -67,8 +67,8 @@ end
 `ADDR_abs_y(8'h39)          `AND(8'h39,0)     // AND abs,y
 `ADDR_abs_x(8'h3D,`TNC,`T0) `AND(8'h3D,0)     // AND abs,x
 
-`ADDR_zp(8'h24,`T0)         `BIT(8'h24)       // BIT zp
-`ADDR_abs(8'h2C,`T0)        `BIT(8'h2C)       // BIT abs
+`ADDR_zp(8'h24,`T0)         `BIT(8'h24,`FLAGS_BIT,0)       // BIT zp
+`ADDR_abs(8'h2C,`T0)        `BIT(8'h2C,`FLAGS_BIT,0)       // BIT abs
 
 `ADDR_zp_x_ind(8'h41)       `EOR(8'h41,0)     // EOR (zp,x)
 `ADDR_zp(8'h45,`T0)         `EOR(8'h45,0)     // EOR zp
@@ -149,9 +149,6 @@ end
                             `BRA(8'h30,`TBR) // BMI
                             `BRA(8'h50,`TBR) // BVC
                             `BRA(8'h70,`TBR) // BVS
-                            `ifdef CMOS
-                            `BRA(8'h80,`Tn)  // BRA
-                            `endif
                             `BRA(8'h90,`TBR) // BCC
                             `BRA(8'hB0,`TBR) // BCS
                             `BRA(8'hD0,`TBR) // BNE
@@ -189,12 +186,12 @@ end
                             `FLAG_OP(8'hD8, `FLAGS_D) // CLD
                             `FLAG_OP(8'hF8, `FLAGS_D) // SED
 
-                            `Txx(8'h8A, `SB_X,  `LOAD_A, `FLAGS_DBZN)  // TXA
-                            `Txx(8'h98, `SB_Y,  `LOAD_A, `FLAGS_DBZN)  // TYA
+                            `Txx(8'h8A, `SB_X,  `LOAD_A, `FLAGS_SBZN)  // TXA
+                            `Txx(8'h98, `SB_Y,  `LOAD_A, `FLAGS_SBZN)  // TYA
                             `Txx(8'h9A, `SB_X,  `LOAD_S, `none)        // TXS
-                            `Txx(8'hA8, `SB_A,  `LOAD_Y, `FLAGS_DBZN)  // TAY
-                            `Txx(8'hAA, `SB_A,  `LOAD_X, `FLAGS_DBZN)  // TAX
-                            `Txx(8'hBA, `SB_S, `LOAD_X, `FLAGS_DBZN)  // TSX
+                            `Txx(8'hA8, `SB_A,  `LOAD_Y, `FLAGS_SBZN)  // TAY
+                            `Txx(8'hAA, `SB_A,  `LOAD_X, `FLAGS_SBZN)  // TAX
+                            `Txx(8'hBA, `SB_S, `LOAD_X, `FLAGS_SBZN)  // TSX
 
                             `DEC_REG(8'h88, `SB_Y, `LOAD_Y) // DEY
                             `DEC_REG(8'hCA, `SB_X, `LOAD_X) // DEX
@@ -214,7 +211,7 @@ end
                             `PUSH(8'h08, `DB_P, `SB_FF)           // PHP
                             `PUSH(8'h48, `DB_A, `SB_FF)           // PHA
                             `PULL(8'h28, `none,   `FLAGS_DB)    // PLP
-                            `PULL(8'h68, `LOAD_A, `FLAGS_DBZN)  // PLA
+                            `PULL(8'h68, `LOAD_A, `FLAGS_SBZN)  // PLA
 
                             `JSR(8'h20)       // JSR
                             `RTS(8'h60)       // RTS
@@ -222,13 +219,136 @@ end
                             `JMP(8'h4C, 2)    // JMP abs
 `ADDR_jmp_abs(8'h6C)        `JMP(8'h6C, 4)    // JMP (abs)
 
-                            `NOP1(8'hEA)      // NOP
+                            `NOP1_2(8'hEA)      // NOP
 
+                            // "Standard" CMOS Extensions
 `ifdef CMOS
+                            `BRA(8'h80,`Tn)  // BRA
+
                             `PUSH(8'hDA, `DB_SB, `SB_X)           // PHX
                             `PUSH(8'h5A, `DB_SB, `SB_Y)           // PHY
-                            `PULL(8'hFA, `LOAD_X, `FLAGS_DBZN)    // PLX
-                            `PULL(8'h7A, `LOAD_Y, `FLAGS_DBZN)    // PLY
+                            `PULL(8'hFA, `LOAD_X, `FLAGS_SBZN)    // PLX
+                            `PULL(8'h7A, `LOAD_Y, `FLAGS_SBZN)    // PLY
+                            
+`ADDR_jmp_abs_x(8'h7C)      `JMP(8'h7C, 5)    // JMP (abs,x)
+                            
+                            `DEC_REG(8'h3A, `SB_A, `LOAD_A) // DEC
+                            `INC_REG(8'h1A, `SB_A, `LOAD_A) // INC
+                            
+                            // (zp)
+`ADDR_zp_ind(8'h12)         `ORA(8'h12,0)
+`ADDR_zp_ind(8'h32)         `AND(8'h32,0)
+`ADDR_zp_ind(8'h52)         `EOR(8'h52,0)
+`ADDR_zp_ind(8'h72)         `ADC(8'h72,0)
+`ADDR_zp_ind(8'h92)         `STA(8'h92)
+`ADDR_zp_ind(8'hB2)         `LDA(8'hB2,0)
+`ADDR_zp_ind(8'hD2)         `CMP(8'hD2,0)
+`ADDR_zp_ind(8'hF2)         `SBC(8'hF2,0)
+
+                            // STZ
+`ADDR_zp(8'h64,`T0)         `STZ(8'h64)       // STZ zp
+`ADDR_zp_x(8'h74,`T0)       `STZ(8'h74)       // STZ zp,x
+`ADDR_abs(8'h9C,`T0)        `STZ(8'h9C)       // STZ abs
+`ADDR_abs_x(8'h9E,`TNC,`T0) `STZ(8'h9E)       // STZ abs,x
+
+                            `BIT(8'h89, `none, 1)           // BIT #
+`ADDR_zp_x(8'h34,`T0)       `BIT(8'h34,`FLAGS_BIT, 0)       // BIT zp,x
+`ADDR_abs_x(8'h3C,`TNC,`T0) `BIT(8'h3C,`FLAGS_BIT, 0)       // BIT abs,x
+
+`ADDR_zp(8'h14,`Tn)         `TRB(8'h14, 3, 4)     // TRB zp
+`ADDR_abs(8'h1C,`Tn)        `TRB(8'h1C, 4, 5)     // TRB abs
+
+`ADDR_zp(8'h04,`Tn)         `TSB(8'h04, 3, 4)     // TSB zp
+`ADDR_abs(8'h0C,`Tn)        `TSB(8'h0C, 4, 5)     // TSB abs
+
+                            // WDC65C02 and Rockwell extensions
+`ADDR_zp(8'h07,`Tn)         `RMB(8'h07, 3, 4)     // RMB0 zp
+`ADDR_zp(8'h17,`Tn)         `RMB(8'h17, 3, 4)     // RMB1 zp
+`ADDR_zp(8'h27,`Tn)         `RMB(8'h27, 3, 4)     // RMB2 zp
+`ADDR_zp(8'h37,`Tn)         `RMB(8'h37, 3, 4)     // RMB3 zp
+`ADDR_zp(8'h47,`Tn)         `RMB(8'h47, 3, 4)     // RMB4 zp
+`ADDR_zp(8'h57,`Tn)         `RMB(8'h57, 3, 4)     // RMB5 zp
+`ADDR_zp(8'h67,`Tn)         `RMB(8'h67, 3, 4)     // RMB6 zp
+`ADDR_zp(8'h77,`Tn)         `RMB(8'h77, 3, 4)     // RMB7 zp
+
+`ADDR_zp(8'h87,`Tn)         `SMB(8'h87, 3, 4)     // SMB0 zp
+`ADDR_zp(8'h97,`Tn)         `SMB(8'h97, 3, 4)     // SMB1 zp
+`ADDR_zp(8'hA7,`Tn)         `SMB(8'hA7, 3, 4)     // SMB2 zp
+`ADDR_zp(8'hB7,`Tn)         `SMB(8'hB7, 3, 4)     // SMB3 zp
+`ADDR_zp(8'hC7,`Tn)         `SMB(8'hC7, 3, 4)     // SMB4 zp
+`ADDR_zp(8'hD7,`Tn)         `SMB(8'hD7, 3, 4)     // SMB5 zp
+`ADDR_zp(8'hE7,`Tn)         `SMB(8'hE7, 3, 4)     // SMB6 zp
+`ADDR_zp(8'hF7,`Tn)         `SMB(8'hF7, 3, 4)     // SMB7 zp
+
+                            `BBR(8'h0F)   // BBR 0
+                            `BBR(8'h1F)   // BBR 0
+                            `BBR(8'h2F)   // BBR 0
+                            `BBR(8'h3F)   // BBR 0
+                            `BBR(8'h4F)   // BBR 0
+                            `BBR(8'h5F)   // BBR 0
+                            `BBR(8'h6F)   // BBR 0
+                            `BBR(8'h7F)   // BBR 0
+                            `BBS(8'h8F)   // BBR 0
+                            `BBS(8'h9F)   // BBR 0
+                            `BBS(8'hAF)   // BBR 0
+                            `BBS(8'hBF)   // BBR 0
+                            `BBS(8'hCF)   // BBR 0
+                            `BBS(8'hDF)   // BBR 0
+                            `BBS(8'hEF)   // BBR 0
+                            `BBS(8'hFF)   // BBR 0
+
+                            // Various flavors of CMOS NOPs
+                            `NOP2_2(8'h02)
+                            `NOP2_2(8'h22)
+                            `NOP2_2(8'h42)
+                            `NOP2_2(8'h62)
+                            `NOP2_2(8'h82)
+                            `NOP2_2(8'hC2)
+                            `NOP2_2(8'hE2)
+
+                            `NOP2_3(8'h44)
+                            `NOP2_4(8'h54)
+                            `NOP2_4(8'hD4)
+                            `NOP2_4(8'hF4)
+                            
+                            `NOP1_1(8'h03)
+                            `NOP1_1(8'h13)
+                            `NOP1_1(8'h23)
+                            `NOP1_1(8'h33)
+                            `NOP1_1(8'h43)
+                            `NOP1_1(8'h53)
+                            `NOP1_1(8'h63)
+                            `NOP1_1(8'h73)
+                            `NOP1_1(8'h83)
+                            `NOP1_1(8'h93)
+                            `NOP1_1(8'hA3)
+                            `NOP1_1(8'hB3)
+                            `NOP1_1(8'hC3)
+                            `NOP1_1(8'hD3)
+                            `NOP1_1(8'hE3)
+                            `NOP1_1(8'hF3)
+
+                            `NOP1_1(8'h0B)
+                            `NOP1_1(8'h1B)
+                            `NOP1_1(8'h2B)
+                            `NOP1_1(8'h3B)
+                            `NOP1_1(8'h4B)
+                            `NOP1_1(8'h5B)
+                            `NOP1_1(8'h6B)
+                            `NOP1_1(8'h7B)
+                            `NOP1_1(8'h8B)
+                            `NOP1_1(8'h9B)
+                            `NOP1_1(8'hAB)
+                            `NOP1_1(8'hBB)
+                            `NOP1_1(8'hCB)
+                            `NOP1_1(8'hDB)
+                            `NOP1_1(8'hEB)
+                            `NOP1_1(8'hFB)
+                            
+                            `NOP3_8(8'h5C)
+                            `NOP3_4(8'hDC)
+                            `NOP3_4(8'hFC)
+                            
 `endif
 end
 

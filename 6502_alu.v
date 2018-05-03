@@ -21,9 +21,6 @@ module decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub, half);
   assign correction_factor = {sub_adj,add_adj,add_adj|sub_adj,1'b0};
   assign dec_out = dec_in + correction_factor;
   
-  //$strobe(" dec%d: %x + %x = %x    cin: %d add: %d sub: %d",
-  //  half,dec_in,correction_factor,dec_out,carry_in,dec_add,dec_sub);
-    
 endmodule
 
 module decadj_adder(dec_in, dec_out, carry_in, half_carry_in, dec_add, dec_sub);
@@ -60,10 +57,7 @@ module alu_half_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, de
   begin
     add_tmp = add_in1 + add_in2 + add_cin;
     greater_than_nine = (add_tmp[3] & (add_tmp[2] | add_tmp[1]));
-    carry_tmp = add_tmp[4] | (dec_add & greater_than_nine);
-
-    //$strobe("half%d: %x + %x + %d = %02x dadd: %d co: %d",half,add_in1,add_in2,add_cin,add_tmp[4:0],dec_add,carry_tmp);
-    carry_out = carry_tmp;
+    carry_out = add_tmp[4] | (dec_add & greater_than_nine);
     dec_carry_out = greater_than_nine;
     add_out = add_tmp[3:0];
   end
@@ -81,11 +75,6 @@ module alu_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, half_ca
   output half_carry_out;
     
   wire dec_carry_out; // unused
-  
-  //always @(*)
-  //begin
-  //  $strobe("adder: %02x + %02x + %d = %02x daa: %d hc: %d c: %d",add_in1,add_in2,add_cin,add_out,dec_add,half_carry_out,carry_out);
-  //end
   
   alu_half_adder  low(add_in1[3:0],add_in2[3:0],add_cin,dec_add,add_out[3:0],half_carry_out,dec_half_carry_out,1'b0);
   alu_half_adder high(add_in1[7:4],add_in2[7:4],half_carry_out,dec_add,add_out[7:4],carry_out,dec_carry_out,1'b1);
@@ -118,7 +107,7 @@ module alu_unit(a,b,alu_out,c_in,dec_add,op,carry_out,half_carry_out,overflow_ou
   reg carry_out;
   
 	alu_adder add_u(a, b, c_in, dec_add, add_out, adder_carry_out, half_carry_out);
-	
+	  
   assign overflow_out = a[7] == b[7] && a[7] != add_out[7];
   
 always @(*) begin
@@ -130,8 +119,8 @@ always @(*) begin
 			end
 		`ALU_AND: 
       begin
-      c = 0;
 			tmp = a & b;
+      c = | tmp;
 			end
 		`ALU_EOR: 
       begin
@@ -151,8 +140,7 @@ always @(*) begin
       begin
 			c = 0;
       tmp = a;
-			end
-
+      end
 	endcase
 
 	alu_out = tmp;
@@ -163,3 +151,21 @@ always @(*) begin
 
 endmodule
 
+module decoder3to8(index, outbits);
+input [2:0] index;
+output reg [7:0] outbits;
+
+always @(*)
+begin
+  case(index) // synthesis full_case parallel_case
+    0 : outbits = 8'b00000001;
+    1 : outbits = 8'b00000010;
+    2 : outbits = 8'b00000100;
+    3 : outbits = 8'b00001000;
+    4 : outbits = 8'b00010000;
+    5 : outbits = 8'b00100000;
+    6 : outbits = 8'b01000000;
+    7 : outbits = 8'b10000000;
+  endcase
+end
+endmodule

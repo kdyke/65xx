@@ -1,7 +1,9 @@
 `include "6502_inc.vh"
 
-// This may be defined to "fix" the original 6502 BRK/NMI bug.
-`define NMI_BUG_FIX      
+// This may be also defined to "fix" the original 6502 BRK/NMI bug without enabling the full CMOS stuff
+`ifdef CMOS
+`define NMI_BUG_FIX 1
+`endif
 
 module cpu6502(clk, reset, nmi, irq, ready, write, address, data_i, data_o);
 
@@ -37,9 +39,9 @@ wire load_abh;
 wire load_abl;
 wire write_cycle;
 wire pc_inc;
-wire [3:0] load_flags;
+wire [14:0] load_flag_decode;
 
-// Internal busses
+// Internal busses (muxes)
 reg [7:0] adh;
 reg [7:0] db_in; 
 reg [7:0] db_out;
@@ -51,13 +53,14 @@ reg [7:0] pchs_adh;     // ADH that feeds only into PCHS
 
 reg [7:0] sb;
 
-// Internal registers
+// Clocked internal registers
 reg [7:0] abh;
 reg [7:0] abl;
 reg [7:0] pch;
 reg [7:0] pcl;
+reg [7:0] ir;
 
-// Architectural registers
+// Clocked architectural registers
 reg [7:0] reg_a;
 reg [7:0] reg_x;
 reg [7:0] reg_y;
@@ -65,29 +68,30 @@ reg [7:0] reg_s;
 reg [7:0] reg_p;
 
 reg [2:0] t_next;
-reg [7:0] ir;
 
 // ALU inputs and outputs
 reg [7:0] alua_in;
 reg [7:0] alub_in;
+reg [7:0] alua_reg;
+reg [7:0] alub_reg;
 reg aluc_in;
 wire [7:0] alu_out;
-wire alu_d;
 
+wire branch_page_cross;
 reg taken_branch;
 reg alu_carry_out_last;
-wire branch_page_cross;
 reg [7:0] ir_sel;
 
 // reset flip flip
-reg reset_f;
-
-reg [7:0] alua_reg;
-reg [7:0] alub_reg;
+reg resp;
+reg nmil; // Delayed NMI for edge detection
+reg nmig;
+reg intp;
+reg intg;
 
 wire [7:0] decadj_out;
 wire dec_add, dec_sub;
-wire alu_carry_out,alu_half_carry_out, alu_decimal_enable;
+wire alu_carry_out,alu_half_carry_out;
 
 // Branch-to-self detection
 // synthesis translate_off
@@ -96,6 +100,7 @@ reg [15:0] last_fetch_addr;
 
 // predecode signals
 reg twocycle;
+wire dec_extra_cycle;
 
 // PCL select in/out
 reg [7:0] pcls_in;
@@ -106,13 +111,19 @@ reg [8:0] pcls;
 reg [7:0] pchs_in;
 reg [7:0] pchs;
 
-always @(posedge clk)
-begin
-  if(reset)
-    reset_f = 1;
-  else if(t == 0)
-    reset_f = 0;
-end
+decadj_adder dadj(sb, decadj_out, alu_carry_out, alu_half_carry_out, dec_add, dec_sub);
+
+// Instantiate ALU
+alu_unit alu_inst(alua_reg, alub_reg, alu_out, aluc_in, dec_add, alu_op, alu_carry_out, alu_half_carry_out, alu_overflow_out);
+
+// Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
+microcode mc_inst(.clk(clk), .ir(ir_sel), .t(t_next), .tnext(tnext_mc), .adh_sel(adh_sel), .adl_sel(adl_sel),
+                  .pchs_sel(pchs_sel), .pcls_sel(pcls_sel), .alu_op(alu_op), .alu_a(alu_a), .alu_b(alu_b), .alu_c(alu_c),
+                  .db_sel(db_sel), .sb_sel(sb_sel),
+                  .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_s(load_s),
+                  .load_abh(load_abh), .load_abl(load_abl), 
+                  .load_flags(load_flag_decode), 
+                  .write_cycle(write_cycle), .pc_inc(pc_inc));
 
 always @(*)
 begin
@@ -128,7 +139,7 @@ end
 // IR input
 always @(*)
 begin
-  if(t == 1)
+  if(fetch_cycle)
   begin
     if(intg)
       ir_sel = 8'h00;
@@ -141,15 +152,16 @@ end
 
 // During t1, microcode input addr is selected directly from data_i
 assign address = { abh, abl };
-assign write = write_cycle & ~reset_f;
+assign write = write_cycle & ~resp;
 assign data_o = db_out;
 
-// Delayed NMI for edge detection
-reg nmil;
-reg nmig;
-reg intp;
-reg intg;
-reg brk;    // Remembers whether we are doing a real BRK or IRQ/NMI.  Only gets set to 0 for IRQ, otherwise always a 1.
+always @(posedge clk)
+begin
+  if(reset)
+    resp = 1;
+  else if(t == 0)
+    resp = 0;
+end
 
 // INT is always the last read value of the interrupt status
 always @(posedge clk)
@@ -159,7 +171,7 @@ end
 
 // intg is the signal that actually causes interrupts to be processed. It 
 // can be updated from intp either during T0 or during T2 if the instruction
-// is a branch.
+// is a branch, or immediately in the case of reset.
 always @(posedge clk)
 begin
   // NMI edge detection
@@ -190,16 +202,42 @@ end
 // A page is crossed if the carry result is different than the sign of the branch offset input
 assign branch_page_cross = alu_carry_out ^ alua_reg[7];
 
-// This detects the instruction patterns where we need to go immediately to T0 instead of T2.
+wire fetch_cycle;
+`ifdef CMOS
+// This detects single-cycle instructions
+reg onecycle;
+always @(*)
+begin
+  onecycle = 0;
+  if(fetch_cycle)
+  begin
+    if((ir_sel & 8'b00000111) == 8'b00000011)
+      onecycle = 1;
+  end
+end
+wire dec_cycle;
+assign dec_cycle = dec_add | dec_sub;
+assign dec_extra_cycle = (t == 7 && load_flag_decode[`LF_Z_SBZ]);
+assign fetch_cycle = (t == 1 && ~(dec_cycle)) | dec_extra_cycle;
+`else
+wire onecycle;
+assign onecycle = 0;
+assign fetch_cycle = (t == 1);
+assign dec_extra_cycle = 0;
+`endif
+
+// This detects the instruction patterns where we need to go immediately to T0 instead of T2 during a fetch cycle.
 always @(*)
 begin
   twocycle = 0;
-  if(t == 1) begin
+  if(fetch_cycle) begin
     if((ir_sel & 8'b00011101) == 8'b00001001 || (ir_sel & 8'b10011101) == 8'b10000000 ||
       ((ir_sel & 8'b00001101) == 8'b00001000 && (ir_sel & 8'b10010010) != 8'b00000000))
       twocycle = 1;
-`ifdef CMOS      
+`ifdef CMOS
     // TODO - Clean this up once finalized.
+    if(((ir_sel & 8'b00011111) == 8'b00000010) && (ir_sel != 8'hA2))
+      twocycle = 1;
     if((ir_sel == 8'h5A) || (ir_sel == 8'h7A) || (ir_sel == 8'hDA) || (ir_sel == 8'hFA) || (ir_sel == 8'h80))
       twocycle = 0;
 `endif
@@ -207,39 +245,36 @@ begin
   //$display("TWOCYCLE: %d",twocycle);
 end
 
-// Next cycle (T) selection.   Eventually will need to add more predecode stuff here....
+// Next cycle (T) selection.
 always @(*)
 begin
-  // Defaults to next microcode t-state bottom 3 bits
   t_next = t+1;
-  if(reset)
+  if(reset | dec_extra_cycle)
     t_next = 2;
-  else if(t == 1 && twocycle == 1)
+`ifdef CMOS
+  else if(onecycle == 1)
+    t_next = 1;
+  else if(dec_cycle)
+    t_next = 7;
+`endif
+  else if(twocycle == 1)
     t_next = 0;
   else if(tnext_mc == `T0)
     t_next = 0;
-  else if(tnext_mc == `TNC)
-  begin
-    if(alu_carry_out == 0)
-      t_next = 0;
-      //$display("TNC t: %d carry: %d t_next: %d",t,alu_carry_out,t_next);
-  end
-  else if(tnext_mc == `TBR)
-  begin
-    //$display("tn = TBR, taken_branch = %d",taken_branch);
-     if(taken_branch == 0)
-        t_next = 1;
-  end
+  else if(tnext_mc == `TNC && alu_carry_out == 0)
+    t_next = 0;
+  else if(tnext_mc == `TBR && taken_branch == 0)
+    t_next = 1;
+`ifdef CMOS
+  else if(tnext_mc == `TBT && alu_carry_out == 0)
+      t_next = 1;
+`endif
   else if(tnext_mc == `TBE)
   begin
     if(branch_page_cross == 1)
       t_next = 0;
     else
       t_next = 1;
-    //$display("t: %d tn = TBE, taken_branch, alu_a: %02x alu_b: %02x alu_c: %d alu_out: %02x alu_c_out: %d branch page cross = %d t_next = %d",t,
-    //  alua_reg, alub_reg, aluc_in, alu_out, alu_carry_out,
-    //  branch_page_cross,t_next
-    //  );
   end
   else if(t != 1 && tnext_mc == `TKL)
   begin
@@ -254,9 +289,13 @@ begin
   t <= t_next;
 end
 
-// Disable PC increment when processing a BRK with recognized IRQ/NMI
+// Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform an extra dec correction cycle
 wire pc_hold;
+`ifdef CMOS
+assign pc_hold = (intg && (ir_sel == 8'h00)) || (dec_cycle);
+`else
 assign pc_hold = (intg && (ir_sel == 8'h00));
+`endif
 
 always @(*)
 begin
@@ -285,17 +324,18 @@ begin
   if(reset)
   begin
     ir <= 8'h00;
-    reg_s <= 0;
+    //reg_s <= 0;         // Not clear if the real hardware reset SP to anything or not.
     reg_p[`PF_B] <= 1;
     reg_p[`PF_U] <= 1;
   end
-  else if(t == 1)
+  else if(fetch_cycle)
   begin
     if(intg)
       reg_p[`PF_B] <= 0;
     else
       reg_p[`PF_B] <= 1;
     ir <= ir_sel;
+
     // synthesis translate off
     if(last_fetch_addr == address)
     begin
@@ -303,10 +343,11 @@ begin
         reg_a, reg_x, reg_y, reg_s, reg_p);
       $finish;
     end
-    last_fetch_addr <= address;
+    if(pc_hold == 0)
+      last_fetch_addr <= address;
     // synthesis translate on
     
-//    $display("FETCH ADDR: %04x byte: %02x  TWOCYCLE: %d  pc_hold: %d intg: %g",address,ir_sel,twocycle,pc_hold, intg);
+  //$display("FETCH ADDR: %04x byte: %02x  1C: %d 2C: %d  pc_hold: %d intg: %g",address,ir_sel,onecycle,twocycle,pc_hold, intg);
   end
 end
 
@@ -314,7 +355,7 @@ reg [7:0] vector_lo;
 
 always @(*)
 begin
-  if(reset_f == 1)
+  if(resp == 1)
     vector_lo = 8'hFC;
   else if(nmig 
 `ifdef NMI_BUG_FIX    
@@ -334,9 +375,7 @@ begin
     `ADH_DI  : pchs_adh = data_i;
     `ADH_ALU : pchs_adh = alu_out;
   endcase
-  //$display("ADH: t: %d adh_sel: %d adh: %02x ",t,adh_sel,adh);
 end
-
 
 // ADH mux
 always @(*)
@@ -349,7 +388,6 @@ begin
     `ADH_1   : adh = 8'h01;
     `ADH_FF  : adh = 8'hFF;
   endcase
-  //$display("ADH: t: %d adh_sel: %d adh: %02x ",t,adh_sel,adh);
 end
 
 // ADL -> PCLS
@@ -374,14 +412,13 @@ begin
     `ADL_VECLO : abl_adl = vector_lo;
     `ADL_VECHI : abl_adl = vector_lo | 1;
   endcase
-  //$display("ADL: t: %d adl_sel: %d adl: %02x",t,adl_sel,adl);
 end
 
 // DB input mux
 always @(*)
 begin
   case(db_sel)  // synthesis full_case parallel_case
-    `DB_FF  : db_in = 8'hFF;
+    `DB_0   : db_in = 8'h00;
     `DB_DI  : db_in = data_i;
     `DB_A   : db_in = reg_a;
     `DB_BO  : db_in = {8{alua_reg[7]}};   // The high bit of the last ALU A input is the sign bit for branch offsets
@@ -397,24 +434,29 @@ begin
     `DB_PCL : db_out = pcl;
     `DB_PCH : db_out = pch;
     `DB_P   : db_out = reg_p;
+    `DB_0   : db_out = 8'h00;
   endcase
 end
 
-// SB input mux
+// SB mux
 always @(*)
 begin
   case(sb_sel)  // synthesis full_case parallel_case
     `SB_A   : sb = reg_a;
     `SB_X   : sb = reg_x;
     `SB_Y   : sb = reg_y;
-    `SB_S  : sb = reg_s;
+    `SB_S   : sb = reg_s;
     `SB_ALU : sb = alu_out;
     `SB_ADH : sb = adh;
     `SB_DB  : sb = db_in;
     `SB_FF  : sb = 8'hFF;
   endcase
-    //$display("sb_sel: %d  sb: %02x",sb_sel,sb);
 end
+
+`ifdef CMOS
+wire [7:0] ir_dec;
+decoder3to8 dec3to8(ir[6:4], ir_dec);
+`endif
 
 // ALU A input select
 always @(*)
@@ -422,8 +464,10 @@ begin
   case(alu_a)  // synthesis full_case parallel_case
     `ALU_A_0  : alua_in = 8'h00;
     `ALU_A_SB : alua_in = sb;
+`ifdef CMOS
+    `ALU_A_IR : alua_in = ir_dec;
+`endif
   endcase
-    //$display("alu_a_in: %02x",alua_in);
 end
 
 // ALU B input select
@@ -434,7 +478,6 @@ begin
     `ALU_B_NDB : alub_in = ~db_in;
     `ALU_B_ADL : alub_in = abl_adl;
   endcase
-    //$display("alu_b: %d  alub_in: %02x",alu_b,alub_in);
 end
 
 // ALU C (carry) input select
@@ -453,15 +496,9 @@ end
 always @(posedge clk)
 begin
   if(alu_a != 0)
-  begin
     alua_reg <= alua_in;
-    $display("ALUA = %02x",alua_in);
-  end
-  if(alu_b != 0)        // This is kindof a hack
-  begin
+  if(alu_b != 0)
     alub_reg <= alub_in;
-    $display("ALUB = %02x",alub_in);
-  end
   alu_carry_out_last <= alu_carry_out;
 end
 
@@ -486,48 +523,49 @@ begin
     pcl <= pcls;
 end
 
-// FIXME - This is kinda hacky right now.  Really should have a pair of dedicated microcode bits for this.
-assign dec_add = reg_p[`PF_D] & (load_flags == `FLAGS_ALU) & (alu_op == `ALU_ADC);
-assign dec_sub = reg_p[`PF_D] & (load_flags == `FLAGS_ALU) & (alu_op == `ALU_SBC);
-  decadj_adder dadj(sb, decadj_out, alu_carry_out, alu_half_carry_out, dec_add, dec_sub);
+// FIXME - This is kinda hacky right now.  Really should have a pair of dedicated microcode bits for this but
+// I'm currently out of spare microcode bits.   This probably only requires a couple of LUTs though.
+assign dec_add = reg_p[`PF_D] & (load_flag_decode == `FLAGS_ALU) & (alu_op == `ALU_ADC);
+assign dec_sub = reg_p[`PF_D] & (load_flag_decode == `FLAGS_ALU) & (alu_op == `ALU_SBC);
 
 always @(posedge clk)
 begin
   if(load_a)
     begin
       reg_a <= decadj_out;
-      $display("A = %02x",sb);
+      //$display("A = %02x",sb);
     end
   if(load_x)
     begin
       reg_x <= sb;
-    //$display("LOAD X alu_a: %02x alu_b: %02x alu_c: %d alu_out: %02x alu_c_out: %d ",
-    //  alua_reg, alub_reg, aluc_in, alu_out, alu_carry_out);
-      $display("X = %02x",sb);
+      //$display("X = %02x",sb);
     end
   if(load_y)
     begin
       reg_y <= sb;
-      $display("Y = %02x",sb);
+      //$display("Y = %02x",sb);
     end
   if(load_s)
     begin
       reg_s <= sb;
-      $display("S = %02x",sb);
+      //$display("S = %02x",sb);
     end
 end
 
-wire db_z;
+// In the real 6502 the internal data bus is bidirectional and so it doesn't matter whether it is a "source" or destination.  But
+// in an FPGA you never want to have combinatorial loops since it generally makes the synthesis tools really unhappy.  So because
+// I had to split the data bus into two unidirectional busses, I was faced with the problem that sometimes I needed to update the Z
+// and N flags based on data coming into the CPU (Load, BIT, etc), and sometimes when it was just the result of an internal operation.
 
+// However, my secondary (SB) bus is essentially unidirectional, and in all cases where I needed to update the Z or N flags it was
+// possible to either have the input data bus feed the secondary bus to pick up the flags, or just pick up the flags from the secondary
+// bus directly (which is a case where the original would have cross connected the two busses).  So, I always just get Z or N from
+// the secondary bus instead.
 assign sb_z = ~|sb;
 assign sb_n = sb[7];
 
-wire [14:0] load_flag_decode;
-
 always @(posedge clk)
-begin
-    //$display("lfd: %15b",load_flag_decode);
-    
+begin    
     if(load_flag_decode[`LF_C_ACR])       reg_p[`PF_C] = alu_carry_out;
     else if(load_flag_decode[`LF_C_IR5])  reg_p[`PF_C] = ir[5];
     else if(load_flag_decode[`LF_C_DB0])  reg_p[`PF_C] = db_in[0];
@@ -548,19 +586,6 @@ begin
       
     if(load_flag_decode[`LF_N_SBN])       reg_p[`PF_N] = sb_n;
     else if(load_flag_decode[`LF_N_DB7])  reg_p[`PF_N] = db_in[7];
-      
 end
-
-// Instantiate ALU
-alu_unit alu_inst(alua_reg, alub_reg, alu_out, aluc_in, dec_add, alu_op, alu_carry_out, alu_half_carry_out, alu_overflow_out);
-
-// Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
-microcode mc_inst(.clk(clk), .ir(ir_sel), .t(t_next), .tnext(tnext_mc), .adh_sel(adh_sel), .adl_sel(adl_sel),
-                  .pchs_sel(pchs_sel), .pcls_sel(pcls_sel), .alu_op(alu_op), .alu_a(alu_a), .alu_b(alu_b), .alu_c(alu_c),
-                  .db_sel(db_sel), .sb_sel(sb_sel),
-                  .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_s(load_s),
-                  .load_abh(load_abh), .load_abl(load_abl), 
-                  .load_flags(load_flag_decode), 
-                  .write_cycle(write_cycle), .pc_inc(pc_inc));
 
 endmodule
