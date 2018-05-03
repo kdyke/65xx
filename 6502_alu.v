@@ -120,7 +120,7 @@ always @(*) begin
 		`ALU_AND: 
       begin
 			tmp = a & b;
-      c = | tmp;
+      c = | tmp;      // This is a bit of a hack, used for 65C02 branch bit tests.
 			end
 		`ALU_EOR: 
       begin
@@ -136,7 +136,7 @@ always @(*) begin
       begin
 			{tmp,c} = {c_in,a};
       end
-    `ALU_PSA: 
+    `ALU_PSA:   // Passthrough, used when I just needed the ALU to hold onto something for a cycle. The real 6502 has an output old register.
       begin
 			c = 0;
       tmp = a;

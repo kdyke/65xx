@@ -236,7 +236,7 @@ begin
       ((ir_sel & 8'b00001101) == 8'b00001000 && (ir_sel & 8'b10010010) != 8'b00000000))
       twocycle = 1;
 `ifdef CMOS
-    // TODO - Clean this up once finalized.
+    // TODO - Clean this up once finalized.  It's also wrong if some of the extra WDC instructions aren't supported.
     if(((ir_sel & 8'b00011111) == 8'b00000010) && (ir_sel != 8'hA2))
       twocycle = 1;
     if((ir_sel == 8'h5A) || (ir_sel == 8'h7A) || (ir_sel == 8'hDA) || (ir_sel == 8'hFA) || (ir_sel == 8'h80))
@@ -249,7 +249,7 @@ end
 // Timing control state machine
 timing_ctrl timing(clk, reset, ready_i, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, dec_extra_cycle, onecycle, twocycle, dec_cycle);
 
-// Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform an extra dec correction cycle
+// Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform the extra decimal correction cycle
 wire pc_hold;
 `ifdef CMOS
 assign pc_hold = (intg && (ir_sel == 8'h00)) || (dec_cycle);
@@ -452,7 +452,7 @@ begin
 end
 
 
-// clocked ALU inputs (only A and B, everything else is "live") and outputs
+// clocked ALU inputs (only A and B, everything else is "live")
 always @(posedge clk)
 begin
   if(alu_a != 0 && ready_i)
