@@ -39,81 +39,31 @@ end
 
 always @(*)
 begin
-  t_next = 'bx;
-  
-  case(t)
-    T0 :  t_next = T1;
-    T1 :  begin
-            if(onecycle)
-              t_next = T1;
-            else if(dec_cycle)
-              t_next = T7;
-            else if(twocycle)
-              t_next = T0;
-            else
-              t_next = T2;
-          end
-    T2 :  begin
-            if(tnext_mc == `T0)
-              t_next = T0;
-            else if(tnext_mc == `TBR && taken_branch == 0)
-              t_next = T1;
-            else
-              t_next = T3;
-          end
-    T3  :  begin
-            if(tnext_mc == `TNC && alu_carry_out == 0)
-              t_next = T0;
-            else if(tnext_mc == `TBE)
-            begin
-              if(branch_page_cross == 1)
-                t_next = T0;
-              else
-                t_next = T1;
-            end
-            else if(tnext_mc == `TBT && alu_carry_out == 0)
-              t_next = T1;
-            else if(tnext_mc == `T0)
-              t_next = T0;
-            else
-              t_next = T4;
-          end
-    T4 :  begin
-            if(tnext_mc == `TNC && alu_carry_out == 0)
-              t_next = T0;
-            else if(tnext_mc == `TBT && alu_carry_out == 0)
-              t_next = T1;
-            else if(tnext_mc == `T0)
-              t_next = T0;
-            else
-              t_next = T5;
-          end
-    T5 :  begin
-            if(tnext_mc == `TBE)
-            begin
-              if(branch_page_cross == 1)
-                t_next = T0;
-              else
-                t_next = T1;
-            end
-            else if(tnext_mc == `T0)
-              t_next = T0;
-            else
-              t_next = T6;
-          end
-    T6 :  begin
-            if(tnext_mc == `T0)
-              t_next = T0;
-            else
-              t_next = T7;
-          end
-    T7 :  begin
-            if(dec_extra_cycle)
-              t_next = T2;
-            else
-              t_next = T0;
-          end
-  endcase
+  t_next = t+1;
+
+  if(onecycle)
+    t_next = T1;
+  else if(dec_extra_cycle)
+    t_next = T2;
+  else if(dec_cycle)
+    t_next = T7;
+  else if(twocycle)
+    t_next = T0;
+  if(tnext_mc == `T0)
+    t_next = T0;
+  else if(tnext_mc == `TNC && alu_carry_out == 0)
+    t_next = T0;
+  else if(tnext_mc == `TBR && taken_branch == 0)
+    t_next = T1;
+  else if(tnext_mc == `TBE)
+  begin
+    if(branch_page_cross == 1)
+      t_next = T0;
+    else
+      t_next = T1;
+  end
+  else if(tnext_mc == `TBT && alu_carry_out == 0)
+    t_next = T1;
 end
 
 endmodule
