@@ -8,7 +8,7 @@
 input clk;
 input [7:0] ir;
 input [2:0] t;
-output [3:0] tnext;
+output [2:0] tnext;
 output [2:0] adh_sel;
 output [2:0] adl_sel;
 output [2:0] db_sel;

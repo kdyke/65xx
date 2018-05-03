@@ -450,12 +450,6 @@ mc[(_ins << 3) | _t] = ( \
 `MICROCODE(  _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1) \
 `MICROCODE(  _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,    `none,  1,  1,       `none, 0, 1)
 
-`define SHIFT_MEM(_insbyte, c1, c2, _aluop, _alucarry) \
-`MICROCODE( _insbyte,  c1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_DB,  `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  `none,  0,  0,       `none, 0, 0) \
-`MICROCODE( _insbyte,  c2, `T0 , `ADH_PCHS, `ADL_ALU,  `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  _aluop,   `ALU_A_0,`ALU_B_ADL,_alucarry,  `none,  0,  0,  `FLAGS_CNZ, 0, 0) \
-`MICROCODE( _insbyte,   0, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_SUM,    `none,     `none, `ALU_C_0,  `none,  1,  1,       `none, 1, 0) \
-`MICROCODE( _insbyte,   1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `none,       `none,     `none,    `none,  `none,  1,  1,       `none, 0, 1)
-
 `define TRB(_insbyte, c1, c2) \
 `MICROCODE( _insbyte,  c1, `Tn , `ADH_PCHS, `ADL_PCLS, `DB_DI, `SB_A,   `PCHS_PCH, `PCLS_PCL,  `none,   `ALU_A_SB, `ALU_B_DB,    `none,  `none,  0,  0,       `none, 0, 0) \
 `MICROCODE( _insbyte,  c2, `T0 , `ADH_PCHS, `ADL_PCLS, `DB_SB, `SB_ALU, `PCHS_PCH, `PCLS_PCL,  `ALU_AND,`ALU_A_SB,     `none,    `none,  `none,  0,  0,    `dec_extra_cycle, 0, 0) \

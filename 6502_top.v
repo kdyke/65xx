@@ -17,10 +17,11 @@ output [15:0] address;
 output write;
 
 // current timing state
-reg [2:0] t;
+wire [2:0] t;
+wire [2:0] t_next;
 
 // microcode output signals
-wire [3:0] tnext_mc;     // top bit serves special purpose.
+wire [2:0] tnext_mc;
 wire [2:0] adh_sel;
 wire [2:0] adl_sel;
 wire [2:0] db_sel;
@@ -67,8 +68,6 @@ reg [7:0] reg_y;
 reg [7:0] reg_s;
 reg [7:0] reg_p;
 
-reg [2:0] t_next;
-
 // ALU inputs and outputs
 reg [7:0] alua_in;
 reg [7:0] alub_in;
@@ -92,6 +91,8 @@ reg intg;
 wire [7:0] decadj_out;
 wire dec_add, dec_sub;
 wire alu_carry_out,alu_half_carry_out;
+
+wire ready_i;
 
 // Branch-to-self detection
 // synthesis translate_off
@@ -124,6 +125,8 @@ microcode mc_inst(.clk(clk), .ir(ir_sel), .t(t_next), .tnext(tnext_mc), .adh_sel
                   .load_abh(load_abh), .load_abl(load_abl), 
                   .load_flags(load_flag_decode), 
                   .write_cycle(write_cycle), .pc_inc(pc_inc));
+
+assign ready_i = ready | write_cycle;
 
 always @(*)
 begin
@@ -181,9 +184,7 @@ begin
     nmig <= 1;
   nmil <= nmi;    // remember current state
   
-  if(reset || 
-     (t == 0) ||
-     (tnext_mc == `TBR))
+  if(reset || (t == 0) || (tnext_mc == `TBR))
   begin
     if((intp & ~reg_p[`PF_I]) | nmig | reset)
       intg <= 1;
@@ -245,49 +246,8 @@ begin
   //$display("TWOCYCLE: %d",twocycle);
 end
 
-// Next cycle (T) selection.
-always @(*)
-begin
-  t_next = t+1;
-  if(reset | dec_extra_cycle)
-    t_next = 2;
-`ifdef CMOS
-  else if(onecycle == 1)
-    t_next = 1;
-  else if(dec_cycle)
-    t_next = 7;
-`endif
-  else if(twocycle == 1)
-    t_next = 0;
-  else if(tnext_mc == `T0)
-    t_next = 0;
-  else if(tnext_mc == `TNC && alu_carry_out == 0)
-    t_next = 0;
-  else if(tnext_mc == `TBR && taken_branch == 0)
-    t_next = 1;
-`ifdef CMOS
-  else if(tnext_mc == `TBT && alu_carry_out == 0)
-      t_next = 1;
-`endif
-  else if(tnext_mc == `TBE)
-  begin
-    if(branch_page_cross == 1)
-      t_next = 0;
-    else
-      t_next = 1;
-  end
-  else if(t != 1 && tnext_mc == `TKL)
-  begin
-    $display("FETCH ADDR: %04x byte: %02x  TWOCYCLE: %d (Microcode KIL)",address,data_i,twocycle);
-    $display("mc[%d | %d]",ir,t);
-    $finish;
-  end
-end
-
-always @(posedge clk)
-begin
-  t <= t_next;
-end
+// Timing control state machine
+timing_ctrl timing(clk, reset, ready_i, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, dec_extra_cycle, onecycle, twocycle, dec_cycle);
 
 // Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform an extra dec correction cycle
 wire pc_hold;
@@ -328,7 +288,7 @@ begin
     reg_p[`PF_B] <= 1;
     reg_p[`PF_U] <= 1;
   end
-  else if(fetch_cycle)
+  else if(fetch_cycle & ready_i)
   begin
     if(intg)
       reg_p[`PF_B] <= 0;
@@ -495,9 +455,9 @@ end
 // clocked ALU inputs (only A and B, everything else is "live") and outputs
 always @(posedge clk)
 begin
-  if(alu_a != 0)
+  if(alu_a != 0 && ready_i)
     alua_reg <= alua_in;
-  if(alu_b != 0)
+  if(alu_b != 0 && ready_i)
     alub_reg <= alub_in;
   alu_carry_out_last <= alu_carry_out;
 end
@@ -505,22 +465,25 @@ end
 // ABL/ADH registers
 always @(posedge clk)
 begin
-  if(load_abh)
+  if(load_abh && ready_i)
   begin
     if(adh_sel == `ADH_PCHS)
       abh <= pchs;
     else
       abh <= adh;
   end
-  if(load_abl)
+  if(load_abl && ready_i)
       abl <= abl_adl;
 end
 
 // PCH/PCL always take value of PCHS/PCLS
 always @(posedge clk)
 begin
+  if(ready_i)
+  begin
     pch <= pchs;
     pcl <= pcls;
+  end
 end
 
 // FIXME - This is kinda hacky right now.  Really should have a pair of dedicated microcode bits for this but
@@ -530,26 +493,29 @@ assign dec_sub = reg_p[`PF_D] & (load_flag_decode == `FLAGS_ALU) & (alu_op == `A
 
 always @(posedge clk)
 begin
-  if(load_a)
-    begin
-      reg_a <= decadj_out;
-      //$display("A = %02x",sb);
-    end
-  if(load_x)
-    begin
-      reg_x <= sb;
-      //$display("X = %02x",sb);
-    end
-  if(load_y)
-    begin
-      reg_y <= sb;
-      //$display("Y = %02x",sb);
-    end
-  if(load_s)
-    begin
-      reg_s <= sb;
-      //$display("S = %02x",sb);
-    end
+  if(ready_i)
+  begin
+    if(load_a)
+      begin
+        reg_a <= decadj_out;
+        //$display("A = %02x",sb);
+      end
+    if(load_x)
+      begin
+        reg_x <= sb;
+        //$display("X = %02x",sb);
+      end
+    if(load_y)
+      begin
+        reg_y <= sb;
+        //$display("Y = %02x",sb);
+      end
+    if(load_s)
+      begin
+        reg_s <= sb;
+        //$display("S = %02x",sb);
+      end
+  end
 end
 
 // In the real 6502 the internal data bus is bidirectional and so it doesn't matter whether it is a "source" or destination.  But
@@ -566,6 +532,8 @@ assign sb_n = sb[7];
 
 always @(posedge clk)
 begin    
+  if(ready_i)
+  begin
     if(load_flag_decode[`LF_C_ACR])       reg_p[`PF_C] = alu_carry_out;
     else if(load_flag_decode[`LF_C_IR5])  reg_p[`PF_C] = ir[5];
     else if(load_flag_decode[`LF_C_DB0])  reg_p[`PF_C] = db_in[0];
@@ -586,6 +554,7 @@ begin
       
     if(load_flag_decode[`LF_N_SBN])       reg_p[`PF_N] = sb_n;
     else if(load_flag_decode[`LF_N_DB7])  reg_p[`PF_N] = db_in[7];
+  end
 end
 
 endmodule
