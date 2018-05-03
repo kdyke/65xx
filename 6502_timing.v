@@ -64,6 +64,13 @@ begin
   end
   else if(tnext_mc == `TBT && alu_carry_out == 0)
     t_next = T1;
+  // synthesis translate_off
+  else if(t != 1 && tnext_mc == `TKL)
+  begin
+    $display("Microcode KIL encountered");
+    $finish;
+  end
+  // synthesis translate_on
 end
 
 endmodule
