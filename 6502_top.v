@@ -447,7 +447,7 @@ begin
     `ALU_C_0 : aluc_in = 0;
     `ALU_C_1 : aluc_in = 1;
     `ALU_C_P : aluc_in = reg_p[0];
-    `ALU_C_AC : aluc_in = alu_carry_out_last;    // last clocked out carry
+    `ALU_C_A : aluc_in = alu_carry_out_last;    // last clocked out carry
   endcase
 end
 

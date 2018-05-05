@@ -136,7 +136,7 @@ always @(*) begin
       begin
 			{tmp,c} = {c_in,a};
       end
-    `ALU_PSA:   // Passthrough, used when I just needed the ALU to hold onto something for a cycle. The real 6502 has an output old register.
+    `ALU_PSA:   // Passthrough, used when I just needed the ALU to hold onto something for a cycle. The real 6502 has an output hold register.
       begin
 			c = 0;
       tmp = a;
@@ -157,7 +157,7 @@ output reg [7:0] outbits;
 
 always @(*)
 begin
-  case(index) // synthesis full_case parallel_case
+  case(index)
     0 : outbits = 8'b00000001;
     1 : outbits = 8'b00000010;
     2 : outbits = 8'b00000100;
