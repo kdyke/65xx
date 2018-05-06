@@ -239,6 +239,20 @@ mc[(_ins << 3) | _t] = ( \
   (_write << `FIELD_SHIFT(`WRITE_BITS)) \
   );
 
+// ADH/ADL combinations used:
+//
+// PCHS/PCLS              -- Data Fetch
+// 1/S                    -- Stack
+// 1/ALU                  -- Stack Op
+// FF/VECLO               -- Vector Fectch
+// FF/VECHI               -- Vector Fetch
+// DI/ALU                 -- High Addres Fetch
+// 0/DI                   -- Zero Page
+// 0/ALU                  -- Zero Page Index
+// ALU/PCLS               -- High Address Carry
+// PCHS/ALU               -- Low ALU
+//
+// Could trivially go from 6 to 4 bits, which would give me 5 bits for timing state control to play with.
 //                                                                                                                                      Register Loads
 //                 INS   T  Tn    Adh       Adl        AH  AL  PCHs       PCLs     INC   Db,       Sb,   Alu_op    Alu_a      Alu_b       Alu_c     Load     Flags      WC
 

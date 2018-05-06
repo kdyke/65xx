@@ -25,3 +25,13 @@ Right now timing control is done with a simple 3-bit register that contains the 
 ##### Experiments tried
 
 I tried doing the timing with an "offical" FSM and it wound up taking up more LUTs and was only marginally faster.  Going to a one-hot design might be ok if I could also redo the microcode outputs to have a single bit for all of the special cases rather than having to decode things.  This would require freeing up some microcode bits, though.
+
+##### Re-architecture ideas
+
+It'd be nice to implement a dedicated addressing unit.  The unified ALU for addressing math causes numerous timing issues:
+
+* Timing control winds up with dependencies on the decimal carry path because the ALU only has one carry out path.
+
+* The processor Z bit state has (false) combinatorial paths that run all the way back through the program counter logic.  For example, P[Z] -> SB -> ADH -> PCHS -> PCLS(carry) -> ADL -> ALU -> microcode carry.   The only real path that matters here should be P[Z] -> SB -> ALU -> microcode carry.
+
+
