@@ -1,6 +1,6 @@
 `include "6502_inc.vh"
 
-module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, dec_extra_cycle, onecycle, twocycle, dec_cycle);
+module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, fetch_cycle, decimal_extra_cycle, onecycle, twocycle, decimal_cycle);
 input clk;
 input reset;
 input ready;
@@ -8,8 +8,9 @@ input [2:0] tnext_mc;
 input alu_carry_out;
 input taken_branch;
 input branch_page_cross;
-input dec_cycle;
-input dec_extra_cycle;
+input fetch_cycle;
+input decimal_cycle;
+input decimal_extra_cycle;
 input onecycle;
 input twocycle;
 output [2:0] t;
@@ -41,13 +42,13 @@ always @(*)
 begin
   t_next = t+1;
 
-  if(onecycle)
+  if(onecycle & fetch_cycle)
     t_next = T1;
-  else if(dec_extra_cycle)
+  else if(decimal_extra_cycle)
     t_next = T2;
-  else if(dec_cycle)
+  else if(decimal_cycle)
     t_next = T7;
-  else if(twocycle)
+  else if(twocycle & fetch_cycle)
     t_next = T0;
   if(tnext_mc == `T0)
     t_next = T0;
@@ -71,6 +72,60 @@ begin
     $finish;
   end
   // synthesis translate_on
+end
+
+endmodule
+
+module predecode(ir_next, onecycle, twocycle);
+input [7:0] ir_next;
+output onecycle;
+output twocycle;
+
+reg twocycle;
+
+`ifdef CMOS
+// This detects single-cycle instructions
+reg onecycle;
+always @(*)
+begin
+  if((ir_next & 8'b00000111) == 8'b00000011)
+    onecycle = 1;
+  else
+    onecycle = 0;
+end
+`else
+wire onecycle;
+assign onecycle = 0;
+`endif
+
+// This detects the instruction patterns where we need to go immediately to T0 instead of T2 during a fetch cycle.
+always @(*)
+begin
+  casez(ir_next)
+    `ifdef CMOS
+    8'b?1?1_1010: twocycle = 0;
+    8'b???0_0010: twocycle = 1;
+    `endif
+    8'b???0_10?1: twocycle = 1;
+    8'b1??0_00?0: // This would hit the CMOS BRA, but is disabled below
+      begin
+        twocycle = 1;
+        `ifdef CMOS
+        casez(ir_next)
+          8'b?00???0?: twocycle = 0;
+        endcase
+        `endif
+      end
+    8'b????_10?0:
+      begin
+        twocycle = 1;
+        casez(ir_next)
+          8'b0??0??0?: twocycle = 0;
+        endcase
+      end
+    default: twocycle = 0;
+  endcase;
+
 end
 
 endmodule
