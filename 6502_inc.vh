@@ -1,6 +1,14 @@
 `ifndef _6502_inc_vh_
 `define _6052_inc_vh_
 
+// For when I want to synthesize and keep the full internal hierarchy
+`define xSCHEM_KEEP 1
+`ifdef SCHEM_KEEP
+`define SCHEM_KEEP_HIER (* keep_hierarchy = "yes" *)
+`else
+`define SCHEM_KEEP_HIER
+`endif
+
 // This is just the universal "don't care" or "default"
 `define none          0
 

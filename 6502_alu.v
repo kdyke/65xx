@@ -23,7 +23,7 @@ module decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub, half);
   
 endmodule
 
-module decadj_adder(dec_in, dec_out, carry_in, half_carry_in, dec_add, dec_sub);
+`SCHEM_KEEP_HIER module decadj_adder(dec_in, dec_out, carry_in, half_carry_in, dec_add, dec_sub);
   input [7:0] dec_in;
   input carry_in;
   input half_carry_in;
@@ -82,7 +82,8 @@ module alu_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, half_ca
 endmodule
 
 // Input muxing is done outside of the core ALU unit.
-module alu_unit(a,b,alu_out,c_in,dec_add,op,carry_out,half_carry_out,overflow_out);
+`SCHEM_KEEP_HIER module alu_unit(clk, a,b,alu_out,c_in,dec_add,op,carry_out,half_carry_out,overflow_out,alu_carry_out_last);
+  input clk;
   input [7:0] a;
   input [7:0] b;
 	input [3:0] op;
@@ -93,6 +94,7 @@ module alu_unit(a,b,alu_out,c_in,dec_add,op,carry_out,half_carry_out,overflow_ou
   output carry_out;
   output half_carry_out;
   output overflow_out;
+  output reg alu_carry_out_last;
   
 	reg c;
 	
@@ -149,9 +151,14 @@ always @(*) begin
   //$strobe("ALU a: %02x b: %02x c_in: %d -> %02x daa: %d flags vc: %d%d hc: %d",a,b,c_in,tmp,dec_add,overflow_out,carry_out,half_carry_out);
 	end
 
+  always @(posedge clk)
+  begin
+    alu_carry_out_last <= carry_out;
+  end
+
 endmodule
 
-module decoder3to8(index, outbits);
+`SCHEM_KEEP_HIER module decoder3to8(index, outbits);
 input [2:0] index;
 output reg [7:0] outbits;
 
