@@ -1,11 +1,5 @@
 `include "6502_inc.vh"
 
-// This may be also defined to "fix" the original 6502 BRK/NMI bug without enabling the full CMOS stuff
-`ifdef CMOS
-`define NMI_BUG_FIX 1
-`endif
-`define NMI_BUG_FIX 1
-
 module cpu6502(clk, reset, nmi, irq, ready, write, sync, address, data_i, data_o);
 
 initial begin

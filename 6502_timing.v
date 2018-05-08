@@ -1,5 +1,11 @@
 `include "6502_inc.vh"
 
+// This may be also defined to "fix" the original 6502 BRK/NMI bug without enabling the full CMOS stuff
+`ifdef CMOS
+`define NMI_BUG_FIX 1
+`endif
+`define NMI_BUG_FIX 1
+
 `SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, sync, load_sbz, onecycle, twocycle, decimal_cycle);
 input clk;
 input reset;
