@@ -64,40 +64,23 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module adh_sb_mux(adh_sel, data_i, pchs, alu, adh_sb);
+`SCHEM_KEEP_HIER module adh_abh_mux(adh_sel, data_i, pchs, alu, adh_abh);
 input [2:0] adh_sel;
 input [7:0] data_i;
 input [7:0] pchs;
 input [7:0] alu;
-output [7:0] adh_sb;
-reg [7:0] adh_sb;
-
-always @(*)
-begin
-  case(adh_sel)  // synthesis full_case parallel_case
-    `ADH_DI  : adh_sb = data_i;
-    `ADH_PCHS: adh_sb = pchs;
-    `ADH_ALU : adh_sb = alu;
-    `ADH_0   : adh_sb = 8'h00;
-    `ADH_1   : adh_sb = 8'h01;
-    `ADH_FF  : adh_sb = 8'hFF;
-  endcase
-end
-
-endmodule
-
-`SCHEM_KEEP_HIER module adh_abh_mux(adh_sel, pchs, sb, adh_abh);
-input [2:0] adh_sel;
-input [7:0] pchs;
-input [7:0] sb;
 output [7:0] adh_abh;
 reg [7:0] adh_abh;
 
 always @(*)
 begin
   case(adh_sel)  // synthesis full_case parallel_case
+    `ADH_DI  : adh_abh = data_i;
     `ADH_PCHS: adh_abh = pchs;
-    default  : adh_abh = sb;
+    `ADH_ALU : adh_abh = alu;
+    `ADH_0   : adh_abh = 8'h00;
+    `ADH_1   : adh_abh = 8'h01;
+    `ADH_FF  : adh_abh = 8'hFF;
   endcase
 end
 
@@ -150,19 +133,19 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module sb_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu, adh, db, sb);
+// This is the "secondary bus" that feeds into the ALU A input register.
+`SCHEM_KEEP_HIER module sb_alu_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu, pchs, db, sb);
 input [2:0] sb_sel;
 input [7:0] reg_a;
 input [7:0] reg_x;
 input [7:0] reg_y;
 input [7:0] reg_s;
 input [7:0] alu;
-input [7:0] adh;
+input [7:0] pchs;
 input [7:0] db;
 output [7:0] sb;
 reg [7:0] sb;
 
-// SB mux
 always @(*)
 begin
   case(sb_sel)  // synthesis full_case parallel_case
@@ -171,7 +154,7 @@ begin
     `SB_Y   : sb = reg_y;
     `SB_S   : sb = reg_s;
     `SB_ALU : sb = alu;
-    `SB_ADH : sb = adh;
+    `SB_ADH : sb = pchs;  // Any time SB is sourcing from ADH, it is always to get PCH(S)
     `SB_DB  : sb = db;
     `SB_FF  : sb = 8'hFF;
   endcase
@@ -179,6 +162,7 @@ end
 
 endmodule
 
+// This is the "secondary bus" that feeds into the architectural registers and to db_out
 `SCHEM_KEEP_HIER module sb_reg_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu, db, sb);
 input [2:0] sb_sel;
 input [7:0] reg_a;
@@ -303,7 +287,7 @@ end
 endmodule
 
 
-`SCHEM_KEEP_HIER module ir_next_mux(input fetch_cycle, 
+`SCHEM_KEEP_HIER module ir_next_mux(input sync, 
                                     input intg,
                                     input [7:0] data_i,
                                     input [7:0] ir,
@@ -312,7 +296,7 @@ endmodule
 // IR input
 always @(*)
 begin
-  if(fetch_cycle)
+  if(sync)
   begin
     if(intg)
       ir_next = 8'h00;

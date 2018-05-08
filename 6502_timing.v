@@ -1,6 +1,6 @@
 `include "6502_inc.vh"
 
-`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, fetch_cycle, load_sbz, onecycle, twocycle, decimal_cycle);
+`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, sync, load_sbz, onecycle, twocycle, decimal_cycle);
 input clk;
 input reset;
 input ready;
@@ -8,7 +8,7 @@ input [2:0] tnext_mc;
 input alu_carry_out;
 input taken_branch;
 input branch_page_cross;
-output fetch_cycle;
+output sync;
 input decimal_cycle;
 input load_sbz;
 input onecycle;
@@ -16,7 +16,7 @@ input twocycle;
 output [2:0] t;
 output [2:0] t_next;
 
-wire fetch_cycle;
+wire sync;
 reg [2:0] t;
 reg [2:0] t_next;
 
@@ -33,10 +33,10 @@ parameter T0 = 3'b000,
 `ifdef CMOS
 wire decimal_extra_cycle;
 assign decimal_extra_cycle = (t == 7 && load_sbz);
-assign fetch_cycle = (t == 1 && ~(decimal_cycle)) | decimal_extra_cycle;
+assign sync = (t == 1 && ~(decimal_cycle)) | decimal_extra_cycle;
 `else
 assign decimal_extra_cycle = 0;
-assign fetch_cycle = (t == 1);
+assign sync = (t == 1);
 `endif
 
 always @(posedge clk or posedge reset)
@@ -52,13 +52,13 @@ always @(*)
 begin
   t_next = t+1;
 
-  if(onecycle & fetch_cycle)
+  if(onecycle & sync)
     t_next = T1;
   else if(decimal_extra_cycle)
     t_next = T2;
   else if(decimal_cycle)
     t_next = T7;
-  else if(twocycle & fetch_cycle)
+  else if(twocycle & sync)
     t_next = T0;
   if(tnext_mc == `T0)
     t_next = T0;

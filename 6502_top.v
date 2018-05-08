@@ -6,7 +6,7 @@
 `endif
 `define NMI_BUG_FIX 1
 
-module cpu6502(clk, reset, nmi, irq, ready, write, address, data_i, data_o);
+module cpu6502(clk, reset, nmi, irq, ready, write, sync, address, data_i, data_o);
 
 initial begin
 end
@@ -16,6 +16,7 @@ input [7:0] data_i;
 output [7:0] data_o;
 output [15:0] address;
 output write;
+output sync;
 
 // current timing state
 wire [2:0] t;
@@ -87,7 +88,7 @@ wire alu_carry_out,alu_half_carry_out;
 
 wire ready_i;
 
-wire fetch_cycle;       // this is really sync, shoud probably rename it
+wire sync;
 
 wire [7:0] pcls;
 wire pcl_carry;
@@ -122,7 +123,7 @@ wire [7:0] vector_lo;
 
   branch_control branch_control(reg_p, ir[7:5], taken_branch);
   
-  ir_next_mux ir_next_mux(fetch_cycle, intg, data_i, ir, ir_next);
+  ir_next_mux ir_next_mux(sync, intg, data_i, ir, ir_next);
 
   assign address = { abh, abl };
   assign write = write_cycle & ~resp;
@@ -137,7 +138,7 @@ wire [7:0] vector_lo;
 
   // Timing control state machine
   timing_ctrl timing(clk, reset, ready_i, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, 
-                   fetch_cycle, load_flag_decode[`LF_Z_SBZ], onecycle, twocycle, decimal_cycle);
+                   sync, load_flag_decode[`LF_Z_SBZ], onecycle, twocycle, decimal_cycle);
 
 // Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform the extra decimal correction cycle
 wire pc_hold;
@@ -150,18 +151,18 @@ assign pc_hold = (intg && (ir_next == 8'h00));
   pcls_mux pcls_mux(.pcls_sel(pcls_sel), .pc_inc(pc_inc & ~pc_hold), .pcl(pcl), .adl(adl_pcls), .pcls(pcls), .pcl_carry(pcl_carry));
   pchs_mux pchs_mux(.pchs_sel(pchs_sel), .pcl_carry(pcl_carry), .pch(pch), .adh(adh_pchs), .pchs(pchs));
 
-  clocked_reset_reg8 ir_reg(clk, reset, fetch_cycle & ready_i, ir_next, ir);
+  clocked_reset_reg8 ir_reg(clk, reset, sync & ready_i, ir_next, ir);
   
   adh_pchs_mux adh_pchs_mux(.adh_sel(adh_sel), .data_i(data_i), .alu(alu_out), .adh_pchs(adh_pchs));
-  adh_sb_mux adh_sb_mux(.adh_sel(adh_sel), .data_i(data_i), .pchs(pchs), .alu(alu_out), .adh_sb(adh_sb));
   adl_pcls_mux adl_pcls_mux(.adl_sel(adl_sel), .data_i(data_i), .reg_s(reg_s), .alu(alu_out), .adl_pcls(adl_pcls));
-  adl_abl_mux adl_abl_mux(.adl_sel(adl_sel), .data_i(data_i), .pcls(pcls), .reg_s(reg_s), .alu(alu_out), .vector_lo(vector_lo), .adl_abl(adl_abl));
-  adh_abh_mux adh_abh_mux(.adh_sel(adh_sel), .pchs(pchs), .sb(adh_sb), .adh_abh(adh_abh));
-  db_in_mux db_in_mux(db_sel, data_i, reg_a, alua[7], db_in);
-  db_out_mux db_out_mux(db_sel, reg_a, sb, pcl, pch, reg_p, db_out);
-  
-  sb_mux sb_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, pchs /*adh_sb */, db_in, sb);
 
+  adl_abl_mux adl_abl_mux(.adl_sel(adl_sel), .data_i(data_i), .pcls(pcls), .reg_s(reg_s), .alu(alu_out), .vector_lo(vector_lo), .adl_abl(adl_abl));
+  adh_abh_mux adh_sb_mux(.adh_sel(adh_sel), .data_i(data_i), .pchs(pchs), .alu(alu_out), .adh_abh(adh_abh));
+
+  db_in_mux db_in_mux(db_sel, data_i, reg_a, alua[7], db_in);
+  db_out_mux db_out_mux(db_sel, reg_a, sb_reg, pcl, pch, reg_p, db_out);
+
+  sb_alu_mux sb_alu_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, pchs, db_in, sb);
   sb_reg_mux sb_reg_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, db_in, sb_reg);
 
 wire [7:0] ir_dec;
@@ -205,7 +206,7 @@ decoder3to8 dec3to8(ir[6:4], ir_dec);
   assign sb_z = ~|sb_reg;
   assign sb_n = sb_reg[7];
 
-  p_reg p_reg(clk, reset, ready_i, intg, load_flag_decode, fetch_cycle & ready_i, db_in, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], reg_p);
+  p_reg p_reg(clk, reset, ready_i, intg, load_flag_decode, sync & ready_i, db_in, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], reg_p);
 
 
   // Branch-to-self detection
@@ -213,7 +214,7 @@ decoder3to8 dec3to8(ir[6:4], ir_dec);
   reg [15:0] last_fetch_addr;
   always @(posedge clk)
   begin
-    if(fetch_cycle & ready_i)
+    if(sync & ready_i)
     begin
       if(last_fetch_addr == address)
       begin
