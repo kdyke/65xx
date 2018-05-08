@@ -8,17 +8,17 @@ input [7:0] adl;
 output [7:0] pcls;
 output pcl_carry;
 
-reg [7:0] pcls_in;
+reg [8:0] pcls_in;
 reg [7:0] pcls;
 reg pcl_carry;
 
 always @(*)
 begin
   if(pcls_sel == `PCLS_PCL)
-    pcls_in = pcl;
+    pcls_in = pcl + pc_inc;
   else
     pcls_in = adl;
-  {pcl_carry, pcls} = pcls_in + pc_inc;
+  {pcl_carry, pcls} = pcls_in;
 end
 
 endmodule
@@ -37,10 +37,10 @@ reg [7:0] pchs_in;
 always @(*)
 begin
   if(pchs_sel == `PCHS_PCH)
-    pchs_in = pch;
+    pchs_in = pch + pcl_carry;
   else
     pchs_in = adh;
-  pchs = pchs_in + pcl_carry;
+  pchs = pchs_in;
   //$display("phs_sel: %d pch: %02x adh: %02x pchs_in: %02x pchs: %02x",pchs_sel,pch,adh,pchs_in,pchs);
 end
 
