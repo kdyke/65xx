@@ -53,7 +53,7 @@ wire [7:0] adl_pcls;     // ADL that feeds only into PCLS
 wire [7:0] adh_pchs;     // ADH that feeds into PCHS
 wire [7:0] adh_sb;       // ADH that feeds into SB and ABH
 wire [7:0] adh_abh;      // ADH that feeds into ABH
-wire [7:0] sb;
+wire [7:0] sb_alu;      // SB that feeds into ALU
 wire [7:0] sb_reg;      // SB that only feeds architectural registers and does not source from addressing logic
 
 // Clocked internal registers
@@ -162,7 +162,7 @@ assign pc_hold = (intg && (ir_next == 8'h00));
   db_in_mux db_in_mux(db_sel, data_i, reg_a, alua[7], db_in);
   db_out_mux db_out_mux(db_sel, reg_a, sb_reg, pcl, pch, reg_p, db_out);
 
-  sb_alu_mux sb_alu_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, pchs, db_in, sb);
+  sb_alu_mux sb_alu_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, pchs, db_in, sb_alu);
   sb_reg_mux sb_reg_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, db_in, sb_reg);
 
 wire [7:0] ir_dec;
@@ -170,7 +170,7 @@ wire [7:0] ir_dec;
 decoder3to8 dec3to8(ir[6:4], ir_dec);
 `endif
 
-  alua_mux alua_mux(alu_a, sb, ir_dec, aluas);
+  alua_mux alua_mux(alu_a, sb_alu, ir_dec, aluas);
   alub_mux alub_mux(alu_b, db_in, adl_abl, alubs);
   aluc_mux aluc_mux(alu_c, reg_p[`PF_C], alu_carry_out_last, alucs);
   
