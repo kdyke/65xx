@@ -134,14 +134,14 @@ end
 endmodule
 
 // This is the "secondary bus" that feeds into the ALU A input register.
-`SCHEM_KEEP_HIER module sb_alu_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu, pchs, db, sb);
+`SCHEM_KEEP_HIER module sb_alu_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu, pch, db, sb);
 input [2:0] sb_sel;
 input [7:0] reg_a;
 input [7:0] reg_x;
 input [7:0] reg_y;
 input [7:0] reg_s;
 input [7:0] alu;
-input [7:0] pchs;
+input [7:0] pch;
 input [7:0] db;
 output [7:0] sb;
 reg [7:0] sb;
@@ -154,7 +154,7 @@ begin
     `SB_Y   : sb = reg_y;
     `SB_S   : sb = reg_s;
     `SB_ALU : sb = alu;
-    `SB_ADH : sb = pchs;  // Any time SB is sourcing from ADH, it is always to get PCH(S)
+    `SB_ADH : sb = pch;  // Any time SB is sourcing from ADH, it is always to get PCH
     `SB_DB  : sb = db;
     `SB_FF  : sb = 8'hFF;
   endcase

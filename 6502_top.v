@@ -45,7 +45,6 @@ wire [7:0] db_out;
 wire [7:0] adl_abl;      // ADL that feeds into ABL and ALUB input
 wire [7:0] adl_pcls;     // ADL that feeds only into PCLS
 wire [7:0] adh_pchs;     // ADH that feeds into PCHS
-wire [7:0] adh_sb;       // ADH that feeds into SB and ABH
 wire [7:0] adh_abh;      // ADH that feeds into ABH
 wire [7:0] sb_alu;      // SB that feeds into ALU
 wire [7:0] sb_reg;      // SB that only feeds architectural registers and does not source from addressing logic
@@ -156,7 +155,7 @@ assign pc_hold = (intg && (ir_next == 8'h00));
   db_in_mux db_in_mux(db_sel, data_i, reg_a, alua[7], db_in);
   db_out_mux db_out_mux(db_sel, reg_a, sb_reg, pcl, pch, reg_p, db_out);
 
-  sb_alu_mux sb_alu_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, pchs, db_in, sb_alu);
+  sb_alu_mux sb_alu_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, pch, db_in, sb_alu);
   sb_reg_mux sb_reg_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, db_in, sb_reg);
 
 wire [7:0] ir_dec;
