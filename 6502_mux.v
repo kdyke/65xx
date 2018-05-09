@@ -1,15 +1,25 @@
 `include "6502_inc.vh"
 
-`SCHEM_KEEP_HIER module pcls_mux(pcls_sel, pc_inc, pcl, adl, pcls, pcl_carry);
+`SCHEM_KEEP_HIER module adl_pcl_reg(clk, ready, pcls_sel, pc_inc, adl_sel, data_i, reg_s, alu, pcl, pcls, pcl_carry);
+input clk;
+input ready;
 input pcls_sel;
 input pc_inc;
-input [7:0] pcl;
-input [7:0] adl;
+input [2:0] adl_sel;
+input [7:0] data_i;
+input [7:0] reg_s;
+input [7:0] alu;
+
+output [7:0] pcl;
 output [7:0] pcls;
 output pcl_carry;
 
+reg [7:0] adl_pcls;
+
 reg [8:0] pcls_in;
 reg [7:0] pcls;
+reg [7:0] pcl;
+
 reg pcl_carry;
 
 always @(*)
@@ -17,40 +27,46 @@ begin
   if(pcls_sel == `PCLS_PCL)
     pcls_in = pcl + pc_inc;
   else
-    pcls_in = adl;
+    pcls_in = adl_pcls;
   {pcl_carry, pcls} = pcls_in;
 end
 
-endmodule
-
-
-`SCHEM_KEEP_HIER module pchs_mux(pchs_sel, pcl_carry, pch, adh, pchs);
-input pchs_sel;
-input pcl_carry;
-input [7:0] pch;
-input [7:0] adh;
-output [7:0] pchs;
-reg [7:0] pchs;
-
-reg [7:0] pchs_in;
-
 always @(*)
 begin
-  if(pchs_sel == `PCHS_PCH)
-    pchs_in = pch + pcl_carry;
-  else
-    pchs_in = adh;
-  pchs = pchs_in;
-  //$display("phs_sel: %d pch: %02x adh: %02x pchs_in: %02x pchs: %02x",pchs_sel,pch,adh,pchs_in,pchs);
+  adl_pcls = data_i;
+  case(adl_sel) // synthesis full_case parallel_case
+    `ADL_DI    : adl_pcls = data_i;
+    `ADL_S     : adl_pcls = reg_s;
+    `ADL_ALU   : adl_pcls = alu;
+  endcase
+end
+
+always @(posedge clk)
+begin
+  if(ready)
+  begin
+    pcl <= pcls;
+  end
 end
 
 endmodule
 
-`SCHEM_KEEP_HIER module adh_pchs_mux(adh_sel, data_i, alu, adh_pchs);
+
+`SCHEM_KEEP_HIER module adh_pch_reg(clk, ready, pchs_sel, pcl_carry, adh_sel, data_i, alu, pchs, pch);
+input clk;
+input ready;
+input pchs_sel;
+input pcl_carry;
 input [2:0] adh_sel;
 input [7:0] data_i;
 input [7:0] alu;
-output [7:0] adh_pchs;
+output [7:0] pchs;
+output [7:0] pch;
+reg [7:0] pchs;
+
+reg [7:0] pchs_in;
+reg [7:0] pch;
+
 reg [7:0] adh_pchs;
 
 always @(*)
@@ -62,14 +78,35 @@ begin
   endcase
 end
 
+always @(*)
+begin
+  if(pchs_sel == `PCHS_PCH)
+    pchs_in = pch + pcl_carry;
+  else
+    pchs_in = adh_pchs;
+  pchs = pchs_in;
+  //$display("phs_sel: %d pch: %02x adh: %02x pchs_in: %02x pchs: %02x",pchs_sel,pch,adh,pchs_in,pchs);
+end
+
+always @(posedge clk)
+begin
+  if(ready)
+  begin
+    pch <= pchs;
+  end
+end
+
 endmodule
 
-`SCHEM_KEEP_HIER module adh_abh_mux(adh_sel, data_i, pchs, alu, adh_abh);
+`SCHEM_KEEP_HIER module adh_abh_reg(clk, load_abh, adh_sel, data_i, pchs, alu, abh);
+input clk;
+input load_abh;
 input [2:0] adh_sel;
 input [7:0] data_i;
 input [7:0] pchs;
 input [7:0] alu;
-output [7:0] adh_abh;
+output reg [7:0] abh;
+
 reg [7:0] adh_abh;
 
 always @(*)
@@ -82,6 +119,14 @@ begin
     `ADH_1   : adh_abh = 8'h01;
     `ADH_FF  : adh_abh = 8'hFF;
   endcase
+end
+
+always @(posedge clk)
+begin
+  if(load_abh)
+  begin
+    abh <= adh_abh;
+  end
 end
 
 endmodule
@@ -107,7 +152,9 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module adl_abl_mux(adl_sel, data_i, pcls, reg_s, alu, vector_lo, adl_abl);
+`SCHEM_KEEP_HIER module adl_abl_reg(clk, load_abl, adl_sel, data_i, pcls, reg_s, alu, vector_lo, adl_abl, abl);
+input clk;
+input load_abl;
 input [2:0] adl_sel;
 input [7:0] data_i;
 input [7:0] pcls;
@@ -116,7 +163,9 @@ input [7:0] alu;
 input [7:0] vector_lo;
 
 output [7:0] adl_abl;
+output [7:0] abl;
 reg [7:0] adl_abl;
+reg [7:0] abl;
 
 // ADL -> ABL
 always @(*)
@@ -129,6 +178,14 @@ begin
     `ADL_VECLO : adl_abl = vector_lo;
     `ADL_VECHI : adl_abl = vector_lo | 1;
   endcase
+end
+
+always @(posedge clk)
+begin
+  if(load_abl)
+  begin
+    abl <= adl_abl;
+  end
 end
 
 endmodule
@@ -189,10 +246,17 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module alua_mux(input [1:0] alu_a, 
+`SCHEM_KEEP_HIER module alua_mux(input clk,
+                                 input ready,
+                                 input [1:0] alu_a, 
                                  input [7:0] sb, 
                                  input [7:0] ir_dec, 
-                                 output reg [7:0] aluas);
+                                 output [7:0] alua);
+                                 
+reg [7:0] aluas;
+                             
+reg [7:0] alua;
+                                 
 // ALU A input select
 always @(*)
 begin
@@ -205,13 +269,26 @@ begin
   endcase
 end
 
+always @(posedge clk)
+begin
+  if(ready)
+  begin
+    alua <= aluas;
+  end
+end
+
 endmodule
 
-`SCHEM_KEEP_HIER module alub_mux(input [1:0] alu_b, 
+`SCHEM_KEEP_HIER module alub_mux(input clk,
+                                 input ready,
+                                 input [1:0] alu_b, 
                                  input [7:0] db, 
                                  input [7:0] adl, 
-                                 output reg [7:0] alubs);
+                                 output [7:0] alub);
 
+reg [7:0] alubs;
+
+reg [7:0] alub;
 
 // ALU B input select
 always @(*)
@@ -221,6 +298,14 @@ begin
     `ALU_B_NDB : alubs = ~db;
     `ALU_B_ADL : alubs = adl;
   endcase
+end
+
+always @(posedge clk)
+begin
+  if(ready)
+  begin
+    alub <= alubs;
+  end
 end
 
 endmodule

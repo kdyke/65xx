@@ -41,8 +41,8 @@
 
 // Internal ADH bus input select
 `define ADH_DI      0       // ADH is data bus input (not latched)
-`define ADH_PCHS    1       // ADH is current PCHS out
-`define ADH_ALU     2       // ADH is current value from ALU
+`define ADH_ALU     1       // ADH is current value from ALU
+`define ADH_PCHS    2       // ADH is current PCHS out
 `define ADH_0       3       // This would eventually be the base page register
 `define ADH_1       4       // This would eventually be the stack page register
 `define ADH_FF      5

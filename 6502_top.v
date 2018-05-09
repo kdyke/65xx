@@ -1,6 +1,6 @@
 `include "6502_inc.vh"
 
-module cpu6502(clk, reset, nmi, irq, ready, write, sync, address, data_i, data_o);
+`SCHEM_KEEP_HIER module cpu6502(clk, reset, nmi, irq, ready, write, sync, address, data_i, data_o);
 
 initial begin
 end
@@ -43,9 +43,6 @@ wire [7:0] db_in;
 wire [7:0] db_out;
 
 wire [7:0] adl_abl;      // ADL that feeds into ABL and ALUB input
-wire [7:0] adl_pcls;     // ADL that feeds only into PCLS
-wire [7:0] adh_pchs;     // ADH that feeds into PCHS
-wire [7:0] adh_abh;      // ADH that feeds into ABH
 wire [7:0] sb_alu;      // SB that feeds into ALU
 wire [7:0] sb_reg;      // SB that only feeds architectural registers and does not source from addressing logic
 
@@ -98,8 +95,6 @@ wire resp;
 
 wire [7:0] vector_lo;
 
-  decadj_adder dadj(sb_reg, decadj_out, alu_carry_out, alu_half_carry_out, dec_add, dec_sub);
-
   // Instantiate ALU
   alu_unit alu_inst(clk, alua, alub, alu_out, alucs, dec_add, alu_op, alu_carry_out, alu_half_carry_out, alu_overflow_out, alu_carry_out_last);
 
@@ -141,16 +136,12 @@ assign pc_hold = (intg && (ir_next == 8'h00)) || (decimal_cycle);
 assign pc_hold = (intg && (ir_next == 8'h00));
 `endif
 
-  pcls_mux pcls_mux(.pcls_sel(pcls_sel), .pc_inc(pc_inc & ~pc_hold), .pcl(pcl), .adl(adl_pcls), .pcls(pcls), .pcl_carry(pcl_carry));
-  pchs_mux pchs_mux(.pchs_sel(pchs_sel), .pcl_carry(pcl_carry), .pch(pch), .adh(adh_pchs), .pchs(pchs));
-
   clocked_reset_reg8 ir_reg(clk, reset, sync & ready_i, ir_next, ir);
   
-  adh_pchs_mux adh_pchs_mux(.adh_sel(adh_sel), .data_i(data_i), .alu(alu_out), .adh_pchs(adh_pchs));
-  adl_pcls_mux adl_pcls_mux(.adl_sel(adl_sel), .data_i(data_i), .reg_s(reg_s), .alu(alu_out), .adl_pcls(adl_pcls));
-
-  adl_abl_mux adl_abl_mux(.adl_sel(adl_sel), .data_i(data_i), .pcls(pcls), .reg_s(reg_s), .alu(alu_out), .vector_lo(vector_lo), .adl_abl(adl_abl));
-  adh_abh_mux adh_sb_mux(.adh_sel(adh_sel), .data_i(data_i), .pchs(pchs), .alu(alu_out), .adh_abh(adh_abh));
+  adl_pcl_reg adl_pcl_reg(.clk(clk), .ready(ready_i), .pcls_sel(pcls_sel), .pc_inc(pc_inc & ~pc_hold),
+                          .adl_sel(adl_sel), .data_i(data_i), .reg_s(reg_s), .alu(alu_out), 
+                          .pcls(pcls), .pcl(pcl), .pcl_carry(pcl_carry));
+  adl_abl_reg adl_abl_reg(.clk(clk), .load_abl(load_abl), .adl_sel(adl_sel), .data_i(data_i), .pcls(pcls), .reg_s(reg_s), .alu(alu_out), .vector_lo(vector_lo), .adl_abl(adl_abl), .abl(abl));
 
   db_in_mux db_in_mux(db_sel, data_i, reg_a, alua[7], db_in);
   db_out_mux db_out_mux(db_sel, reg_a, sb_reg, pcl, pch, reg_p, db_out);
@@ -158,34 +149,30 @@ assign pc_hold = (intg && (ir_next == 8'h00));
   sb_alu_mux sb_alu_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, pch, db_in, sb_alu);
   sb_reg_mux sb_reg_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, db_in, sb_reg);
 
+  // ADH units
+  adh_pch_reg adh_pch_reg(.clk(clk), .ready(ready_i), .pchs_sel(pchs_sel), .pcl_carry(pcl_carry), .adh_sel(adh_sel), .data_i(data_i), .alu(alu_out), .pchs(pchs), .pch(pch));
+  adh_abh_reg adh_abh_reg(.clk(clk), .load_abh(load_abh), .adh_sel(adh_sel), .data_i(data_i), .pchs(pchs), .alu(alu_out), .abh(abh));
+
 wire [7:0] ir_dec;
 `ifdef CMOS
 decoder3to8 dec3to8(ir[6:4], ir_dec);
 `endif
 
-  alua_mux alua_mux(alu_a, sb_alu, ir_dec, aluas);
-  alub_mux alub_mux(alu_b, db_in, adl_abl, alubs);
+  alua_mux alua_mux(clk, alu_a != 0 && ready_i, alu_a, sb_alu, ir_dec, alua);
+  alub_mux alub_mux(clk, alu_b != 0 && ready_i, alu_b, db_in, adl_abl, alub);
   aluc_mux aluc_mux(alu_c, reg_p[`PF_C], alu_carry_out_last, alucs);
   
-  clocked_reg8 a_reg(clk, load_a, decadj_out, reg_a);
+  a_reg a_reg(clk, load_a, sb_reg, alu_carry_out, alu_half_carry_out, dec_add, dec_sub, reg_a);
+  
   clocked_reg8 x_reg(clk, load_x, sb_reg, reg_x);
   clocked_reg8 y_reg(clk, load_y, sb_reg, reg_y);
   clocked_reg8 s_reg(clk, load_s, sb_reg, reg_s);
 
-  clocked_reg8 alua_reg(clk, alu_a != 0 && ready_i, aluas, alua);
-  clocked_reg8 alub_reg(clk, alu_b != 0 && ready_i, alubs, alub);
-
-  clocked_reg8 pcl_reg(clk, ready, pcls, pcl);
-  clocked_reg8 pch_reg(clk, ready, pchs, pch);
-  
-  clocked_reg8 abl_reg(clk, load_abl, adl_abl, abl);
-  clocked_reg8 abh_reg(clk, load_abh, adh_abh, abh);
-    
   // FIXME - This is kinda hacky right now.  Really should have a pair of dedicated microcode bits for this but
   // I'm currently out of spare microcode bits.   This probably only requires a couple of LUTs though.
   assign dec_add = reg_p[`PF_D] & load_flag_decode[`LF_V_AVR] & (alu_op == `ALU_ADC);
   assign dec_sub = reg_p[`PF_D] & load_flag_decode[`LF_V_AVR] & (alu_op == `ALU_SBC);
-  assign decimal_cycle = dec_add | dec_sub;
+  assign decimal_cycle = reg_p[`PF_D] & load_flag_decode[`LF_V_AVR];
 
   // In the real 6502 the internal data bus is bidirectional and so it doesn't matter whether it is a "source" or destination.  But
   // in an FPGA you never want to have combinatorial loops since it generally makes the synthesis tools really unhappy.  So because

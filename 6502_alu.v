@@ -23,18 +23,6 @@ module decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub, half);
   
 endmodule
 
-`SCHEM_KEEP_HIER module decadj_adder(dec_in, dec_out, carry_in, half_carry_in, dec_add, dec_sub);
-  input [7:0] dec_in;
-  input carry_in;
-  input half_carry_in;
-  input dec_add;
-  input dec_sub;
-  output [7:0] dec_out;
-  
-  decadj_half_adder  low(dec_in[3:0],dec_out[3:0], half_carry_in, dec_add, dec_sub, 1'b0);
-  decadj_half_adder high(dec_in[7:4],dec_out[7:4], carry_in, dec_add, dec_sub, 1'b1);  
-endmodule
-
 module alu_half_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, dec_carry_out, half);
   input [3:0] add_in1;
   input [3:0] add_in2;

@@ -37,6 +37,28 @@ end
 
 endmodule
 
+`SCHEM_KEEP_HIER module a_reg(clk, load_a, dec_in, carry_in, half_carry_in, dec_add, dec_sub, reg_a);
+  input clk;
+  input load_a;
+  input [7:0] dec_in;
+  input carry_in;
+  input half_carry_in;
+  input dec_add;
+  input dec_sub;
+  
+  wire [7:0] dec_out;
+  output reg [7:0] reg_a;
+  
+  decadj_half_adder  low(dec_in[3:0],dec_out[3:0], half_carry_in, dec_add, dec_sub, 1'b0);
+  decadj_half_adder high(dec_in[7:4],dec_out[7:4], carry_in, dec_add, dec_sub, 1'b1);
+  
+  always @(posedge clk)
+  begin
+    if(load_a)
+      reg_a <= dec_out;
+  end
+  
+endmodule
 
 `SCHEM_KEEP_HIER module p_reg(clk, reset, ready, intg, load_flag_decode, load_b, db_in, sb_z, sb_n, carry, overflow, ir5, reg_p);
 
