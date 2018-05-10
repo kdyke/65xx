@@ -323,7 +323,7 @@ begin
     `ALU_C_0 : carrys = 0;
     `ALU_C_1 : carrys = 1;
     `ALU_C_P : carrys = carry;
-    `ALU_C_A : carrys = last_carry;
+//    `ALU_C_A : carrys = last_carry;
   endcase
 end
 

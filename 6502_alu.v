@@ -70,7 +70,7 @@ module alu_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, half_ca
 endmodule
 
 // Input muxing is done outside of the core ALU unit.
-`SCHEM_KEEP_HIER module alu_unit(clk, a,b,alu_out,c_in,dec_add,op,carry_out,half_carry_out,overflow_out,alu_carry_out_last);
+`SCHEM_KEEP_HIER module alu_unit(clk, a,b,alu_out,c_in,dec_add,op,carry_out,half_carry_out,overflow_out,alu_carry_out_last,bittest_out);
   input clk;
   input [7:0] a;
   input [7:0] b;
@@ -83,6 +83,7 @@ endmodule
   output half_carry_out;
   output overflow_out;
   output reg alu_carry_out_last;
+  output reg bittest_out;
   
 	reg c;
 	
@@ -101,6 +102,7 @@ endmodule
   assign overflow_out = a[7] == b[7] && a[7] != add_out[7];
   
 always @(*) begin
+  bittest_out = 0;
 	case(op) // synthesis full_case parallel_case
 		`ALU_ORA: 
       begin
@@ -110,7 +112,8 @@ always @(*) begin
 		`ALU_AND: 
       begin
 			tmp = a & b;
-      c = | tmp;      // This is a bit of a hack, used for 65C02 branch bit tests.
+      c = 0;
+      bittest_out = | tmp;      // This is a bit of a hack, used for 65C02 branch bit tests.
 			end
 		`ALU_EOR: 
       begin
@@ -135,9 +138,36 @@ always @(*) begin
 
 	alu_out = tmp;
   carry_out = c;
-  
   //$strobe("ALU a: %02x b: %02x c_in: %d -> %02x daa: %d flags vc: %d%d hc: %d",a,b,c_in,tmp,dec_add,overflow_out,carry_out,half_carry_out);
 	end
+
+  always @(posedge clk)
+  begin
+    alu_carry_out_last <= carry_out;
+  end
+
+endmodule
+
+`SCHEM_KEEP_HIER module addr_unit(clk, a,b,alu_out,c_in,carry_out,alu_carry_out_last);
+
+  input clk;
+  input [7:0] a;
+  input [7:0] b;
+	input c_in;
+
+  output wire [7:0] alu_out;
+  output wire carry_out;
+  output reg alu_carry_out_last;
+  
+  reg [8:0] sum;
+  
+  assign alu_out = sum[7:0];
+  assign carry_out = sum[8];
+  
+  always @(*)
+  begin
+    sum = a + b + c_in;
+  end
 
   always @(posedge clk)
   begin

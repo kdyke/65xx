@@ -6,12 +6,13 @@
 `endif
 `define NMI_BUG_FIX 1
 
-`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, sync, load_sbz, onecycle, twocycle, decimal_cycle);
+`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, bittest_out, taken_branch, branch_page_cross, sync, load_sbz, onecycle, twocycle, decimal_cycle);
 input clk;
 input reset;
 input ready;
 input [2:0] tnext_mc;
 input alu_carry_out;
+input bittest_out;
 input taken_branch;
 input branch_page_cross;
 output sync;
@@ -66,7 +67,7 @@ begin
     t_next = T7;
   else if(twocycle & sync)
     t_next = T0;
-  if(tnext_mc == `T0)
+  else if(tnext_mc == `T0)
     t_next = T0;
   else if(tnext_mc == `TNC && alu_carry_out == 0)
     t_next = T0;
@@ -79,7 +80,7 @@ begin
     else
       t_next = T1;
   end
-  else if(tnext_mc == `TBT && alu_carry_out == 0)
+  else if(tnext_mc == `TBT && bittest_out == 0)
     t_next = T1;
   // synthesis translate_off
   else if(t != 1 && tnext_mc == `TKL)

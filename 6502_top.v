@@ -74,7 +74,11 @@ wire [7:0] ir_next;
 
 wire [7:0] decadj_out;
 wire dec_add, dec_sub;
-wire alu_carry_out,alu_half_carry_out;
+wire alu_carry_out,alu_half_carry_out, bittest_out;
+
+wire [7:0] addr_out_l;
+wire [7:0] addr_out_h;
+wire addr_carry_out, addr_last_carry_out;
 
 wire ready_i;
 
@@ -96,8 +100,11 @@ wire resp;
 wire [7:0] vector_lo;
 
   // Instantiate ALU
-  alu_unit alu_inst(clk, alua, alub, alu_out, alucs, dec_add, alu_op, alu_carry_out, alu_half_carry_out, alu_overflow_out, alu_carry_out_last);
+  alu_unit alu_inst(clk, alua, alub, alu_out, alucs, dec_add, alu_op, alu_carry_out, alu_half_carry_out, alu_overflow_out, alu_carry_out_last, bittest_out);
 
+  addr_unit addr_lo(clk, alua, alub, addr_out_l, alu_c[0], addr_carry_out, addr_carry_out_last);
+  addr_unit addr_hi(.clk(clk), .a(alua), .b(alub), .alu_out(addr_out_h), .c_in(addr_carry_out_last));
+  
   // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
   microcode mc_inst(.clk(clk), .ir(ir_next), .t(t_next), .tnext(tnext_mc), .adh_sel(adh_sel), .adl_sel(adl_sel),
                   .pchs_sel(pchs_sel), .pcls_sel(pcls_sel), .alu_op(alu_op), .alu_a(alu_a), .alu_b(alu_b), .alu_c(alu_c),
@@ -118,14 +125,14 @@ wire [7:0] vector_lo;
   assign data_o = db_out;
 
   // A page is crossed if the carry result is different than the sign of the branch offset input
-  assign branch_page_cross = alu_carry_out ^ alua[7];
+  assign branch_page_cross = addr_carry_out ^ alua[7];
 
   predecode predecode(data_i, sync & ~intg, onecycle, twocycle);
 
   interrupt_control interrupt_control(clk, reset, irq, nmi, t, tnext_mc, reg_p, load_flag_decode[`LF_I_1], intg, nmig, resp, vector_lo);
 
   // Timing control state machine
-  timing_ctrl timing(clk, reset, ready_i, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, 
+  timing_ctrl timing(clk, reset, ready_i, t, t_next, tnext_mc, addr_carry_out, bittest_out, taken_branch, branch_page_cross, 
                    sync, load_flag_decode[`LF_Z_SBZ], onecycle, twocycle, decimal_cycle);
 
 // Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform the extra decimal correction cycle
@@ -139,9 +146,9 @@ assign pc_hold = intg;
   clocked_reset_reg8 ir_reg(clk, reset, sync & ready_i, ir_next, ir);
   
   adl_pcl_reg adl_pcl_reg(.clk(clk), .ready(ready_i), .pcls_sel(pcls_sel), .pc_inc(pc_inc & ~pc_hold),
-                          .adl_sel(adl_sel), .data_i(data_i), .reg_s(reg_s), .alu(alu_out), 
+                          .adl_sel(adl_sel), .data_i(data_i), .reg_s(reg_s), .alu(addr_out_l), 
                           .pcls(pcls), .pcl(pcl), .pcl_carry(pcl_carry));
-  adl_abl_reg adl_abl_reg(.clk(clk), .load_abl(load_abl), .adl_sel(adl_sel), .data_i(data_i), .pcls(pcls), .reg_s(reg_s), .alu(alu_out), .vector_lo(vector_lo), .adl_abl(adl_abl), .abl(abl));
+  adl_abl_reg adl_abl_reg(.clk(clk), .load_abl(load_abl), .adl_sel(adl_sel), .data_i(data_i), .pcls(pcls), .reg_s(reg_s), .alu(addr_out_l), .vector_lo(vector_lo), .adl_abl(adl_abl), .abl(abl));
 
   db_in_mux db_in_mux(db_sel, data_i, reg_a, alua[7], db_in);
   db_out_mux db_out_mux(db_sel, reg_a, sb_reg, pcl, pch, reg_p, db_out);
@@ -150,8 +157,8 @@ assign pc_hold = intg;
   sb_reg_mux sb_reg_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, db_in, sb_reg);
 
   // ADH units
-  adh_pch_reg adh_pch_reg(.clk(clk), .ready(ready_i), .pchs_sel(pchs_sel), .pcl_carry(pcl_carry), .adh_sel(adh_sel), .data_i(data_i), .alu(alu_out), .pchs(pchs), .pch(pch));
-  adh_abh_reg adh_abh_reg(.clk(clk), .load_abh(load_abh), .adh_sel(adh_sel), .data_i(data_i), .pchs(pchs), .alu(alu_out), .abh(abh));
+  adh_pch_reg adh_pch_reg(.clk(clk), .ready(ready_i), .pchs_sel(pchs_sel), .pcl_carry(pcl_carry), .adh_sel(adh_sel), .data_i(data_i), .alu(addr_out_h), .pchs(pchs), .pch(pch));
+  adh_abh_reg adh_abh_reg(.clk(clk), .load_abh(load_abh), .adh_sel(adh_sel), .data_i(data_i), .pchs(pchs), .alu(addr_out_h), .abh(abh));
 
 wire [7:0] ir_dec;
 `ifdef CMOS
@@ -160,7 +167,7 @@ decoder3to8 dec3to8(ir[6:4], ir_dec);
 
   alua_mux alua_mux(clk, alu_a != 0 && ready_i, alu_a, sb_alu, ir_dec, alua);
   alub_mux alub_mux(clk, alu_b != 0 && ready_i, alu_b, db_in, adl_abl, alub);
-  aluc_mux aluc_mux(alu_c, reg_p[`PF_C], alu_carry_out_last, alucs);
+  aluc_mux aluc_mux(alu_c, reg_p[`PF_C], 1'b0, alucs);
   
   a_reg a_reg(clk, load_a, sb_reg, alu_carry_out, alu_half_carry_out, dec_add, dec_sub, reg_a);
   
