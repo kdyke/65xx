@@ -92,8 +92,9 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module predecode(ir_next, onecycle, twocycle);
+`SCHEM_KEEP_HIER module predecode(ir_next, active, onecycle, twocycle);
 input [7:0] ir_next;
+input active;
 output onecycle;
 output twocycle;
 
@@ -105,7 +106,7 @@ reg onecycle;
 always @(*)
 begin
   if((ir_next & 8'b00000111) == 8'b00000011)
-    onecycle = 1;
+    onecycle = active;
   else
     onecycle = 0;
 end
@@ -120,12 +121,12 @@ begin
   casez(ir_next)
     `ifdef CMOS
     8'b?1?1_1010: twocycle = 0;
-    8'b???0_0010: twocycle = 1;
+    8'b???0_0010: twocycle = active;
     `endif
-    8'b???0_10?1: twocycle = 1;
+    8'b???0_10?1: twocycle = active;
     8'b1??0_00?0: // This would hit the CMOS BRA, but is disabled below
       begin
-        twocycle = 1;
+        twocycle = active;
         `ifdef CMOS
         casez(ir_next)
           8'b?00???0?: twocycle = 0;
@@ -134,7 +135,7 @@ begin
       end
     8'b????_10?0:
       begin
-        twocycle = 1;
+        twocycle = active;
         casez(ir_next)
           8'b0??0??0?: twocycle = 0;
         endcase

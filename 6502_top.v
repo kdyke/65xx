@@ -120,7 +120,7 @@ wire [7:0] vector_lo;
   // A page is crossed if the carry result is different than the sign of the branch offset input
   assign branch_page_cross = alu_carry_out ^ alua[7];
 
-  predecode predecode(ir_next, onecycle, twocycle);
+  predecode predecode(data_i, sync & ~intg, onecycle, twocycle);
 
   interrupt_control interrupt_control(clk, reset, irq, nmi, t, tnext_mc, reg_p, load_flag_decode[`LF_I_1], intg, nmig, resp, vector_lo);
 
@@ -131,9 +131,9 @@ wire [7:0] vector_lo;
 // Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform the extra decimal correction cycle
 wire pc_hold;
 `ifdef CMOS
-assign pc_hold = (intg && (ir_next == 8'h00)) || (decimal_cycle);
+assign pc_hold = intg | decimal_cycle;
 `else
-assign pc_hold = (intg && (ir_next == 8'h00));
+assign pc_hold = intg;
 `endif
 
   clocked_reset_reg8 ir_reg(clk, reset, sync & ready_i, ir_next, ir);
