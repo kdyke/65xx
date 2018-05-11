@@ -1,12 +1,11 @@
 `include "6502_inc.vh"
 
-`SCHEM_KEEP_HIER module adl_pcl_reg(clk, ready, pcls_sel, pc_inc, adl_sel, data_i, reg_s, alu, pcl, pcls, pcl_carry);
+`SCHEM_KEEP_HIER module adl_pcl_reg(clk, ready, pcls_sel, pc_inc, adl_sel, reg_s, alu, pcl, pcls, pcl_carry);
 input clk;
 input ready;
 input pcls_sel;
 input pc_inc;
 input [2:0] adl_sel;
-input [7:0] data_i;
 input [7:0] reg_s;
 input [7:0] alu;
 
@@ -33,9 +32,7 @@ end
 
 always @(*)
 begin
-  adl_pcls = data_i;
   case(adl_sel) // synthesis full_case parallel_case
-    `ADL_DI    : adl_pcls = data_i;
     `ADL_S     : adl_pcls = reg_s;
     `ADL_ALU   : adl_pcls = alu;
   endcase
@@ -52,7 +49,7 @@ end
 endmodule
 
 
-`SCHEM_KEEP_HIER module adh_pch_reg(clk, ready, pchs_sel, pcl_carry, adh_sel, data_i, alu, pchs, pch);
+`SCHEM_KEEP_HIER module adh_pch_reg(clk, ready, pchs_sel, pcl_carry, adh_sel, data_i, alu, pchs, pch, pch_carry);
 input clk;
 input ready;
 input pchs_sel;
@@ -62,21 +59,13 @@ input [7:0] data_i;
 input [7:0] alu;
 output [7:0] pchs;
 output [7:0] pch;
+output reg pch_carry;
 reg [7:0] pchs;
 
-reg [7:0] pchs_in;
+reg [8:0] pchs_in;
 reg [7:0] pch;
 
 reg [7:0] adh_pchs;
-
-always @(*)
-begin
-  adh_pchs = data_i;
-  case(adh_sel)  // synthesis full_case parallel_case
-    `ADH_DI  : adh_pchs = data_i;
-    `ADH_ALU : adh_pchs = alu;
-  endcase
-end
 
 always @(*)
 begin
@@ -84,8 +73,16 @@ begin
     pchs_in = pch + pcl_carry;
   else
     pchs_in = adh_pchs;
-  pchs = pchs_in;
+  {pch_carry,pchs} = pchs_in; // This is really weird.  If I don't try to keep the carry like for PCL, it actually uses *more* resources?
   //$display("phs_sel: %d pch: %02x adh: %02x pchs_in: %02x pchs: %02x",pchs_sel,pch,adh,pchs_in,pchs);
+end
+
+always @(*)
+begin
+  case(adh_sel)  // synthesis full_case parallel_case
+    `ADH_DI  : adh_pchs = data_i;
+    `ADH_ALU : adh_pchs = alu;
+  endcase
 end
 
 always @(posedge clk)
@@ -131,27 +128,6 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module adl_pcls_mux(adl_sel, data_i, reg_s, alu, adl_pcls);
-input [2:0] adl_sel;
-input [7:0] data_i;
-input [7:0] reg_s;
-input [7:0] alu;
-
-output [7:0] adl_pcls;
-reg [7:0] adl_pcls;
-
-always @(*)
-begin
-  adl_pcls = data_i;
-  case(adl_sel) // synthesis full_case parallel_case
-    `ADL_DI    : adl_pcls = data_i;
-    `ADL_S     : adl_pcls = reg_s;
-    `ADL_ALU   : adl_pcls = alu;
-  endcase
-end
-
-endmodule
-
 `SCHEM_KEEP_HIER module adl_abl_reg(clk, load_abl, adl_sel, data_i, pcls, reg_s, alu, vector_lo, adl_abl, abl);
 input clk;
 input load_abl;
@@ -176,7 +152,7 @@ begin
     `ADL_S     : adl_abl = reg_s;
     `ADL_ALU   : adl_abl = alu;
     `ADL_VECLO : adl_abl = vector_lo;
-    `ADL_VECHI : adl_abl = vector_lo | 1;
+    `ADL_VECHI : adl_abl = { vector_lo[7:1],1'b1 };
   endcase
 end
 
@@ -190,8 +166,8 @@ end
 
 endmodule
 
-// This is the "secondary bus" that feeds into the ALU A input register.
-`SCHEM_KEEP_HIER module sb_alu_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu, pch, db, sb);
+// This is the "secondary bus"
+`SCHEM_KEEP_HIER module sb_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu, pch, db, sb);
 input [2:0] sb_sel;
 input [7:0] reg_a;
 input [7:0] reg_x;
@@ -214,33 +190,6 @@ begin
     `SB_ADH : sb = pch;  // Any time SB is sourcing from ADH, it is always to get PCH
     `SB_DB  : sb = db;
     `SB_FF  : sb = 8'hFF;
-  endcase
-end
-
-endmodule
-
-// This is the "secondary bus" that feeds into the architectural registers and to db_out
-`SCHEM_KEEP_HIER module sb_reg_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu, db, sb);
-input [2:0] sb_sel;
-input [7:0] reg_a;
-input [7:0] reg_x;
-input [7:0] reg_y;
-input [7:0] reg_s;
-input [7:0] alu;
-input [7:0] db;
-output [7:0] sb;
-reg [7:0] sb;
-
-// SB mux
-always @(*)
-begin
-  case(sb_sel)  // synthesis full_case parallel_case
-    `SB_A   : sb = reg_a;
-    `SB_X   : sb = reg_x;
-    `SB_Y   : sb = reg_y;
-    `SB_S   : sb = reg_s;
-    `SB_ALU : sb = alu;
-    `SB_DB  : sb = db;
   endcase
 end
 

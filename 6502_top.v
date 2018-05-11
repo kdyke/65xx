@@ -43,8 +43,7 @@ wire [7:0] db_in;
 wire [7:0] db_out;
 
 wire [7:0] adl_abl;      // ADL that feeds into ABL and ALUB input
-wire [7:0] sb_alu;      // SB that feeds into ALU
-wire [7:0] sb_reg;      // SB that only feeds architectural registers and does not source from addressing logic
+wire [7:0] sb;      // SB mux
 
 // Clocked internal registers
 wire [7:0] abh;
@@ -139,15 +138,14 @@ assign pc_hold = intg;
   clocked_reset_reg8 ir_reg(clk, reset, sync & ready_i, ir_next, ir);
   
   adl_pcl_reg adl_pcl_reg(.clk(clk), .ready(ready_i), .pcls_sel(pcls_sel), .pc_inc(pc_inc & ~pc_hold),
-                          .adl_sel(adl_sel), .data_i(data_i), .reg_s(reg_s), .alu(alu_out), 
+                          .adl_sel(adl_sel), .reg_s(reg_s), .alu(alu_out), 
                           .pcls(pcls), .pcl(pcl), .pcl_carry(pcl_carry));
   adl_abl_reg adl_abl_reg(.clk(clk), .load_abl(load_abl), .adl_sel(adl_sel), .data_i(data_i), .pcls(pcls), .reg_s(reg_s), .alu(alu_out), .vector_lo(vector_lo), .adl_abl(adl_abl), .abl(abl));
 
   db_in_mux db_in_mux(db_sel, data_i, reg_a, alua[7], db_in);
-  db_out_mux db_out_mux(db_sel, reg_a, sb_reg, pcl, pch, reg_p, db_out);
+  db_out_mux db_out_mux(db_sel, reg_a, sb, pcl, pch, reg_p, db_out);
 
-  sb_alu_mux sb_alu_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, pch, db_in, sb_alu);
-  sb_reg_mux sb_reg_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, db_in, sb_reg);
+  sb_mux sb_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu_out, pch, db_in, sb);
 
   // ADH units
   adh_pch_reg adh_pch_reg(.clk(clk), .ready(ready_i), .pchs_sel(pchs_sel), .pcl_carry(pcl_carry), .adh_sel(adh_sel), .data_i(data_i), .alu(alu_out), .pchs(pchs), .pch(pch));
@@ -158,15 +156,15 @@ wire [7:0] ir_dec;
 decoder3to8 dec3to8(ir[6:4], ir_dec);
 `endif
 
-  alua_mux alua_mux(clk, alu_a != 0 && ready_i, alu_a, sb_alu, ir_dec, alua);
+  alua_mux alua_mux(clk, alu_a != 0 && ready_i, alu_a, sb, ir_dec, alua);
   alub_mux alub_mux(clk, alu_b != 0 && ready_i, alu_b, db_in, adl_abl, alub);
   aluc_mux aluc_mux(alu_c, reg_p[`PF_C], alu_carry_out_last, alucs);
   
-  a_reg a_reg(clk, load_a, sb_reg, alu_carry_out, alu_half_carry_out, dec_add, dec_sub, reg_a);
+  a_reg a_reg(clk, load_a, sb, alu_carry_out, alu_half_carry_out, dec_add, dec_sub, reg_a);
   
-  clocked_reg8 x_reg(clk, load_x, sb_reg, reg_x);
-  clocked_reg8 y_reg(clk, load_y, sb_reg, reg_y);
-  clocked_reg8 s_reg(clk, load_s, sb_reg, reg_s);
+  clocked_reg8 x_reg(clk, load_x, sb, reg_x);
+  clocked_reg8 y_reg(clk, load_y, sb, reg_y);
+  clocked_reg8 s_reg(clk, load_s, sb, reg_s);
 
   // FIXME - This is kinda hacky right now.  Really should have a pair of dedicated microcode bits for this but
   // I'm currently out of spare microcode bits.   This probably only requires a couple of LUTs though.
@@ -183,8 +181,8 @@ decoder3to8 dec3to8(ir[6:4], ir_dec);
   // possible to either have the input data bus feed the secondary bus to pick up the flags, or just pick up the flags from the secondary
   // bus directly (which is a case where the original would have cross connected the two busses).  So, I always just get Z or N from
   // the secondary bus instead.
-  assign sb_z = ~|sb_reg;
-  assign sb_n = sb_reg[7];
+  assign sb_z = ~|sb;
+  assign sb_n = sb[7];
 
   p_reg p_reg(clk, reset, ready_i, intg, load_flag_decode, sync & ready_i, db_in, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], reg_p);
 
