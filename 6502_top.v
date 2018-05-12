@@ -1,6 +1,6 @@
 `include "6502_inc.vh"
 
-`SCHEM_KEEP_HIER module cpu6502(clk, reset, nmi, irq, ready, write, sync, address, data_i, data_o);
+`SCHEM_KEEP_HIER module cpu6502(clk, reset, nmi, irq, ready, write, sync, address, address_next, data_i, data_o);
 
 initial begin
 end
@@ -9,6 +9,7 @@ input clk, reset, irq, nmi, ready;
 input [7:0] data_i;
 output [7:0] data_o;
 output [15:0] address;
+output [15:0] address_next;
 output write;
 output sync;
 
@@ -46,6 +47,8 @@ wire [7:0] adl_abl;      // ADL that feeds into ABL and ALUB input
 wire [7:0] sb;      // SB mux
 
 // Clocked internal registers
+wire [7:0] abh_next;
+wire [7:0] abl_next;
 wire [7:0] abh;
 wire [7:0] abl;
 wire [7:0] pch;
@@ -113,6 +116,8 @@ wire [7:0] vector_lo;
   ir_next_mux ir_next_mux(sync, intg, data_i, ir, ir_next);
 
   assign address = { abh, abl };
+  assign address_next = { abh_next, abl_next };
+  
   assign write = write_cycle & ~resp;
   assign data_o = db_out;
 
@@ -140,7 +145,8 @@ assign pc_hold = intg;
   adl_pcl_reg adl_pcl_reg(.clk(clk), .ready(ready_i), .pcls_sel(pcls_sel), .pc_inc(pc_inc & ~pc_hold),
                           .adl_sel(adl_sel), .reg_s(reg_s), .alu(alu_out), 
                           .pcls(pcls), .pcl(pcl), .pcl_carry(pcl_carry));
-  adl_abl_reg adl_abl_reg(.clk(clk), .load_abl(load_abl), .adl_sel(adl_sel), .data_i(data_i), .pcls(pcls), .reg_s(reg_s), .alu(alu_out), .vector_lo(vector_lo), .adl_abl(adl_abl), .abl(abl));
+  adl_abl_reg adl_abl_reg(.clk(clk), .load_abl(load_abl), .adl_sel(adl_sel), .data_i(data_i), .pcls(pcls), .reg_s(reg_s),
+                          .alu(alu_out), .vector_lo(vector_lo), .adl_abl(adl_abl), .abl_next(abl_next), .abl(abl));
 
   db_in_mux db_in_mux(db_sel, data_i, reg_a, alua[7], db_in);
   db_out_mux db_out_mux(db_sel, reg_a, sb, pcl, pch, reg_p, db_out);
@@ -149,7 +155,7 @@ assign pc_hold = intg;
 
   // ADH units
   adh_pch_reg adh_pch_reg(.clk(clk), .ready(ready_i), .pchs_sel(pchs_sel), .pcl_carry(pcl_carry), .adh_sel(adh_sel), .data_i(data_i), .alu(alu_out), .pchs(pchs), .pch(pch));
-  adh_abh_reg adh_abh_reg(.clk(clk), .load_abh(load_abh), .adh_sel(adh_sel), .data_i(data_i), .pchs(pchs), .alu(alu_out), .abh(abh));
+  adh_abh_reg adh_abh_reg(.clk(clk), .load_abh(load_abh), .adh_sel(adh_sel), .data_i(data_i), .pchs(pchs), .alu(alu_out), .abh_next(abh_next), .abh(abh));
 
 wire [7:0] ir_dec;
 `ifdef CMOS

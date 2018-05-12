@@ -1,7 +1,8 @@
-module memory(clk, we, addr, di, do);
+module memory(clk, we, addr_r, addr_w, di, do);
 input clk;
 input we;
-input [15:0] addr;
+input [15:0] addr_r;
+input [15:0] addr_w;
 input [7:0] di;
 output [7:0] do;
 reg [7:0] ram [0:65535];reg [7:0] do;
@@ -172,23 +173,18 @@ ram[16'h07f8] = 8'he8; ram[16'h07f9] = 8'h8e; ram[16'h07fa] = 8'h02; ram[16'h07f
 
 ram[16'h0800] = 8'h28; ram[16'h0801] = 8'h40; 
 ram[16'hfffa] = 8'h5d; ram[16'hfffb] = 8'h07; ram[16'hfffc] = 8'h9c; ram[16'hfffd] = 8'h07; ram[16'hfffe] = 8'ha1; ram[16'hffff] = 8'h07; 
-
-// Override start vector
+ // Override start vector
 ram[16'hfffc] = 8'h00;
 ram[16'hfffd] = 8'h04;
-
 end
 
 always @(posedge clk)
 begin
     if(we)
-    begin
-        ram[addr] <= di;
-        $strobe("ram[%04x]: %02x",addr,di);
-        if(addr == 16'h0200)
-          $display("last test: %d",di);
-    end
-    do <= ram[addr];
+        ram[addr_w] = di;
+    if(we && addr_w == 16'h0200)
+        $display("last test: %d",di);
+    do = ram[addr_r];
 end
 
 endmodule

@@ -95,7 +95,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module adh_abh_reg(clk, load_abh, adh_sel, data_i, pchs, alu, abh);
+`SCHEM_KEEP_HIER module adh_abh_reg(clk, load_abh, adh_sel, data_i, pchs, alu, abh_next, abh);
 input clk;
 input load_abh;
 input [2:0] adh_sel;
@@ -103,6 +103,7 @@ input [7:0] data_i;
 input [7:0] pchs;
 input [7:0] alu;
 output reg [7:0] abh;
+output reg [7:0] abh_next;
 
 reg [7:0] adh_abh;
 
@@ -118,6 +119,14 @@ begin
   endcase
 end
 
+always @(*)
+begin
+  if(load_abh)
+    abh_next = adh_abh;
+  else
+    abh_next = abh;
+end
+
 always @(posedge clk)
 begin
   if(load_abh)
@@ -128,7 +137,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module adl_abl_reg(clk, load_abl, adl_sel, data_i, pcls, reg_s, alu, vector_lo, adl_abl, abl);
+`SCHEM_KEEP_HIER module adl_abl_reg(clk, load_abl, adl_sel, data_i, pcls, reg_s, alu, vector_lo, adl_abl, abl_next, abl);
 input clk;
 input load_abl;
 input [2:0] adl_sel;
@@ -140,6 +149,7 @@ input [7:0] vector_lo;
 
 output [7:0] adl_abl;
 output [7:0] abl;
+output reg [7:0] abl_next;
 reg [7:0] adl_abl;
 reg [7:0] abl;
 
@@ -155,6 +165,15 @@ begin
     `ADL_VECHI : adl_abl = { vector_lo[7:1],1'b1 };
   endcase
 end
+
+always @(*)
+begin
+  if(load_abl)
+    abl_next = adl_abl;
+  else
+    abl_next = abl;
+end
+
 
 always @(posedge clk)
 begin

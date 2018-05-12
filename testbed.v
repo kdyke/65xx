@@ -6,11 +6,12 @@ reg [15:0] address;
 reg [7:0] memory_in;
 wire [7:0] memory_out;
 reg ready;
-reg memclk, clk, reset;
+reg clk, reset;
 
 reg memory_write;
 reg [15:0] memory_address;
 wire [15:0] cpu_address;
+wire [15:0] cpu_address_next;
 reg [7:0] cpu_data_in;
 wire [7:0] cpu_data_out;
 wire cpu_write;
@@ -26,48 +27,19 @@ wire irq, nmi;
 assign irq = io_port[0];
 assign nmi = io_port[1];
 
-	memory memory_inst(.clk(memclk), .we(memory_write), .addr(memory_address), .di(memory_in), .do(memory_out));
+	memory memory_inst(.clk(clk), .we(memory_write), .addr_r(cpu_address_next), .addr_w(memory_address), .di(memory_in), .do(memory_out));
 
   cpu6502 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .ready(ready), .write(cpu_write), 
-            .address(cpu_address), .data_i(cpu_data_in), .data_o(cpu_data_out));
+            .address(cpu_address), .address_next(cpu_address_next), .data_i(cpu_data_in), .data_o(cpu_data_out));
 
 	initial begin
 
     io_port = 0;
 		clk = 0;
-    memclk = 0;
 		reset = 1;	// Start out high
     ready = 1;
     clock_count = 0;
     cpu_clock_enable = 0;
-    
-    //$monitor($time,,"%m. memclk = %b clk = %b  addr: %x mem: %02x cpu: %02x w: %d",memclk,clk,cpu_address,memory_out,cpu_data_out,cpu_write);
-    
-    // Override reset start vector by clocking data into memory
-    memory_write = 0;
-    memory_address = 16'hfffc;
-    memory_in = 8'h00;
-    #1 memclk = 1;
-    #1 memclk = 0;
-    memory_write = 0;
-    #1 memclk = 1;
-    #1 memclk = 0;
-    memory_write = 0;
-    #1 memclk = 1;
-    #1 memclk = 0;
-
-    #1 memory_address = 16'hfffd;
-    #1 memory_in = 8'h04;
-    #1 memclk = 1;
-    #1 memclk = 0;
-    memory_write = 0;
-    #1 memclk = 1;
-    #1 memclk = 0;
-    memory_write = 0;
-    #1 memclk = 1;
-    #1 memclk = 0;
-    #1 memclk = 1;
-    #1 memclk = 0;
     
     #1 memory_address = 16'h0000;
     address = 0;
@@ -79,7 +51,7 @@ assign nmi = io_port[1];
     
   end
   
-  always @(memory_out)
+  always @(*)
   begin
     if(cpu_address == 16'hbffc)
     begin
@@ -118,11 +90,10 @@ assign nmi = io_port[1];
   
   // Start driving memory and CPU clocks.
   always begin
-  #1 memclk = ~memclk;
-    //$monitor($time,,"%m. memclk = %b clk = %b  addr: %x mem: %02x cpu: %02x w: %d ce: %d irq: %d nmi: %d",memclk,clk,cpu_address,cpu_data_in,cpu_data_out,cpu_write,cpu_clock_enable,irq,nmi);
+    //$monitor($time,,"%m. clk = %b  addr: %x mem: %02x cpu: %02x w: %d ce: %d irq: %d nmi: %d",
+    //  clk,cpu_address,cpu_data_in,cpu_data_out,cpu_write,cpu_clock_enable,irq,nmi);
     if(cpu_clock_enable)
      clk = ~clk;
-  #1 memclk = ~memclk;
   end
 
   reg [63:0] clock_count;
