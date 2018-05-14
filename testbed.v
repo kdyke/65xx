@@ -92,8 +92,8 @@ assign nmi = io_port[1];
   always begin
     //$monitor($time,,"%m. clk = %b  addr: %x mem: %02x cpu: %02x w: %d ce: %d irq: %d nmi: %d",
     //  clk,cpu_address,cpu_data_in,cpu_data_out,cpu_write,cpu_clock_enable,irq,nmi);
-    if(cpu_clock_enable)
-     clk = ~clk;
+//    if(cpu_clock_enable)
+     #1 clk = ~clk;
   end
 
   reg [63:0] clock_count;
