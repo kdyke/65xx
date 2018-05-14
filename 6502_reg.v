@@ -78,19 +78,18 @@ input ir5;
 output [7:0] reg_p;
 reg [7:0] reg_p;
 
+always @(*)
+begin
+  reg_p[`PF_B] = ~intg;
+end
 
 always @(posedge clk)
+begin
   if(reset)
   begin
     reg_p[`PF_B] <= 1;
     reg_p[`PF_U] <= 1;
   end
-  else if(load_b)
-  begin
-    if(intg)
-      reg_p[`PF_B] <= 0;
-    else
-      reg_p[`PF_B] <= 1;
 end
 
 always @(posedge clk)

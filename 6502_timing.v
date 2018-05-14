@@ -205,7 +205,7 @@ begin
   begin
       intg <= 0;
 `ifdef NMI_BUG_FIX      
-      if(~reg_p[`PF_B])
+      if(intg)
 `endif
         nmig <= 0;
   end
@@ -219,7 +219,7 @@ begin
     vector_lo = 8'hFC;
   else if(nmig 
 `ifdef NMI_BUG_FIX    
-    & ~reg_p[`PF_B]
+    & intg
 `endif
     )
     vector_lo = 8'hFA;
