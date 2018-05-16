@@ -64,7 +64,7 @@
 // ALU A input select - always loaded
 `define ALU_A_0     1
 `define ALU_A_SB    2
-`define ALU_A_IR    3  // Eww, gross
+`define ALU_A_IR    3
 
 // ALU_B input select - 0 holds last input
 `define ALU_B_DB    1  
@@ -120,24 +120,6 @@
 `define LM_N_DB7      (1 << `LF_N_DB7)
 `define LM_I_1        (1 << `LF_I_1  )
 
-`define DECODED_LOAD_FLAGS 1
-`ifdef DECODED_LOAD_FLAGS
-`define FLAGS_DB        (`LM_C_DB0 | `LM_Z_DB1 | `LM_I_DB2 | `LM_D_DB3 | `LM_V_DB6 | `LM_N_DB7)
-`define FLAGS_SBZN      (`LM_Z_SBZ | `LM_N_SBN)
-`define FLAGS_D         (`LM_D_IR5)
-`define FLAGS_I         (`LM_I_IR5)
-`define FLAGS_C         (`LM_C_IR5)
-`define FLAGS_V         (`LM_V_0)
-`define FLAGS_Z         (`LM_Z_SBZ)
-`define FLAGS_CNZ       (`LM_C_ACR | `LM_Z_SBZ | `LM_N_SBN)
-`define FLAGS_ALU       (`LM_C_ACR | `LM_V_AVR | `LM_Z_SBZ | `LM_N_SBN)
-`define FLAGS_BIT       (`LM_V_DB6 | `LM_N_DB7)
-`ifdef CMOS
-`define FLAGS_SETI      (`LM_I_1|`LM_D_IR5)     // Clear D flag too
-`else
-`define FLAGS_SETI      (`LM_I_1)
-`endif
-`else
 `define FLAGS_DB    4'h1
 `define FLAGS_SBZN  4'h2
 `define FLAGS_ALU   4'h3
@@ -149,7 +131,6 @@
 `define FLAGS_CNZ   4'h9
 `define FLAGS_BIT   4'ha
 `define FLAGS_Z     4'hb
-`endif
 
 `define ALUF_C 0
 `define ALUF_Z 1
@@ -214,10 +195,9 @@
 `define WRITE_BITS      35:35
 `define SB_BITS         38:36
 
-// 55:40
-`define LOAD_FLAGS_BITS 53:39
-
-`define MICROCODE_BITS  53:0
+// 42:39
+`define LOAD_FLAGS_BITS 42:39
+`define MICROCODE_BITS  42:0
 
 `define FIELD_SHIFT(_x) (0?_x)
 

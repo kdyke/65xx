@@ -25,7 +25,7 @@ output load_y;
 output load_s;
 output load_abh;
 output load_abl;
-output [14:0] load_flags;
+output [3:0] load_flags;
 output write_cycle;
 output pc_inc;
 

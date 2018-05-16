@@ -361,3 +361,28 @@ begin
 end
 
 endmodule
+
+// Note: LM_C_DB0, LM_Z_DB1, LM_I_DB2 and LM_D_DB3 are currently always set together and are thus redundant,
+// so if we ever went back to predecoded flags we could save 3 bits there.
+`SCHEM_KEEP_HIER module flags_decode(input [3:0] load_flags, output reg [14:0] load_flags_decode);
+always @(*)
+case (load_flags)   // synthesis full_case parallel_case
+  `none       : load_flags_decode = 0;
+  `FLAGS_DB   : load_flags_decode = (`LM_C_DB0 | `LM_Z_DB1 | `LM_I_DB2 | `LM_D_DB3 | `LM_V_DB6 | `LM_N_DB7);
+  `FLAGS_SBZN : load_flags_decode = (`LM_Z_SBZ | `LM_N_SBN);
+  `FLAGS_D    : load_flags_decode = (`LM_D_IR5);
+  `FLAGS_I    : load_flags_decode = (`LM_I_IR5);
+  `FLAGS_C    : load_flags_decode = (`LM_C_IR5);
+  `FLAGS_V    : load_flags_decode = (`LM_V_0);
+  `FLAGS_Z    : load_flags_decode = (`LM_Z_SBZ);
+  `FLAGS_CNZ  : load_flags_decode = (`LM_C_ACR | `LM_Z_SBZ | `LM_N_SBN);
+  `FLAGS_ALU  : load_flags_decode = (`LM_C_ACR | `LM_V_AVR | `LM_Z_SBZ | `LM_N_SBN);
+  `FLAGS_BIT  : load_flags_decode = (`LM_V_DB6 | `LM_N_DB7);
+  `ifdef CMOS
+  `FLAGS_SETI : load_flags_decode = (`LM_I_1|`LM_D_IR5);     // Clear D flag too
+  `else
+  `FLAGS_SETI : load_flags_decode = (`LM_I_1);
+  `endif
+endcase
+
+endmodule

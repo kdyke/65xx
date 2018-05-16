@@ -37,6 +37,7 @@ wire load_abh;
 wire load_abl;
 wire write_cycle;
 wire pc_inc;
+wire [3:0] load_flags;
 wire [14:0] load_flag_decode;
 
 // Internal busses (muxes)
@@ -106,8 +107,10 @@ wire [7:0] vector_lo;
                   .db_sel(db_sel), .sb_sel(sb_sel),
                   .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_s(load_s),
                   .load_abh(load_abh), .load_abl(load_abl), 
-                  .load_flags(load_flag_decode), 
+                  .load_flags(load_flags), 
                   .write_cycle(write_cycle), .pc_inc(pc_inc));
+
+  flags_decode flags_decode(load_flags, load_flag_decode);
 
   assign ready_i = ready | write_cycle;
 
