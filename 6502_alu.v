@@ -126,11 +126,11 @@ always @(*) begin
       begin
 			{tmp,c} = {c_in,a};
       end
-    `ALU_TST:
-      begin
-      c = 0;
-      tmp = ~a & b;
-      end
+    //`ALU_TST:
+    //  begin
+    //  c = 0;
+    //  tmp = ~a & b;
+    //  end
     `ALU_PSA:   // Passthrough, used when I just needed the ALU to hold onto something for a cycle. The real 6502 has an output hold register.
       begin
 			c = 0;

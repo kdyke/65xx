@@ -16,7 +16,7 @@ output [2:0] sb_sel;
 output [3:0] alu_op;
 output pchs_sel;
 output pcls_sel;
-output [1:0] alu_a;
+output [2:0] alu_a;
 output [1:0] alu_b;
 output [1:0] alu_c;
 output load_a;
