@@ -1,6 +1,6 @@
 `include "6502_inc.vh"
 
-`SCHEM_KEEP_HIER module cpu6502(clk, reset, nmi, irq, ready, write, sync, address, address_next, data_i, data_o);
+`SCHEM_KEEP_HIER module cpu6502(clk, reset, nmi, irq, ready, write, write_next, sync, address, address_next, data_i, data_o, data_o_next);
 
 initial begin
 end
@@ -8,8 +8,10 @@ end
 input clk, reset, irq, nmi, ready;
 input [7:0] data_i;
 output [7:0] data_o;
+output wire [7:0] data_o_next;
 output [15:0] address;
 output [15:0] address_next;
+output write_next;
 output write;
 output sync;
 
@@ -55,6 +57,8 @@ wire [7:0] abl;
 wire [7:0] pch;
 wire [7:0] pcl;
 wire [7:0] ir;
+wire [7:0] dor;
+reg w_reg;
 
 // Clocked architectural registers
 wire [7:0] reg_a;
@@ -91,6 +95,7 @@ wire [7:0] pchs;
 wire onecycle;
 wire twocycle;
 wire decimal_cycle;
+wire write_allowed;
 
 wire intg;
 wire nmig;
@@ -121,9 +126,17 @@ wire [7:0] vector_lo;
   assign address = { abh, abl };
   assign address_next = { abh_next, abl_next };
   
-  assign write = write_cycle & ~resp;
-  assign data_o = db_out;
+  assign write_next = write_cycle & ~resp & write_allowed;
+  assign write = w_reg; 
+  assign data_o = dor;
+  assign data_o_next = db_out;
 
+  always @(posedge clk)
+  begin
+    if(ready_i)
+      w_reg <= write_next;
+  end
+  
   // A page is crossed if the carry result is different than the sign of the branch offset input
   assign branch_page_cross = alu_carry_out ^ alua[7];
 
@@ -133,7 +146,7 @@ wire [7:0] vector_lo;
 
   // Timing control state machine
   timing_ctrl timing(clk, reset, ready_i, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, 
-                   sync, load_flag_decode[`LF_Z_SBZ], onecycle, twocycle, decimal_cycle);
+                   sync, load_flag_decode[`LF_Z_SBZ], onecycle, twocycle, decimal_cycle, write_allowed);
 
 // Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform the extra decimal correction cycle
 wire pc_hold;
@@ -174,7 +187,8 @@ decoder3to8 dec3to8(ir[6:4], ir_dec);
   clocked_reg8 x_reg(clk, load_x, sb, reg_x);
   clocked_reg8 y_reg(clk, load_y, sb, reg_y);
   clocked_reg8 s_reg(clk, load_s, sb, reg_s);
-
+  clocked_reg8 do_reg(clk, db_sel != 0, db_out, dor);
+  
   // FIXME - This is kinda hacky right now.  Really should have a pair of dedicated microcode bits for this but
   // I'm currently out of spare microcode bits.   This probably only requires a couple of LUTs though.
   assign dec_add = reg_p[`PF_D] & load_flag_decode[`LF_V_AVR] & (alu_op == `ALU_ADC);

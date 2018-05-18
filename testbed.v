@@ -27,10 +27,10 @@ wire irq, nmi;
 assign irq = io_port[0];
 assign nmi = io_port[1];
 
-	memory memory_inst(.clk(clk), .we(memory_write), .addr_r(cpu_address_next), .addr_w(memory_address), .di(memory_in), .do(memory_out));
+	memory memory_inst(.clk(clk), .we(memory_write), .addr_r(cpu_address_next), .addr_w(cpu_address_next), .di(memory_in), .do(memory_out));
 
-  cpu6502 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .ready(ready), .write(cpu_write), 
-            .address(cpu_address), .address_next(cpu_address_next), .data_i(cpu_data_in), .data_o(cpu_data_out));
+  cpu6502 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .ready(ready), .write_next(cpu_write), 
+            .address(cpu_address), .address_next(cpu_address_next), .data_i(cpu_data_in), .data_o_next(cpu_data_out));
 
 	initial begin
 
@@ -65,7 +65,7 @@ assign nmi = io_port[1];
     end
   end
   
-  always @(cpu_write)
+  always @(*)
   begin
     if(cpu_address != 16'hbffc)
       memory_write = cpu_write;
@@ -73,7 +73,7 @@ assign nmi = io_port[1];
       memory_write = 0;
   end
   
-  always @(cpu_data_out)
+  always @(*)
   begin
     if(cpu_clock_enable)
     begin
@@ -82,7 +82,7 @@ assign nmi = io_port[1];
     end
   end  
   
-  always @(cpu_address)
+  always @(*)
   begin
     if(cpu_clock_enable)
       memory_address = cpu_address;
@@ -90,8 +90,8 @@ assign nmi = io_port[1];
   
   // Start driving memory and CPU clocks.
   always begin
-    //$monitor($time,,"%m. clk = %b  addr: %x mem: %02x cpu: %02x w: %d ce: %d irq: %d nmi: %d",
-    //  clk,cpu_address,cpu_data_in,cpu_data_out,cpu_write,cpu_clock_enable,irq,nmi);
+//    $monitor($time,,"%m. clk = %b  addr: %x mem: %02x do: %02x w: %d ce: %d irq: %d nmi: %d",
+//      clk,cpu_address,cpu_data_in,cpu_data_out,cpu_write,cpu_clock_enable,irq,nmi);
 //    if(cpu_clock_enable)
      #1 clk = ~clk;
   end
@@ -108,7 +108,8 @@ assign nmi = io_port[1];
   // io_port writes
   always @(posedge clk)
   begin
-    if(io_port_cs && cpu_write)
+    //$display("io_port ? %04x %08b w: %d",cpu_address,cpu_data_out,cpu_write);
+    if(cpu_address_next == 16'hbffc && cpu_write)
     begin
       io_port = cpu_data_out;
       $display("io_port <= %08b",cpu_data_out);

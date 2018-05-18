@@ -88,19 +88,19 @@ end
 `ADDR_abs_y(8'h79)          `ADC(8'h79,0)     // ADC abs,y
 `ADDR_abs_x(8'h7D,`TNC,`T0) `ADC(8'h7D,0)     // ADC abs,x
 
-`ADDR_zp_x_ind(8'h81)       `STA(8'h81)       // STA (zp,x)
-`ADDR_zp(8'h84,`T0)         `STY(8'h84)       // STY zp
-`ADDR_zp(8'h85,`T0)         `STA(8'h85)       // STA zp
-`ADDR_zp(8'h86,`T0)         `STX(8'h86)       // STX zp
-`ADDR_abs(8'h8C,`T0)        `STY(8'h8C)       // STY abs
-`ADDR_abs(8'h8D,`T0)        `STA(8'h8D)       // STA abs
-`ADDR_abs(8'h8E,`T0)        `STX(8'h8E)       // STX abs
-`ADDR_zp_ind_y(8'h91)       `STA(8'h91)       // STA (zp),y
-`ADDR_zp_x(8'h94,`T0)       `STY(8'h94)       // STY zp,x
-`ADDR_zp_x(8'h95,`T0)       `STA(8'h95)       // STA zp,x
-`ADDR_zp_y(8'h96)           `STX(8'h96)       // STX zp,y
-`ADDR_abs_y(8'h99)          `STA(8'h99)       // STA abs,y
-`ADDR_abs_x(8'h9D,`TNC,`T0) `STA(8'h9D)       // STA abs,x
+`ADDR_zp_x_ind_w(8'h81,`DB_SB, `SB_A)         `STx(8'h81)       // STA (zp,x)
+`ADDR_zp_w(8'h84,`T0, `DB_SB, `SB_Y)          `STx(8'h84)       // STY zp
+`ADDR_zp_w(8'h85,`T0, `DB_SB, `SB_A)          `STx(8'h85)       // STA zp
+`ADDR_zp_w(8'h86,`T0, `DB_SB, `SB_X)          `STx(8'h86)       // STX zp
+`ADDR_abs_w(8'h8C,`T0, `DB_SB, `SB_Y)         `STx(8'h8C)       // STY abs
+`ADDR_abs_w(8'h8D,`T0, `DB_SB, `SB_A)         `STx(8'h8D)       // STA abs
+`ADDR_abs_w(8'h8E,`T0, `DB_SB, `SB_X)         `STx(8'h8E)       // STX abs
+`ADDR_zp_ind_y_w(8'h91, `DB_SB, `SB_A)        `STx(8'h91)       // STA (zp),y
+`ADDR_zp_x_w(8'h94,`T0, `DB_SB, `SB_Y)        `STx(8'h94)       // STY zp,x
+`ADDR_zp_x_w(8'h95,`T0, `DB_SB, `SB_A)        `STx(8'h95)       // STA zp,x
+`ADDR_zp_y_w(8'h96, `DB_SB, `SB_X)            `STx(8'h96)       // STX zp,y
+`ADDR_abs_y_w(8'h99, `DB_SB, `SB_A)           `STx(8'h99)       // STA abs,y
+`ADDR_abs_x_w(8'h9D,`TNC,`T0, `DB_SB, `SB_A)  `STx(8'h9D)       // STA abs,x
 
                             `LDY(8'hA0,1)     // LDY #
 `ADDR_zp_x_ind(8'hA1)       `LDA(8'hA1,0)     // LDA (zp,x)
@@ -240,16 +240,16 @@ end
 `ADDR_zp_ind(8'h32)         `AND(8'h32,0)
 `ADDR_zp_ind(8'h52)         `EOR(8'h52,0)
 `ADDR_zp_ind(8'h72)         `ADC(8'h72,0)
-`ADDR_zp_ind(8'h92)         `STA(8'h92)
+`ADDR_zp_ind_w(8'h92, `DB_SB, `SB_A)         `STx(8'h92)
 `ADDR_zp_ind(8'hB2)         `LDA(8'hB2,0)
 `ADDR_zp_ind(8'hD2)         `CMP(8'hD2,0)
 `ADDR_zp_ind(8'hF2)         `SBC(8'hF2,0)
 
                             // STZ
-`ADDR_zp(8'h64,`T0)         `STZ(8'h64)       // STZ zp
-`ADDR_zp_x(8'h74,`T0)       `STZ(8'h74)       // STZ zp,x
-`ADDR_abs(8'h9C,`T0)        `STZ(8'h9C)       // STZ abs
-`ADDR_abs_x(8'h9E,`TNC,`T0) `STZ(8'h9E)       // STZ abs,x
+`ADDR_zp_w(8'h64,`T0, `DB_0, `SB_FF)         `STx(8'h64)       // STZ zp
+`ADDR_zp_x_w(8'h74,`T0, `DB_0, `SB_FF)       `STx(8'h74)       // STZ zp,x
+`ADDR_abs_w(8'h9C,`T0, `DB_0, `SB_FF)        `STx(8'h9C)       // STZ abs
+`ADDR_abs_x_w(8'h9E,`TNC,`T0, `DB_0, `SB_FF) `STx(8'h9E)       // STZ abs,x
 
                             `BIT(8'h89, `none, 1)           // BIT #
 `ADDR_zp_x(8'h34,`T0)       `BIT(8'h34,`FLAGS_BIT, 0)       // BIT zp,x

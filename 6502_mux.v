@@ -308,10 +308,15 @@ always @(*)
 begin
   case(db_sel)  // synthesis full_case parallel_case
     `DB_0   : db_in = 8'h00;
-    `DB_DI  : db_in = data_i;
+    //`DB_DI  : db_in = data_i;
+    //`DB_SB  : db_in = data_i; // Temp hack
+    //`DB_PCH : db_in = data_i;
     `DB_A   : db_in = reg_a;
     `DB_BO  : db_in = {8{alua_highbit}};   // The high bit of the last ALU A input is the sign bit for branch offsets
+    default : db_in = data_i;
+     
   endcase
+  //$display("data_i: %02x  db_in: %02x",data_i,db_in);
 end
 
 endmodule
@@ -338,7 +343,6 @@ begin
 end
 
 endmodule
-
 
 `SCHEM_KEEP_HIER module ir_next_mux(input sync, 
                                     input intg,

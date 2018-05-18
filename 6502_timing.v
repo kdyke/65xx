@@ -6,7 +6,7 @@
 `endif
 `define NMI_BUG_FIX 1
 
-`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, sync, load_sbz, onecycle, twocycle, decimal_cycle);
+`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, sync, load_sbz, onecycle, twocycle, decimal_cycle, write_allowed);
 input clk;
 input reset;
 input ready;
@@ -21,6 +21,7 @@ input onecycle;
 input twocycle;
 output [2:0] t;
 output [2:0] t_next;
+output reg write_allowed;
 
 wire sync;
 reg [2:0] t;
@@ -57,7 +58,7 @@ end
 always @(*)
 begin
   t_next = t+1;
-
+  write_allowed = 1;
   if(onecycle & sync)
     t_next = T1;
   else if(decimal_extra_cycle)
@@ -70,6 +71,8 @@ begin
     t_next = T0;
   else if(tnext_mc == `TNC && alu_carry_out == 0)
     t_next = T0;
+  else if(tnext_mc == `TNC && alu_carry_out == 1)
+    write_allowed = 0;
   else if(tnext_mc == `TBR && taken_branch == 0)
     t_next = T1;
   else if(tnext_mc == `TBE)
