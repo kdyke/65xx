@@ -25,7 +25,7 @@ wire [2:0] sb_sel;
 wire pchs_sel;
 wire pcls_sel;
 wire [3:0] alu_op;
-wire [1:0] alu_a;
+wire [2:0] alu_a;
 wire [1:0] alu_b;
 wire [1:0] alu_c;
 wire load_a;

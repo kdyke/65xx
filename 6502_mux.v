@@ -197,7 +197,7 @@ endmodule
 
 `SCHEM_KEEP_HIER module alua_mux(input clk,
                                  input ready,
-                                 input [1:0] alu_a, 
+                                 input [2:0] alu_a, 
                                  input [7:0] sb, 
                                  input [7:0] ir_dec, 
                                  output [7:0] alua);
@@ -210,10 +210,12 @@ reg [7:0] alua;
 always @(*)
 begin
   case(alu_a)  // synthesis full_case parallel_case
-    `ALU_A_0  : aluas = 8'h00;
-    `ALU_A_SB : aluas = sb;
+    `ALU_A_0   : aluas = 8'h00;
+    `ALU_A_SB  : aluas = sb;
+    `ALU_A_NSB : aluas = ~sb;
 `ifdef CMOS
-    `ALU_A_IR : aluas = ir_dec;
+    `ALU_A_IR  : aluas = ir_dec;
+    `ALU_A_NIR : aluas = ~ir_dec;
 `endif
   endcase
 end
