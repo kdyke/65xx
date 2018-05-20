@@ -81,15 +81,7 @@ reg [7:0] reg_p;
 always @(*)
 begin
   reg_p[`PF_B] = ~intg;
-end
-
-always @(posedge clk)
-begin
-  if(reset)
-  begin
-    reg_p[`PF_B] <= 1;
-    reg_p[`PF_U] <= 1;
-  end
+  reg_p[`PF_U] <= 1;
 end
 
 always @(posedge clk)
