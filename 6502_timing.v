@@ -60,12 +60,15 @@ begin
 
   if(onecycle & sync)
     t_next = T1;
-  else if(decimal_extra_cycle)
-    t_next = T2;
-  else if(decimal_cycle)
-    t_next = T7;
   else if(twocycle & sync)
     t_next = T0;
+`ifdef CMOS
+  else if(decimal_cycle) // Note: The 'if' and not 'else if' here is important in the case where a twocycle instruction follows a decimal extra cycle
+    t_next = T7;
+  else if(decimal_extra_cycle)
+    t_next = T2;
+`endif
+    
   if(tnext_mc == `T0)
     t_next = T0;
   else if(tnext_mc == `TNC && alu_carry_out == 0)
