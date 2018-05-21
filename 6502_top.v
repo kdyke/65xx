@@ -193,8 +193,11 @@ decoder3to8 dec3to8(ir[6:4], ir_dec);
   // I'm currently out of spare microcode bits.   This probably only requires a couple of LUTs though.
   assign dec_add = reg_p[`PF_D] & load_flag_decode[`LF_V_AVR] & (alu_op == `ALU_ADC);
   assign dec_sub = reg_p[`PF_D] & load_flag_decode[`LF_V_AVR] & (alu_op == `ALU_SBC);
+`ifdef CMOS
   assign decimal_cycle = reg_p[`PF_D] & load_flag_decode[`LF_V_AVR];
-
+`else
+  assign decimal_cycle = 0;
+`endif
   // In the real 6502 the internal data bus is bidirectional and so it doesn't matter whether it is a "source" or destination.  But
   // in an FPGA you never want to have combinatorial loops since it generally makes the synthesis tools really unhappy.  So because
   // I had to split the data bus into two unidirectional busses, I was faced with the problem that sometimes I needed to update the Z
