@@ -45,7 +45,7 @@ assign decimal_extra_cycle = 0;
 assign sync = (t == 1);
 `endif
 
-always @(posedge clk or posedge reset)
+always @(posedge clk)
 begin
   if(reset)       t <= T2;
   else if(ready) begin
