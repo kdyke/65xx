@@ -1,4 +1,4 @@
-module memory(clk, we, addr_r, addr_w, di, do);
+module memory(clk, we, addr_w, di, do);
 input clk;
 input we;
 input [15:0] addr_r;
@@ -1510,7 +1510,7 @@ begin
         ram[addr_w] = di;
     if(we && addr_w == 16'h0202)
         $display("last test: %d",di);
-    do = ram[addr_r];
+    do = ram[addr_w];
 end
 
 endmodule

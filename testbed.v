@@ -24,20 +24,25 @@ reg io_port_cs;
 
 wire irq, nmi;
 
+reg [63:0] clock_count;
+reg clock_reset;
+
 assign irq = io_port[0];
 assign nmi = io_port[1];
 
-	memory memory_inst(.clk(clk), .we(memory_write), .addr_r(cpu_address_next), .addr_w(cpu_address_next), .di(memory_in), .do(memory_out));
+	memory memory_inst(.clk(clk), .we(memory_write), .addr_w(cpu_address_next), .di(memory_in), .do(memory_out));
 
   cpu6502 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .ready(ready), .write_next(cpu_write), 
             .address(cpu_address), .address_next(cpu_address_next), .data_i(cpu_data_in), .data_o_next(cpu_data_out));
 
 	initial begin
+    $display("initial clock: %d",clock_count[31:0]);
 
     io_port = 0;
 		clk = 0;
-		reset = 1;	// Start out high
-    ready = 1;
+    clock_reset = 1;
+		//reset = 1;	// Start out high
+    //ready = 1;
     clock_count = 0;
     cpu_clock_enable = 0;
     
@@ -46,7 +51,7 @@ assign nmi = io_port[1];
 
     // Take CPU out of reset.
     cpu_clock_enable = 1;
-	  #8 reset = 0;
+	  //#8 reset = 0;
     //#100000 $finish;
     
   end
@@ -90,17 +95,34 @@ assign nmi = io_port[1];
   
   // Start driving memory and CPU clocks.
   always begin
-//    $monitor($time,,"%m. clk = %b  addr: %x mem: %02x do: %02x w: %d ce: %d irq: %d nmi: %d",
-//      clk,cpu_address,cpu_data_in,cpu_data_out,cpu_write,cpu_clock_enable,irq,nmi);
+//    $monitor($time,,"%m. clk = %b cnt: %d rdy: %d addr: %x mem: %02x do: %02x w: %d ce: %d irq: %d nmi: %d",
+//      clk,clock_count[31:0],ready,cpu_address,cpu_data_in,cpu_data_out,cpu_write,cpu_clock_enable,irq,nmi);
 //    if(cpu_clock_enable)
      #1 clk = ~clk;
   end
-
-  reg [63:0] clock_count;
-
+  
   always @(posedge clk)
   begin
-    clock_count = clock_count + 1;
+    if(clock_reset)
+    begin
+      clock_reset <= 0;
+      clock_count <= 0;
+    end
+    else
+      clock_count <= clock_count + 1;
+      
+    //$display("clock: %d reset: %d",clock_count[31:0],clock_reset);
+      
+    // Stress test for ready signal.
+    if((clock_count & 1) == 0)
+      ready <= 1;
+    else
+      ready <= 0;
+    if(clock_count == 2)
+	    reset <= 1;
+    if(clock_count == 16)
+      reset <= 0;
+          
     if((clock_count & 16'hffff) == 0)
       $display("addr: %04x",cpu_address);
   end

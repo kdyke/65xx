@@ -95,8 +95,9 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module adh_abh_reg(clk, load_abh, adh_sel, data_i, pchs, alu, abh_next, abh);
+`SCHEM_KEEP_HIER module adh_abh_reg(clk, ready, load_abh, adh_sel, data_i, pchs, alu, abh_next, abh);
 input clk;
+input ready;
 input load_abh;
 input [2:0] adh_sel;
 input [7:0] data_i;
@@ -121,7 +122,7 @@ end
 
 always @(*)
 begin
-  if(load_abh)
+  if(load_abh && ready)
     abh_next = adh_abh;
   else
     abh_next = abh;
@@ -129,7 +130,7 @@ end
 
 always @(posedge clk)
 begin
-  if(load_abh)
+  if(load_abh && ready)
   begin
     abh <= adh_abh;
   end
@@ -137,8 +138,9 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module adl_abl_reg(clk, load_abl, adl_sel, data_i, pcls, reg_s, alu, vector_lo, adl_abl, abl_next, abl);
+`SCHEM_KEEP_HIER module adl_abl_reg(clk, ready, load_abl, adl_sel, data_i, pcls, reg_s, alu, vector_lo, adl_abl, abl_next, abl);
 input clk;
+input ready;
 input load_abl;
 input [2:0] adl_sel;
 input [7:0] data_i;
@@ -168,7 +170,7 @@ end
 
 always @(*)
 begin
-  if(load_abl)
+  if(load_abl && ready)
     abl_next = adl_abl;
   else
     abl_next = abl;
@@ -177,7 +179,7 @@ end
 
 always @(posedge clk)
 begin
-  if(load_abl)
+  if(load_abl && ready)
   begin
     abl <= adl_abl;
   end

@@ -70,8 +70,9 @@ module alu_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, half_ca
 endmodule
 
 // Input muxing is done outside of the core ALU unit.
-`SCHEM_KEEP_HIER module alu_unit(clk, a,b,alu_out,c_in,dec_add,op,carry_out,half_carry_out,overflow_out,alu_carry_out_last);
+`SCHEM_KEEP_HIER module alu_unit(clk, ready, a,b,alu_out,c_in,dec_add,op,carry_out,half_carry_out,overflow_out,alu_carry_out_last);
   input clk;
+  input ready;
   input [7:0] a;
   input [7:0] b;
 	input [3:0] op;
@@ -146,7 +147,8 @@ always @(*) begin
 
   always @(posedge clk)
   begin
-    alu_carry_out_last <= carry_out;
+    if(ready)
+      alu_carry_out_last <= carry_out;
   end
 
 endmodule
