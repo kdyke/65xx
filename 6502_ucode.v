@@ -1,11 +1,12 @@
 `include "6502_inc.vh"
 
-(* keep_hierarchy = "yes" *) module microcode(clk, ir, t, tnext, adh_sel, adl_sel, db_sel, sb_sel, pchs_sel, pcls_sel, alu_op, alu_a, alu_b, alu_c,
+(* keep_hierarchy = "yes" *) module microcode(clk, ready, ir, t, tnext, adh_sel, adl_sel, db_sel, sb_sel, pchs_sel, pcls_sel, alu_op, alu_a, alu_b, alu_c,
                   load_a, load_x, load_y, load_s, load_abh, load_abl, 
                   load_flags,
                   write_cycle, pc_inc);
 
 input clk;
+input ready;
 input [7:0] ir;
 input [2:0] t;
 output [2:0] tnext;
@@ -376,7 +377,8 @@ assign pcls_sel = mc_out[`PCLS_BITS];
 
 always @(posedge clk)
 begin
-  mc_out <= mc[{ir, t}];
+  if(ready)
+    mc_out <= mc[{ir, t}];
   //$display("mc[%02x|%d] tn: %04x",ir,t,mc[{ir, t}][`TNEXT_BITS]);
 end
 

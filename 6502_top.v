@@ -96,10 +96,10 @@ wire resp;
 wire [7:0] vector_lo;
 
   // Instantiate ALU
-  alu_unit alu_inst(clk, alua, alub, alu_out, alucs, dec_add, alu_op, alu_carry_out, alu_half_carry_out, alu_overflow_out, alu_carry_out_last);
+  alu_unit alu_inst(clk, ready_i, alua, alub, alu_out, alucs, dec_add, alu_op, alu_carry_out, alu_half_carry_out, alu_overflow_out, alu_carry_out_last);
 
   // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
-  microcode mc_inst(.clk(clk), .ir(ir_next), .t(t_next), .tnext(tnext_mc), .adh_sel(adh_sel), .adl_sel(adl_sel),
+  microcode mc_inst(.clk(clk), .ready(ready_i), .ir(ir_next), .t(t_next), .tnext(tnext_mc), .adh_sel(adh_sel), .adl_sel(adl_sel),
                   .pchs_sel(pchs_sel), .pcls_sel(pcls_sel), .alu_op(alu_op), .alu_a(alu_a), .alu_b(alu_b), .alu_c(alu_c),
                   .db_sel(db_sel), .sb_sel(sb_sel),
                   .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_s(load_s),
@@ -109,7 +109,7 @@ wire [7:0] vector_lo;
 
   flags_decode flags_decode(load_flags, load_flag_decode);
 
-  assign ready_i = ready | write_cycle;
+  assign ready_i = ready | write;
 
   branch_control branch_control(reg_p, ir[7:5], taken_branch);
   
@@ -143,7 +143,7 @@ assign pc_hold = intg;
   adl_pcl_reg adl_pcl_reg(.clk(clk), .ready(ready_i), .pcls_sel(pcls_sel), .pc_inc(pc_inc & ~pc_hold),
                           .adl_sel(adl_sel), .reg_s(reg_s), .alu(alu_out), 
                           .pcls(pcls), .pcl(pcl), .pcl_carry(pcl_carry));
-  adl_abl_reg adl_abl_reg(.clk(clk), .load_abl(load_abl), .adl_sel(adl_sel), .data_i(data_i), .pcls(pcls), .reg_s(reg_s), .alu(alu_out), .vector_lo(vector_lo), .adl_abl(adl_abl), .abl(abl));
+  adl_abl_reg adl_abl_reg(.clk(clk), .ready(ready_i), .load_abl(load_abl), .adl_sel(adl_sel), .data_i(data_i), .pcls(pcls), .reg_s(reg_s), .alu(alu_out), .vector_lo(vector_lo), .adl_abl(adl_abl), .abl(abl));
 
   db_in_mux db_in_mux(db_sel, data_i, reg_a, alua[7], db_in);
   db_out_mux db_out_mux(db_sel, reg_a, sb, pcl, pch, reg_p, db_out);
@@ -152,7 +152,7 @@ assign pc_hold = intg;
 
   // ADH units
   adh_pch_reg adh_pch_reg(.clk(clk), .ready(ready_i), .pchs_sel(pchs_sel), .pcl_carry(pcl_carry), .adh_sel(adh_sel), .data_i(data_i), .alu(alu_out), .pchs(pchs), .pch(pch));
-  adh_abh_reg adh_abh_reg(.clk(clk), .load_abh(load_abh), .adh_sel(adh_sel), .data_i(data_i), .pchs(pchs), .alu(alu_out), .abh(abh));
+  adh_abh_reg adh_abh_reg(.clk(clk), .ready(ready_i), .load_abh(load_abh), .adh_sel(adh_sel), .data_i(data_i), .pchs(pchs), .alu(alu_out), .abh(abh));
 
 wire [7:0] ir_dec;
 `ifdef CMOS
@@ -165,9 +165,9 @@ decoder3to8 dec3to8(ir[6:4], ir_dec);
   
   a_reg a_reg(clk, load_a, sb, alu_carry_out, alu_half_carry_out, dec_add, dec_sub, reg_a);
   
-  clocked_reg8 x_reg(clk, load_x, sb, reg_x);
-  clocked_reg8 y_reg(clk, load_y, sb, reg_y);
-  clocked_reg8 s_reg(clk, load_s, sb, reg_s);
+  clocked_reg8 x_reg(clk, load_x && ready_i, sb, reg_x);
+  clocked_reg8 y_reg(clk, load_y && ready_i, sb, reg_y);
+  clocked_reg8 s_reg(clk, load_s && ready_i, sb, reg_s);
 
   // FIXME - This is kinda hacky right now.  Really should have a pair of dedicated microcode bits for this but
   // I'm currently out of spare microcode bits.   This probably only requires a couple of LUTs though.

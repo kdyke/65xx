@@ -23,6 +23,9 @@ reg io_port_cs;
 
 wire irq, nmi;
 
+reg [63:0] clock_count;
+reg clock_reset;
+
 assign irq = io_port[0];
 assign nmi = io_port[1];
 
@@ -32,12 +35,13 @@ assign nmi = io_port[1];
             .address(cpu_address), .data_i(cpu_data_in), .data_o(cpu_data_out));
 
 	initial begin
+    $display("initial clock: %d",clock_count[31:0]);
 
     io_port = 0;
 		clk = 0;
-    memclk = 0;
-		reset = 1;	// Start out high
-    ready = 1;
+    clock_reset = 1;
+		//reset = 1;	// Start out high
+    //ready = 1;
     clock_count = 0;
     cpu_clock_enable = 0;
     
@@ -74,7 +78,7 @@ assign nmi = io_port[1];
 
     // Take CPU out of reset.
     cpu_clock_enable = 1;
-	  #8 reset = 0;
+	  //#8 reset = 0;
     //#100000 $finish;
     
   end
@@ -124,12 +128,29 @@ assign nmi = io_port[1];
      clk = ~clk;
   #1 memclk = ~memclk;
   end
-
-  reg [63:0] clock_count;
-
+  
   always @(posedge clk)
   begin
-    clock_count = clock_count + 1;
+    if(clock_reset)
+    begin
+      clock_reset <= 0;
+      clock_count <= 0;
+    end
+    else
+      clock_count <= clock_count + 1;
+      
+    //$display("clock: %d reset: %d",clock_count[31:0],clock_reset);
+      
+    // Stress test for ready signal.
+    if((clock_count & 1) == 0)
+      ready <= 1;
+    else
+      ready <= 0;
+    if(clock_count == 2)
+	    reset <= 1;
+    if(clock_count == 16)
+      reset <= 0;
+          
     if((clock_count & 16'hffff) == 0)
       $display("addr: %04x",cpu_address);
   end
