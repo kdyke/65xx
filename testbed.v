@@ -117,7 +117,7 @@ assign nmi = io_port[1];
     if((clock_count & 1) == 0)
       ready <= 1;
     else
-      ready <= 0;
+      ready <= 1;
     if(clock_count == 2)
 	    reset <= 1;
     if(clock_count == 16)

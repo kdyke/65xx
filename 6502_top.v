@@ -1,6 +1,6 @@
 `include "6502_inc.vh"
 
-`SCHEM_KEEP_HIER module cpu6502(clk, reset, nmi, irq, ready, write, write_next, sync, address, address_next, data_i, data_o, data_o_next);
+`SCHEM_KEEP_HIER module cpu6502(clk, reset, nmi, irq, ready, write, write_next, sync, address, address_next, data_i, data_o, data_o_next, cpu_state, t, cpu_int);
 
 initial begin
 end
@@ -14,6 +14,12 @@ output [15:0] address_next;
 output write_next;
 output write;
 output sync;
+output [7:0] cpu_state;
+output [2:0] t;
+output cpu_int;
+
+// FPGA debug
+wire [7:0] cpu_state;
 
 // current timing state
 wire [2:0] t;
@@ -96,10 +102,13 @@ wire onecycle;
 wire twocycle;
 wire decimal_cycle;
 wire write_allowed;
+wire decimal_extra_cycle;
 
 wire intg;
 wire nmig;
 wire resp;
+
+assign cpu_int = intg;
 
 wire [7:0] vector_lo;
 
@@ -137,6 +146,8 @@ wire [7:0] vector_lo;
       w_reg <= write_next;
   end
   
+  assign cpu_state = ir; //{ dec_add, dec_sub, decimal_extra_cycle, decimal_cycle};
+  
   // A page is crossed if the carry result is different than the sign of the branch offset input
   assign branch_page_cross = alu_carry_out ^ alua[7];
 
@@ -146,7 +157,7 @@ wire [7:0] vector_lo;
 
   // Timing control state machine
   timing_ctrl timing(clk, reset, ready_i, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, 
-                   sync, load_flag_decode[`LF_Z_SBZ], onecycle, twocycle, decimal_cycle, write_allowed);
+                   sync, load_flag_decode[`LF_Z_SBZ], onecycle, twocycle, decimal_cycle, write_allowed, decimal_extra_cycle);
 
 // Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform the extra decimal correction cycle
 wire pc_hold;

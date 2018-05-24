@@ -6,7 +6,7 @@
 `endif
 `define NMI_BUG_FIX 1
 
-`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, sync, load_sbz, onecycle, twocycle, decimal_cycle, write_allowed);
+`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, sync, load_sbz, onecycle, twocycle, decimal_cycle, write_allowed, decimal_extra_cycle);
 input clk;
 input reset;
 input ready;
@@ -22,6 +22,7 @@ input twocycle;
 output [2:0] t;
 output [2:0] t_next;
 output reg write_allowed;
+output decimal_extra_cycle;
 
 wire sync;
 reg [2:0] t;
