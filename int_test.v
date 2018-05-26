@@ -1,8 +1,7 @@
-module memory(clk, we, addr_r, addr_w, di, do);
+module memory(clk, we, addr, di, do);
 input clk;
 input we;
-input [15:0] addr_r;
-input [15:0] addr_w;
+input [15:0] addr;
 input [7:0] di;
 output [7:0] do;
 reg [7:0] ram [0:65535];reg [7:0] do;
@@ -174,10 +173,10 @@ end
 always @(posedge clk)
 begin
     if(we)
-        ram[addr_w] = di;
-    if(we && addr_w == 16'h0200)
+        ram[addr] = di;
+    if(we && addr == 16'h0200)
         $display("last test: %d",di);
-    do = ram[addr_w];
+    do = ram[addr];
 end
 
 endmodule

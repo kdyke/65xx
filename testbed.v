@@ -30,7 +30,7 @@ reg clock_reset;
 assign irq = io_port[0];
 assign nmi = io_port[1];
 
-	memory memory_inst(.clk(clk), .we(memory_write), .addr_w(cpu_address_next), .di(memory_in), .do(memory_out));
+	memory memory_inst(.clk(clk), .we(memory_write), .addr(cpu_address_next), .di(memory_in), .do(memory_out));
 
   cpu6502 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .ready(ready), .write_next(cpu_write), 
             .address(cpu_address), .address_next(cpu_address_next), .data_i(cpu_data_in), .data_o_next(cpu_data_out));
