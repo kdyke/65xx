@@ -184,7 +184,7 @@ begin
         ram[addr_w] = di;
     if(we && addr_w == 16'h0200)
         $display("last test: %d",di);
-    do = ram[addr_r];
+    do = ram[addr_w];
 end
 
 endmodule
