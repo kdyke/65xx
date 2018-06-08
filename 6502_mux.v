@@ -1,348 +1,151 @@
 `include "6502_inc.vh"
 
-`SCHEM_KEEP_HIER module adl_pcl_reg(clk, ready, pcls_sel, pc_inc, adl_sel, reg_s, alu, pcl, pcls, pcl_carry);
-input clk;
-input ready;
-input pcls_sel;
-input pc_inc;
-input [2:0] adl_sel;
-input [7:0] reg_s;
-input [7:0] alu;
+`SCHEM_KEEP_HIER module addrbus_mux(input clk, input ready, input [1:0] ab_sel, 
+                                    input [15:0] ad, input [15:0] ab, input [15:0] sp, input [15:0] pc, 
+                                    output reg [15:0] abus_next, output reg [15:0] abus);
 
-output [7:0] pcl;
-output [7:0] pcls;
-output pcl_carry;
-
-reg [7:0] adl_pcls;
-
-reg [8:0] pcls_in;
-reg [7:0] pcls;
-reg [7:0] pcl;
-
-reg pcl_carry;
+reg [15:0] tmp;
 
 always @(*)
 begin
-  if(pcls_sel == `PCLS_PCL)
-    pcls_in = pcl + pc_inc;
-  else
-    pcls_in = adl_pcls;
-  {pcl_carry, pcls} = pcls_in;
+  case(ab_sel)  // synthesis full_case parallel_case
+    `AB_PC  : tmp = pc;
+    `AB_AB  : tmp = ab;
+    `AB_AD  : tmp = ad;
+    `AB_S   : tmp = sp;
+  endcase
 end
 
 always @(*)
 begin
-  case(adl_sel) // synthesis full_case parallel_case
-    `ADL_S     : adl_pcls = reg_s;
-    `ADL_ALU   : adl_pcls = alu;
-  endcase
+  if(ready)
+    abus_next = tmp;
+  else
+    abus_next = abus;
+  //$display("abus_next: %04x",abus_next);
 end
 
 always @(posedge clk)
 begin
   if(ready)
   begin
-    pcl <= pcls;
+    abus <= abus_next;
   end
 end
 
 endmodule
 
-
-`SCHEM_KEEP_HIER module adh_pch_reg(clk, ready, pchs_sel, pcl_carry, adh_sel, data_i, alu, pchs, pch, pch_carry);
-input clk;
-input ready;
-input pchs_sel;
-input pcl_carry;
-input [2:0] adh_sel;
-input [7:0] data_i;
-input [7:0] alu;
-output [7:0] pchs;
-output [7:0] pch;
-output reg pch_carry;
-reg [7:0] pchs;
-
-reg [8:0] pchs_in;
-reg [7:0] pch;
-
-reg [7:0] adh_pchs;
-
-always @(*)
-begin
-  if(pchs_sel == `PCHS_PCH)
-    pchs_in = pch + pcl_carry;
-  else
-    pchs_in = adh_pchs;
-  {pch_carry,pchs} = pchs_in; // This is really weird.  If I don't try to keep the carry like for PCL, it actually uses *more* resources?
-  //$display("phs_sel: %d pch: %02x adh: %02x pchs_in: %02x pchs: %02x",pchs_sel,pch,adh,pchs_in,pchs);
-end
-
-always @(*)
-begin
-  case(adh_sel)  // synthesis full_case parallel_case
-    `ADH_DI  : adh_pchs = data_i;
-    `ADH_ALU : adh_pchs = alu;
-  endcase
-end
-
-always @(posedge clk)
-begin
-  if(ready)
-  begin
-    pch <= pchs;
-  end
-end
-
-endmodule
-
-`SCHEM_KEEP_HIER module adh_abh_reg(clk, ready, load_abh, adh_sel, data_i, pchs, alu, abh_next, abh);
-input clk;
-input ready;
-input load_abh;
-input [2:0] adh_sel;
-input [7:0] data_i;
-input [7:0] pchs;
-input [7:0] alu;
-output reg [7:0] abh;
-output reg [7:0] abh_next;
-
-reg [7:0] adh_abh;
-
-always @(*)
-begin
-  case(adh_sel)  // synthesis full_case parallel_case
-    `ADH_DI  : adh_abh = data_i;
-    `ADH_PCHS: adh_abh = pchs;
-    `ADH_ALU : adh_abh = alu;
-    `ADH_0   : adh_abh = 8'h00;
-    `ADH_1   : adh_abh = 8'h01;
-    `ADH_FF  : adh_abh = 8'hFF;
-  endcase
-end
-
-always @(*)
-begin
-  if(load_abh && ready)
-    abh_next = adh_abh;
-  else
-    abh_next = abh;
-end
-
-always @(posedge clk)
-begin
-  if(load_abh && ready)
-  begin
-    abh <= adh_abh;
-  end
-end
-
-endmodule
-
-`SCHEM_KEEP_HIER module adl_abl_reg(clk, ready, load_abl, adl_sel, data_i, pcls, reg_s, alu, vector_lo, adl_abl, abl_next, abl);
-input clk;
-input ready;
-input load_abl;
-input [2:0] adl_sel;
-input [7:0] data_i;
-input [7:0] pcls;
-input [7:0] reg_s;
-input [7:0] alu;
-input [7:0] vector_lo;
-
-output [7:0] adl_abl;
-output [7:0] abl;
-output reg [7:0] abl_next;
-reg [7:0] adl_abl;
-reg [7:0] abl;
-
-// ADL -> ABL
-always @(*)
-begin
-  case(adl_sel) // synthesis full_case parallel_case
-    `ADL_DI    : adl_abl = data_i;
-    `ADL_PCLS  : adl_abl = pcls;
-    `ADL_S     : adl_abl = reg_s;
-    `ADL_ALU   : adl_abl = alu;
-    `ADL_VECLO : adl_abl = vector_lo;
-    `ADL_VECHI : adl_abl = { vector_lo[7:1],1'b1 };
-  endcase
-end
-
-always @(*)
-begin
-  if(load_abl && ready)
-    abl_next = adl_abl;
-  else
-    abl_next = abl;
-end
-
-
-always @(posedge clk)
-begin
-  if(load_abl && ready)
-  begin
-    abl <= adl_abl;
-  end
-end
-
-endmodule
-
-// This is the "secondary bus"
-`SCHEM_KEEP_HIER module sb_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu, pch, db, sb);
-input [2:0] sb_sel;
+`SCHEM_KEEP_HIER module aluabus_mux(aluabus_sel, reg_a, reg_x, reg_y, reg_z, reg_p, reg_b, reg_pch, reg_sph, reg_pcl, reg_spl, aluabus);
+input [3:0] aluabus_sel;
 input [7:0] reg_a;
 input [7:0] reg_x;
 input [7:0] reg_y;
-input [7:0] reg_s;
-input [7:0] alu;
-input [7:0] pch;
-input [7:0] db;
-output [7:0] sb;
-reg [7:0] sb;
+input [7:0] reg_z;
+input [7:0] reg_p;
+input [7:0] reg_b;
+input [7:0] reg_sph;
+input [7:0] reg_pch;
+input [7:0] reg_spl;
+input [7:0] reg_pcl;
+
+output reg [7:0] aluabus;
 
 always @(*)
 begin
-  case(sb_sel)  // synthesis full_case parallel_case
-    `SB_A   : sb = reg_a;
-    `SB_X   : sb = reg_x;
-    `SB_Y   : sb = reg_y;
-    `SB_S   : sb = reg_s;
-    `SB_ALU : sb = alu;
-    `SB_ADH : sb = pch;  // Any time SB is sourcing from ADH, it is always to get PCH
-    `SB_DB  : sb = db;
-    `SB_FF  : sb = 8'hFF;
+  case(aluabus_sel)  // synthesis full_case parallel_case
+    `ABUS_0   : aluabus = 8'h00;
+    `ABUS_A   : aluabus = reg_a;
+    `ABUS_X   : aluabus = reg_x;
+    `ABUS_Y   : aluabus = reg_y;
+    `ABUS_Z   : aluabus = reg_z;
+    `ABUS_P   : aluabus = reg_p;
+    `ABUS_B   : aluabus = reg_b;
+    `ABUS_PCH : aluabus = reg_pch;
+    `ABUS_SPH : aluabus = reg_sph;
+    `ABUS_PCL : aluabus = reg_pcl;
+    `ABUS_SPL : aluabus = reg_spl;
   endcase
+  //$display("aluabus: %02x",aluabus);
 end
 
 endmodule
 
-`SCHEM_KEEP_HIER module alua_mux(input clk,
-                                 input ready,
-                                 input [2:0] alu_a, 
-                                 input [7:0] sb, 
-                                 input [7:0] ir_dec, 
-                                 output [7:0] alua);
-                                 
-reg [7:0] aluas;
-                             
-reg [7:0] alua;
-                                 
+`SCHEM_KEEP_HIER module alua_mux(input [1:0] alua_sel, 
+                                 input [7:0] alua_reg,
+                                 input [7:0] vector_lo,
+                                 output reg [7:0] alua);
+   
 // ALU A input select
 always @(*)
 begin
-  case(alu_a)  // synthesis full_case parallel_case
-    `ALU_A_0   : aluas = 8'h00;
-    `ALU_A_SB  : aluas = sb;
-    `ALU_A_NSB : aluas = ~sb;
-`ifdef CMOS
-    `ALU_A_IR  : aluas = ir_dec;
-    `ALU_A_NIR : aluas = ~ir_dec;
-`endif
+  case(alua_sel)  // synthesis full_case parallel_case
+    `ALUA_REG  : alua = alua_reg;
+    `ALUA_NREG : alua = ~alua_reg;
+    `ALUA_VEC  : alua = vector_lo;
   endcase
-end
-
-always @(posedge clk)
-begin
-  if(ready)
-  begin
-    alua <= aluas;
-  end
+  //$display("alua_sel: %d result: %02x reg: %02x nreg: %02x vec: %02x",alua_sel,alua,alua_reg,~alua_reg,vector_lo);
 end
 
 endmodule
 
-`SCHEM_KEEP_HIER module alub_mux(input clk,
-                                 input ready,
-                                 input [1:0] alu_b, 
+`SCHEM_KEEP_HIER module decoder3to8(index, outbits);
+input [2:0] index;
+output reg [7:0] outbits;
+
+always @(*)
+begin
+  case(index)
+    0 : outbits = 8'b00000001;
+    1 : outbits = 8'b00000010;
+    2 : outbits = 8'b00000100;
+    3 : outbits = 8'b00001000;
+    4 : outbits = 8'b00010000;
+    5 : outbits = 8'b00100000;
+    6 : outbits = 8'b01000000;
+    7 : outbits = 8'b10000000;
+  endcase
+end
+endmodule
+
+`SCHEM_KEEP_HIER module alub_mux(input [2:0] alub_sel, 
                                  input [7:0] db, 
-                                 input [7:0] adl, 
+                                 input [2:0] bit_index, 
                                  output [7:0] alub);
 
-reg [7:0] alubs;
+  reg [7:0] alub;
+  wire [7:0] bit;
 
-reg [7:0] alub;
-
+  decoder3to8 dec3to8(bit_index, bit);
+  
 // ALU B input select
 always @(*)
 begin
-  case(alu_b)  // synthesis full_case parallel_case
-    `ALU_B_DB  : alubs = db;
-    `ALU_B_NDB : alubs = ~db;
-    `ALU_B_ADL : alubs = adl;
+  case(alub_sel)  // synthesis full_case parallel_case
+    `ALUB_0    : alub = 8'h00;
+    `ALUB_DB   : alub = db;
+    `ALUB_BIT  : alub = bit;
+    `ALUB_FF   : alub = 8'hFF;
+    `ALUB_NDB  : alub = ~db;
+    `ALUB_NBIT : alub = ~bit;
   endcase
-end
-
-always @(posedge clk)
-begin
-  if(ready)
-  begin
-    alub <= alubs;
-  end
+  $display("alub: %02x",alub);
 end
 
 endmodule
 
-
-`SCHEM_KEEP_HIER module aluc_mux(input [1:0] alu_c, 
+`SCHEM_KEEP_HIER module aluc_mux(input [1:0] aluc_sel, 
                                  input carry,
                                  input last_carry,
-                                 output reg carrys);
+                                 output reg aluc);
 
 // ALU C (carry) input select
 always @(*)
 begin
-  case(alu_c)  // synthesis full_case parallel_case
-    `ALU_C_0 : carrys = 0;
-    `ALU_C_1 : carrys = 1;
-    `ALU_C_P : carrys = carry;
-    `ALU_C_A : carrys = last_carry;
-  endcase
-end
-
-endmodule
-
-`SCHEM_KEEP_HIER module db_in_mux(input [2:0] db_sel, 
-                                 input [7:0] data_i,
-                                 input [7:0] reg_a,
-                                 input alua_highbit,
-                                 output reg [7:0] db_in);
-
-// DB input mux
-always @(*)
-begin
-  case(db_sel)  // synthesis full_case parallel_case
-    `DB_0   : db_in = 8'h00;
-    //`DB_DI  : db_in = data_i;
-    //`DB_SB  : db_in = data_i; // Temp hack
-    //`DB_PCH : db_in = data_i;
-    `DB_A   : db_in = reg_a;
-    `DB_BO  : db_in = {8{alua_highbit}};   // The high bit of the last ALU A input is the sign bit for branch offsets
-    default : db_in = data_i;
-     
-  endcase
-  //$display("data_i: %02x  db_in: %02x",data_i,db_in);
-end
-
-endmodule
-
-`SCHEM_KEEP_HIER module db_out_mux(input [2:0] db_sel, 
-                                   input [7:0] reg_a,
-                                   input [7:0] sb,
-                                   input [7:0] pcl,
-                                   input [7:0] pch,
-                                   input [7:0] reg_p,
-                                   output reg [7:0] db_out);
-
-// DB output mux
-always @(*)
-begin
-  case(db_sel)  // synthesis full_case parallel_case
-    `DB_A   : db_out = reg_a;
-    `DB_SB  : db_out = sb;
-    `DB_PCL : db_out = pcl;
-    `DB_PCH : db_out = pch;
-    `DB_P   : db_out = reg_p;
-    `DB_0   : db_out = 8'h00;
+  case(aluc_sel)  // synthesis full_case parallel_case
+    `ALUC_0 : aluc = 0;
+    `ALUC_1 : aluc = 1;
+    `ALUC_P : aluc = carry;
+    `ALUC_A : aluc = last_carry;
   endcase
 end
 
@@ -366,13 +169,14 @@ begin
   end
   else
     ir_next = ir;
+  $display("ir_next: %02x sync: %d",ir_next,sync);
 end
 
 endmodule
 
 // Note: LM_C_DB0, LM_Z_DB1, LM_I_DB2 and LM_D_DB3 are currently always set together and are thus redundant,
 // so if we ever went back to predecoded flags we could save 3 bits there.
-`SCHEM_KEEP_HIER module flags_decode(input [3:0] load_flags, output reg [14:0] load_flags_decode);
+`SCHEM_KEEP_HIER module flags_decode(input [3:0] load_flags, output reg [15:0] load_flags_decode);
 always @(*)
 case (load_flags)   // synthesis full_case parallel_case
   `none       : load_flags_decode = 0;
@@ -386,11 +190,32 @@ case (load_flags)   // synthesis full_case parallel_case
   `FLAGS_CNZ  : load_flags_decode = (`LM_C_ACR | `LM_Z_SBZ | `LM_N_SBN);
   `FLAGS_ALU  : load_flags_decode = (`LM_C_ACR | `LM_V_AVR | `LM_Z_SBZ | `LM_N_SBN);
   `FLAGS_BIT  : load_flags_decode = (`LM_V_DB6 | `LM_N_DB7);
-  `ifdef CMOS
   `FLAGS_SETI : load_flags_decode = (`LM_I_1|`LM_D_IR5);     // Clear D flag too
-  `else
-  `FLAGS_SETI : load_flags_decode = (`LM_I_1);
-  `endif
+  `FLAGS_E    : load_flags_decode = (`LM_E_IR0);
 endcase
 
 endmodule
+
+`SCHEM_KEEP_HIER module reg_decode(input [3:0] load_reg, output reg [13:0] load_reg_decode);
+
+always @(*)
+case (load_reg) // synthesis full_case parallel_case
+  `none       : load_reg_decode = 0;
+  `ALUY_A     : load_reg_decode = `LOAD_A;
+  `ALUY_X     : load_reg_decode = `LOAD_X;
+  `ALUY_Y     : load_reg_decode = `LOAD_Y;
+  `ALUY_Z     : load_reg_decode = `LOAD_Z;
+  `ALUY_P     : load_reg_decode = `LOAD_P;
+  `ALUY_B     : load_reg_decode = `LOAD_B;
+  `ALUY_ABH   : load_reg_decode = `LOAD_ABH;
+  `ALUY_ADH   : load_reg_decode = `LOAD_ADH;
+  `ALUY_PCH   : load_reg_decode = `LOAD_PCH;
+  `ALUY_SPH   : load_reg_decode = `LOAD_SPH;
+  `ALUY_ABL   : load_reg_decode = `LOAD_ABL;
+  `ALUY_ADL   : load_reg_decode = `LOAD_ADL;
+  `ALUY_PCL   : load_reg_decode = `LOAD_PCL;
+  `ALUY_SPL   : load_reg_decode = `LOAD_SPL;  
+endcase
+
+endmodule
+  

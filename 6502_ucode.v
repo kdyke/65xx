@@ -1,34 +1,25 @@
 `include "6502_inc.vh"
 
-(* keep_hierarchy = "yes" *) module microcode(clk, ready, ir, t, tnext, adh_sel, adl_sel, db_sel, sb_sel, pchs_sel, pcls_sel, alu_op, alu_a, alu_b, alu_c,
-                  load_a, load_x, load_y, load_s, load_abh, load_abl, 
-                  load_flags,
-                  write_cycle, pc_inc);
-
-input clk;
-input ready;
-input [7:0] ir;
-input [2:0] t;
-output [2:0] tnext;
-output [2:0] adh_sel;
-output [2:0] adl_sel;
-output [2:0] db_sel;
-output [2:0] sb_sel;
-output [3:0] alu_op;
-output pchs_sel;
-output pcls_sel;
-output [2:0] alu_a;
-output [1:0] alu_b;
-output [1:0] alu_c;
-output load_a;
-output load_x;
-output load_y;
-output load_s;
-output load_abh;
-output load_abl;
-output [3:0] load_flags;
-output write_cycle;
-output pc_inc;
+(* keep_hierarchy = "yes" *) module microcode(
+                input clk, 
+                input ready, 
+                input [7:0] ir, 
+                input [2:0] t, 
+                output [2:0] tnext, 
+                output [1:0] ab_sel,
+                output [1:0] abh_sel,
+                output [1:0] ab_incdec,
+                output [1:0] sp_incdec,
+                output pc_inc, 
+                output pcl_adl,
+                output [2:0] alu_sel, 
+                output [1:0] alu_a,
+                output [3:0] abus,
+                output [2:0] alu_b, 
+                output [1:0] alu_c,
+                output [3:0] load_reg, 
+                output [3:0] load_flags, 
+                output write);
 
 reg [`MICROCODE_BITS] mc_out;
 (* rom_style = "block" *) reg [`MICROCODE_BITS] mc[0:2047];
@@ -49,6 +40,28 @@ end
 // synthesis translate on
 
                             `BRK(8'h00)       // BRK
+
+                            `FLAG_OP(8'h18, `FLAGS_C) // CLC
+                            `FLAG_OP(8'h38, `FLAGS_C) // SEC
+                            `FLAG_OP(8'h58, `FLAGS_I) // CLI
+                            `FLAG_OP(8'h78, `FLAGS_I) // SEI
+                            `FLAG_OP(8'hB8, `FLAGS_V) // CLV
+                            `FLAG_OP(8'hD8, `FLAGS_D) // CLD
+                            `FLAG_OP(8'hF8, `FLAGS_D) // SED
+
+                            `LDY(8'hA0,1)     // LDY #
+//`ADDR_zp_x_ind(8'hA1)       `LDA(8'hA1,0)     // LDA (zp,x)
+                            `LDX(8'hA2,1)     // LDX #
+                            `LDA(8'hA9,1)     // LDA #
+
+                            `Txx(8'h8A, `ABUS_X,   `ALUY_A,   `FLAGS_SBZN)  // TXA
+                            `Txx(8'h98, `ABUS_Y,   `ALUY_A,   `FLAGS_SBZN)  // TYA
+                            `Txx(8'h9A, `ABUS_X,   `ALUY_SPL, `none)        // TXS
+                            `Txx(8'hA8, `ABUS_A,   `ALUY_Y,   `FLAGS_SBZN)  // TAY
+                            `Txx(8'hAA, `ABUS_A,   `ALUY_X,   `FLAGS_SBZN)  // TAX
+                            `Txx(8'hBA, `ABUS_SPL, `ALUY_X,   `FLAGS_SBZN)  // TSX
+
+`ifdef NOTDEFINED
                             
 `ADDR_zp_x_ind(8'h01)       `ORA(8'h01,0)     // ORA (zp,x)
 `ADDR_zp(8'h05,`T0)         `ORA(8'h05,0)     // ORA zp
@@ -178,21 +191,6 @@ end
 `ADDR_abs(8'h6E,`Tn)        `ROR_MEM(8'h6E, 4, 5)     // ROR abs
 `ADDR_zp_x(8'h76,`Tn)       `ROR_MEM(8'h76, 4, 5)     // ROR zp,x
 `ADDR_abs_x(8'h7E,`Tn,`Tn)  `ROR_MEM(8'h7E, 5, 6)     // ROR abs,x
-
-                            `FLAG_OP(8'h18, `FLAGS_C) // CLC
-                            `FLAG_OP(8'h38, `FLAGS_C) // SEC
-                            `FLAG_OP(8'h58, `FLAGS_I) // CLI
-                            `FLAG_OP(8'h78, `FLAGS_I) // SEI
-                            `FLAG_OP(8'hB8, `FLAGS_V) // CLV
-                            `FLAG_OP(8'hD8, `FLAGS_D) // CLD
-                            `FLAG_OP(8'hF8, `FLAGS_D) // SED
-
-                            `Txx(8'h8A, `SB_X,  `LOAD_A, `FLAGS_SBZN)  // TXA
-                            `Txx(8'h98, `SB_Y,  `LOAD_A, `FLAGS_SBZN)  // TYA
-                            `Txx(8'h9A, `SB_X,  `LOAD_S, `none)        // TXS
-                            `Txx(8'hA8, `SB_A,  `LOAD_Y, `FLAGS_SBZN)  // TAY
-                            `Txx(8'hAA, `SB_A,  `LOAD_X, `FLAGS_SBZN)  // TAX
-                            `Txx(8'hBA, `SB_S, `LOAD_X, `FLAGS_SBZN)  // TSX
 
                             `DEC_REG(8'h88, `SB_Y, `LOAD_Y) // DEY
                             `DEC_REG(8'hCA, `SB_X, `LOAD_X) // DEX
@@ -351,35 +349,32 @@ end
                             `NOP3_4(8'hFC)
                             
 `endif
+`endif
+
 end
 
 // microcode outputs wired to specific bits
-assign tnext = mc_out[`TNEXT_BITS];
-assign adh_sel= mc_out[`ADH_BITS];
-assign adl_sel= mc_out[`ADL_BITS];
-assign db_sel = mc_out[`DB_BITS];
-assign sb_sel = mc_out[`SB_BITS];
+assign tnext   = mc_out[`TNEXT_BITS];
+assign ab_sel  = mc_out[`AB_BITS];
+assign abh_sel = mc_out[`ABH_BITS];
+assign ab_incdec = mc_out[`AB_INCDEC_BITS];
+assign sp_incdec = mc_out[`SP_INCDEC_BITS];
+assign pcl_adl = mc_out[`PCL_ADL_BITS];
+assign alu_sel = mc_out[`ALU_BITS];
 assign alu_a = mc_out[`ALU_A_BITS];
+assign abus  = mc_out[`ABUS_BITS];
 assign alu_b = mc_out[`ALU_B_BITS];
-assign alu_op = mc_out[`ALU_BITS];
 assign alu_c = mc_out[`ALU_C_BITS];
-assign load_a = mc_out[`LOAD_A_BITS];
-assign load_x = mc_out[`LOAD_X_BITS];
-assign load_y = mc_out[`LOAD_Y_BITS];
-assign load_s = mc_out[`LOAD_S_BITS];
-assign load_abh = mc_out[`LOAD_ABH_BITS];
-assign load_abl = mc_out[`LOAD_ABL_BITS];
+assign load_reg = mc_out[`LOAD_ALUY_BITS];
 assign load_flags = mc_out[`LOAD_FLAGS_BITS];
-assign write_cycle = mc_out[`WRITE_BITS];
+assign write = mc_out[`WRITE_BITS];
 assign pc_inc = mc_out[`PC_INC_BITS];
-assign pchs_sel = mc_out[`PCHS_BITS];
-assign pcls_sel = mc_out[`PCLS_BITS];
 
 always @(posedge clk)
 begin
   if(ready)
     mc_out <= mc[{ir, t}];
-  //$display("mc[%02x|%d] tn: %04x",ir,t,mc[{ir, t}][`TNEXT_BITS]);
+  $display("mc[%02x|%d] tn: %04x  alu: %d",ir,t,mc[{ir, t}][`TNEXT_BITS],alu_sel);
 end
 
 endmodule

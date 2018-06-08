@@ -95,8 +95,8 @@ assign nmi = io_port[1];
   
   // Start driving memory and CPU clocks.
   always begin
-//    $monitor($time,,"%m. clk = %b cnt: %d rdy: %d addr: %x mem: %02x do: %02x w: %d ce: %d irq: %d nmi: %d",
-//      clk,clock_count[31:0],ready,cpu_address,cpu_data_in,cpu_data_out,cpu_write,cpu_clock_enable,irq,nmi);
+    $monitor($time,,"%m. clk = %b cnt: %d rdy: %d addr: %x mem: %02x do: %02x w: %d ce: %d irq: %d nmi: %d rst: %d",
+      clk,clock_count[31:0],ready,cpu_address,cpu_data_in,cpu_data_out,cpu_write,cpu_clock_enable,irq,nmi,reset);
 //    if(cpu_clock_enable)
      #1 clk = ~clk;
   end

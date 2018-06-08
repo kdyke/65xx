@@ -6,23 +6,15 @@
 `endif
 `define NMI_BUG_FIX 1
 
-`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, sync, load_sbz, onecycle, twocycle, decimal_cycle, write_allowed, decimal_extra_cycle);
+`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, sync, onecycle);
 input clk;
 input reset;
 input ready;
 input [2:0] tnext_mc;
-input alu_carry_out;
-input taken_branch;
-input branch_page_cross;
 output sync;
-input decimal_cycle;
-input load_sbz;
 input onecycle;
-input twocycle;
 output [2:0] t;
 output [2:0] t_next;
-output reg write_allowed;
-output decimal_extra_cycle;
 
 wire sync;
 reg [2:0] t;
@@ -38,55 +30,23 @@ parameter T0 = 3'b000,
           T6 = 3'b110,
           T7 = 3'b111;
 
-`ifdef CMOS
-wire decimal_extra_cycle;
-assign decimal_extra_cycle = (t == 7 && load_sbz);
-assign sync = (t == 1 && ~(decimal_cycle)) | decimal_extra_cycle;
-`else
-assign decimal_extra_cycle = 0;
 assign sync = (t == 1);
-`endif
 
 always @(posedge clk)
 begin
-  if(reset)       t <= T2;
+  if(reset)       t <= T2; // TODO -
   else if(ready) begin
     t <= t_next;
-    //$display("T: %d t_next: %d",t,t_next);
+    $display("T: %d t_next: %d sync: %d",t,t_next,sync);
   end
 end
 
 always @(*)
 begin
   t_next = t+1;
-  write_allowed = 1;
-  if(onecycle & sync)
+  if(onecycle)
     t_next = T1;
-  else if(twocycle & sync)
-    t_next = T0;
-`ifdef CMOS
-  else if(decimal_cycle) // Note: The 'if' and not 'else if' here is important in the case where a twocycle instruction follows a decimal extra cycle
-    t_next = T7;
-  else if(decimal_extra_cycle)
-    t_next = T2;
-`endif
-    
-  if(tnext_mc == `T0)
-    t_next = T0;
-  else if(tnext_mc == `TNC && alu_carry_out == 0)
-    t_next = T0;
-  else if(tnext_mc == `TNC && alu_carry_out == 1)
-    write_allowed = 0;
-  else if(tnext_mc == `TBR && taken_branch == 0)
-    t_next = T1;
-  else if(tnext_mc == `TBE)
-  begin
-    if(branch_page_cross == 1)
-      t_next = T0;
-    else
-      t_next = T1;
-  end
-  else if(tnext_mc == `TBT && alu_carry_out == 0)
+  if(tnext_mc == `T1)
     t_next = T1;
   // synthesis translate_off
   else if(t != 1 && tnext_mc == `TKL)
@@ -99,57 +59,28 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module predecode(ir_next, active, onecycle, twocycle);
+`SCHEM_KEEP_HIER module predecode(ir_next, active, onecycle);
 input [7:0] ir_next;
 input active;
 output onecycle;
-output twocycle;
 
-reg twocycle;
-
-`ifdef CMOS
-// This detects single-cycle instructions
+// This detects single-cycle instructions - doing this the cheesy way for now.
 reg onecycle;
 always @(*)
 begin
-  if((ir_next & 8'b00000111) == 8'b00000011)
-    onecycle = active;
-  else
-    onecycle = 0;
-end
-`else
-wire onecycle;
-assign onecycle = 0;
-`endif
-
-// This detects the instruction patterns where we need to go immediately to T0 instead of T2 during a fetch cycle.
-always @(*)
-begin
   casez(ir_next)
-    `ifdef CMOS
-    8'b?1?1_1010: twocycle = 0;
-    8'b???0_0010: twocycle = active;
-    `endif
-    8'b???0_10?1: twocycle = active;
-    8'b1??0_00?0: // This would hit the CMOS BRA, but is disabled below
-      begin
-        twocycle = active;
-        `ifdef CMOS
-        casez(ir_next)
-          8'b?00???0?: twocycle = 0;
-        endcase
-        `endif
-      end
-    8'b????_10?0:
-      begin
-        twocycle = active;
-        casez(ir_next)
-          8'b0??0??0?: twocycle = 0;
-        endcase
-      end
-    default: twocycle = 0;
-  endcase;
+  8'b0001_1000: onecycle = active; // 0x18 - CLC
+  8'b0011_1000: onecycle = active; // 0x38 - SEC
+  8'b0101_1000: onecycle = active; // 0x58 - CLI
+  8'b1zzz_1000: onecycle = active; // 0x[8,9,A,B,C,D,E,F]8
+  
+  8'bz0zz_1010: onecycle = active; // 0x[0,1,2,3,8,9,A,B][A]
+  8'bz1z0_1010: onecycle = active; // 0x[4,6,C,E]A
+  8'b0zzz_1011: onecycle = active; // 0x[0-7]B
 
+  default:      onecycle = 0;
+  endcase
+  $display("onecycle: %02x %d %d",ir_next,onecycle,active);
 end
 
 endmodule
@@ -202,7 +133,7 @@ begin
     nmig <= 1;
   nmil <= nmi;    // remember current state
   
-  if(reset || (t == 0) || (tnext_mc == `TBR))
+  if(reset || (tnext_mc == `T1))
   begin
     if((intp & ~reg_p[`PF_I]) | nmig | reset)
       intg <= 1;
@@ -211,9 +142,7 @@ begin
   else if(load_i)
   begin
       intg <= 0;
-`ifdef NMI_BUG_FIX      
       if(intg)
-`endif
         nmig <= 0;
   end
 end
@@ -224,11 +153,7 @@ always @(*)
 begin
   if(resp == 1)
     vector_lo = 8'hFC;
-  else if(nmig 
-`ifdef NMI_BUG_FIX    
-    & intg
-`endif
-    )
+  else if(nmig & intg)
     vector_lo = 8'hFA;
   else
     vector_lo = 8'hFE;

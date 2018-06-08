@@ -2,12 +2,11 @@
 
 `timescale 10ns/10ns
 
-module decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub, half);
+module decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub);
   input [3:0] dec_in;
   input carry_in;
   input dec_add;
   input dec_sub;
-  input half;
   output [3:0] dec_out;
   
 	wire [3:0] correction_factor;
@@ -23,20 +22,17 @@ module decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub, half);
   
 endmodule
 
-module alu_half_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, dec_carry_out, half);
+module alu_half_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out);
   input [3:0] add_in1;
   input [3:0] add_in2;
   input add_cin;
   input dec_add;
-  input half;
   output carry_out;
-  output dec_carry_out;
   output [3:0] add_out;
   reg [3:0] add_out;
   
   reg carry_out;
   reg carry_tmp;
-  reg dec_carry_out;
 	reg greater_than_nine;
   
   reg [4:0] add_tmp;
@@ -46,44 +42,47 @@ module alu_half_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, de
     add_tmp = add_in1 + add_in2 + add_cin;
     greater_than_nine = (add_tmp[3] & (add_tmp[2] | add_tmp[1]));
     carry_out = add_tmp[4] | (dec_add & greater_than_nine);
-    dec_carry_out = greater_than_nine;
     add_out = add_tmp[3:0];
   end
 
 endmodule
 
-module alu_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, half_carry_out);
+module alu_adder(add_in1, add_in2, add_cin, dec_add, dec_sub, add_out, carry_out);
   input [7:0] add_in1;
   input [7:0] add_in2;
   input add_cin;
   input dec_add;
+  input dec_sub;
 
   output [7:0] add_out;
   output carry_out;
-  output half_carry_out;
-    
-  wire dec_carry_out; // unused
   
-  alu_half_adder  low(add_in1[3:0],add_in2[3:0],add_cin,dec_add,add_out[3:0],half_carry_out,dec_half_carry_out,1'b0);
-  alu_half_adder high(add_in1[7:4],add_in2[7:4],half_carry_out,dec_add,add_out[7:4],carry_out,dec_carry_out,1'b1);
+  wire half_carry;
+  
+  wire [7:0] tmp;
     
+  alu_half_adder  low(add_in1[3:0],add_in2[3:0],add_cin,   dec_add,tmp[3:0],half_carry);
+  alu_half_adder high(add_in1[7:4],add_in2[7:4],half_carry,dec_add,tmp[7:4],carry_out);
+
+  // We could insert a pre-decimal correction Z test here for 6502 compatibility.
+  
+  decadj_half_adder  decadj_low(tmp[3:0],add_out[3:0], half_carry_in, dec_add, dec_sub);
+  decadj_half_adder decadj_high(tmp[7:4],add_out[7:4], carry_out,     dec_add, dec_sub);
+
 endmodule
 
 // Input muxing is done outside of the core ALU unit.
-`SCHEM_KEEP_HIER module alu_unit(clk, ready, a,b,alu_out,c_in,dec_add,op,carry_out,half_carry_out,overflow_out,alu_carry_out_last);
-  input clk;
-  input ready;
+`SCHEM_KEEP_HIER module alu_unit(a,b,alu_out,c_in,dec_add,dec_sub,op,carry_out,overflow_out);
   input [7:0] a;
   input [7:0] b;
-	input [3:0] op;
+	input [2:0] op;
 	input c_in;
 	input dec_add;
+	input dec_sub;
 
   output [7:0] alu_out;
   output carry_out;
-  output half_carry_out;
   output overflow_out;
-  output reg alu_carry_out_last;
   
 	reg c;
 	
@@ -92,12 +91,11 @@ endmodule
  	reg [7:0] alu_out;
 
   wire adder_carry_out;
-  wire half_carry_out;
   wire overflow_out;
   
   reg carry_out;
   
-	alu_adder add_u(a, b, c_in, dec_add, add_out, adder_carry_out, half_carry_out);
+	alu_adder add_u(a, b, c_in, dec_add, dec_sub, add_out, adder_carry_out);
 	  
   assign overflow_out = a[7] == b[7] && a[7] != add_out[7];
   
@@ -127,47 +125,16 @@ always @(*) begin
       begin
 			{tmp,c} = {c_in,a};
       end
-    //`ALU_TST:
-    //  begin
-    //  c = 0;
-    //  tmp = ~a & b;
-    //  end
-    `ALU_PSA:   // Passthrough, used when I just needed the ALU to hold onto something for a cycle. The real 6502 has an output hold register.
+		`ALU_ASR: 
       begin
-			c = 0;
-      tmp = a;
+			{tmp,c} = {a[7],a[7:0]};  // Not sure what C is supposed to be, currently gets bottom bit
       end
 	endcase
 
 	alu_out = tmp;
   carry_out = c;
   
-  //$strobe("ALU a: %02x b: %02x c_in: %d -> %02x daa: %d flags vc: %d%d hc: %d",a,b,c_in,tmp,dec_add,overflow_out,carry_out,half_carry_out);
+  $display("ALU op: %x a: %02x b: %02x c_in: %d -> %02x daa: %d flags vc: %d%d",op,a,b,c_in,tmp,dec_add,overflow_out,carry_out);
 	end
 
-  always @(posedge clk)
-  begin
-    if(ready)
-      alu_carry_out_last <= carry_out;
-  end
-
-endmodule
-
-`SCHEM_KEEP_HIER module decoder3to8(index, outbits);
-input [2:0] index;
-output reg [7:0] outbits;
-
-always @(*)
-begin
-  case(index)
-    0 : outbits = 8'b00000001;
-    1 : outbits = 8'b00000010;
-    2 : outbits = 8'b00000100;
-    3 : outbits = 8'b00001000;
-    4 : outbits = 8'b00010000;
-    5 : outbits = 8'b00100000;
-    6 : outbits = 8'b01000000;
-    7 : outbits = 8'b10000000;
-  endcase
-end
 endmodule

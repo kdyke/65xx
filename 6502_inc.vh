@@ -12,89 +12,56 @@
 // This is just the universal "don't care" or "default"
 `define none          0
 
-`define ABUS_PCHPCL   3'd0
-`define ABUS_S       3'd1
-`define ABUS_ABHABL   3'd2
-`define ABUS_ABL      3'd3
-`define ABUS_DL       3'd4
-`define ABUS_VEC      3'd5
+// What's driving the address bus
+`define AB_PC   3'd0
+`define AB_AB   3'd1
+`define AB_AD   3'd2
+`define AB_S    3'd3
 
-// Internal data bus input select
-`define DB_DI       0
-`define DB_DOR      0       // Just a named alias to make it clear in the microcode when we are writing from DOR
-`define DB_0        1
-`define DB_A        2
-`define DB_SB       3
-`define DB_PCL      4
-`define DB_PCH      5
-`define DB_P        6
-`define DB_BO       7       // Branch offset, 0 or FF
+// ALU A input select
+`define ALUA_REG   0
+`define ALUA_NREG  1
+`define ALUA_VEC   2
 
-// Internal secondary bus input select
-`define SB_A        0
-`define SB_X        1
-`define SB_Y        2
-`define SB_S        3
-`define SB_ALU      4
-`define SB_ADH      5
-`define SB_DB       6
-`define SB_FF       7
+// ALU A bus select
+`define ABUS_0      0
+`define ABUS_A      1
+`define ABUS_X      2
+`define ABUS_Y      3
+`define ABUS_Z      4
+`define ABUS_P      5
+`define ABUS_B      6
+`define ABUS_PCH    7
+`define ABUS_SPH    8
+`define ABUS_PCL    9
+`define ABUS_SPL    10
 
-// Internal ADH bus input select
-`define ADH_DI      0       // ADH is data bus input (not latched)
-`define ADH_ALU     1       // ADH is current value from ALU
-`define ADH_PCHS    2       // ADH is current PCHS out
-`define ADH_0       3       // This would eventually be the base page register
-`define ADH_1       4       // This would eventually be the stack page register
-`define ADH_FF      5
+// ALU_B input select
+`define ALUB_0     0
+`define ALUB_DB    1
+`define ALUB_BIT   2
+`define ALUB_INV   4
+// Helpful aliases
+`define ALUB_FF    4
+`define ALUB_NDB   5
+`define ALUB_NBIT  6
 
-// Internal ADL bus input select
-`define ADL_DI      0       // ADL is data bus input (not latched)
-`define ADL_PCLS    1       // ADL is current PCLS out
-`define ADL_S       2       // ADL is current stack pointer
-`define ADL_ALU     3       // ADL is ALU output
-`define ADL_VECLO   4       // ADL is low vector address
-`define ADL_VECHI   5       // ADL is high vector address
-
-`define PCLS_PCL    0
-`define PCLS_ADL    1
-
-`define PCHS_PCH    0
-`define PCHS_ADH    1
-
-`define PCHPCL      0
-`define PCHADL      1
-`define ADHPCL      2
-`define ADHADL      3
-
-// ALU A input select - always loaded
-`define ALU_A_0     1
-`define ALU_A_SB    2
-`define ALU_A_NSB   3
-`define ALU_A_IR    4
-`define ALU_A_NIR   5
-
-// ALU_B input select - 0 holds last input
-`define ALU_B_DB    1  
-`define ALU_B_NDB   2  
-`define ALU_B_ADL   3
-
-// ALU Carry select
-`define ALU_C_0     0       // Forced to 0
-`define ALU_C_1     1       // Forced to 1
-`define ALU_C_P     2       // Carry from status register
-`define ALU_C_A     3       // Carry from previous accumulator carry
+// ALU Carry input select
+`define ALUC_0     0       // Forced to 0
+`define ALUC_1     1       // Forced to 1
+`define ALUC_P     2       // Carry from status register
+`define ALUC_A     3       // Carry from previous accumulator carry
 
 // ALU ops - some extra space for "illegal" ops in the future when I get to it.
-`define ALU_ADC   4'b0000
-`define ALU_SUM   4'b0000
-`define ALU_ORA   4'b0001
-`define ALU_AND   4'b0010
-`define ALU_EOR   4'b0011
-`define ALU_SBC   4'b0100
-`define ALU_ROR   4'b0101
-`define ALU_PSA   4'b1111   // Just pass A input through - Used for JSR passthrough and to hold RMW results
+`define ALU_ORA   3'b000   // Default
+`define ALU_ADC   3'b001
+`define ALU_AND   3'b010
+`define ALU_EOR   3'b011
+`define ALU_SBC   3'b100  // Not Really needed?
+`define ALU_ROR   3'b101
+`define ALU_ASR   3'b110
 
+// Decoded flag update
 `define LF_C_DB0      0
 `define LF_C_IR5      1
 `define LF_C_ACR      2
@@ -110,6 +77,7 @@
 `define LF_N_SBN      12
 `define LF_N_DB7      13
 `define LF_I_1        14
+`define LF_E_IR0      15
 
 `define LM_C_DB0      (1 << `LF_C_DB0)
 `define LM_C_IR5      (1 << `LF_C_IR5)
@@ -126,7 +94,9 @@
 `define LM_N_SBN      (1 << `LF_N_SBN)
 `define LM_N_DB7      (1 << `LF_N_DB7)
 `define LM_I_1        (1 << `LF_I_1  )
+`define LM_E_IR0      (1 << `LF_E_IR0)
 
+// Encoded flag update field
 `define FLAGS_DB    4'h1
 `define FLAGS_SBZN  4'h2
 `define FLAGS_ALU   4'h3
@@ -138,30 +108,84 @@
 `define FLAGS_CNZ   4'h9
 `define FLAGS_BIT   4'ha
 `define FLAGS_Z     4'hb
+`define FLAGS_E     4'hc
 
-`define ALUF_C 0
-`define ALUF_Z 1
-`define ALUF_V 2
-`define ALUF_N 3
-
+// Flags bit definitions
 `define PF_C 0
 `define PF_Z 1
 `define PF_I 2
 `define PF_D 3
 `define PF_B 4
-`define PF_U 5
+`define PF_E 5
 `define PF_V 6
 `define PF_N 7
+
+// Encoded field to load register from ALUY
+`define ALUY_A      1
+`define ALUY_X      2
+`define ALUY_Y      3
+`define ALUY_Z      4
+`define ALUY_P      5
+`define ALUY_B      6
+`define ALUY_ABH    7
+`define ALUY_ADH    8
+`define ALUY_PCH    9
+`define ALUY_SPH    10
+`define ALUY_ABL    11
+`define ALUY_ADL    12
+`define ALUY_PCL    13
+`define ALUY_SPL    14
+
+`define LR_A      0
+`define LR_X      1
+`define LR_Y      2
+`define LR_Z      3
+`define LR_P      4
+`define LR_B      5
+`define LR_ABH    6
+`define LR_ADH    7
+`define LR_PCH    8
+`define LR_SPH    9
+`define LR_ABL    10
+`define LR_ADL    11
+`define LR_PCL    12
+`define LR_SPL    13
+
+`define LOAD_A    (1 << `LR_A)
+`define LOAD_X    (1 << `LR_X)
+`define LOAD_Y    (1 << `LR_Y)
+`define LOAD_Z    (1 << `LR_Z)
+`define LOAD_P    (1 << `LR_P)
+`define LOAD_B    (1 << `LR_B)
+`define LOAD_ABH  (1 << `LR_ABH)
+`define LOAD_ADH  (1 << `LR_ADH)
+`define LOAD_PCH  (1 << `LR_PCH)
+`define LOAD_SPH  (1 << `LR_SPH)
+`define LOAD_ABL  (1 << `LR_ABL)
+`define LOAD_ADL  (1 << `LR_ADL)
+`define LOAD_PCL  (1 << `LR_PCL)
+`define LOAD_SPL  (1 << `LR_SPL)
+
+`define ABH_KEEP    0
+`define ABH_B       1
+`define ABH_ALU     2
+`define ABH_ADJ     3         // Update based on ABL counter update
+
+`define AB_INC      1
+`define AB_DEC      2
+
+`define SP_INC      1
+`define SP_DEC      2
 
 // TODO - Move all the microcode related `defines to a separate file that's not visible to the rest
 // of the code, since it's supposed to be an implementation detail.
 
 `define Tn    3'd0        // Go to T+1 (default)
-`define T0    3'd1        // Go to T0
-`define TNC   3'd2        // Go to T0 if ALU carry is 0
-`define TBE   3'd3        // Go to T0 if no branch page crossing
-`define TBR   3'd4        // Go to T1 if branch condition code check fails
-`define TBT   3'd5        // Go to T1 if branch bit test check fails
+`define T1    3'd1        // Go to T1 (sync)
+//`define TNC   3'd2        // Go to T0 if ALU carry is 0
+//`define TBE   3'd3        // Go to T0 if no branch page crossing
+//`define TBR   3'd4        // Go to T1 if branch condition code check fails
+//`define TBT   3'd5        // Go to T1 if branch bit test check fails
 `define TKL   3'd7        // Halt CPU - Unimplemented microcode entry
 
 // Note: Try not to have any signals span 8 bit boundaries, which gives the synthesis more options
@@ -174,82 +198,86 @@
 
 // 7:0
 `define TNEXT_BITS      2:0
-`define LOAD_ABH_BITS   3:3
-`define ADH_BITS        7:5
+`define AB_BITS         4:3
+`define PC_INC_BITS     5:5
+`define SP_INCDEC_BITS  7:6
 
 // 15:8
-`define PC_INC_BITS     8:8
-`define ADL_BITS        12:10
-`define LOAD_ABL_BITS   13:13
-`define PCLS_BITS       14:14
-`define PCHS_BITS       15:15
-`define PC_BITS         15:14
+`define ABH_BITS        9:8
+`define AB_INCDEC_BITS  11:10
+`define LOAD_FLAGS_BITS 15:12
 
 // 23:16
-`define ALU_A_BITS      18:16
+`define PCL_ADL_BITS    16:16
+`define ALU_A_BITS      19:17
 `define ALU_B_BITS      21:20
 `define ALU_C_BITS      23:22
 
 // 31:24
-`define ALU_BITS        27:24
-`define LOAD_REG_BITS   31:28
-`define LOAD_A_BITS     28:28
-`define LOAD_X_BITS     29:29
-`define LOAD_Y_BITS     30:30
-`define LOAD_S_BITS     31:31
+`define WRITE_BITS      24:24
+`define ALU_BITS        27:25
+`define LOAD_ALUY_BITS  31:28
 
-// 39:32
-`define DB_BITS         34:32
-`define WRITE_BITS      35:35
-`define SB_BITS         38:36
+// 35:32
+`define ABUS_BITS       35:32
 
 // 42:39
-`define LOAD_FLAGS_BITS 42:39
-`define MICROCODE_BITS  42:0
+`define MICROCODE_BITS  35:0
 
 `define FIELD_SHIFT(_x) (0?_x)
 
-`define LOAD_A 4'b0001
-`define LOAD_X 4'b0010
-`define LOAD_Y 4'b0100
-`define LOAD_S 4'b1000
-
-`define MICROCODE(_ins, _t, _tnext, _adh_sel, _adl_sel, _load_abh, _load_abl,  _pc_sel, _pc_inc, _db_sel, _sb_sel, _alu_sel, _alu_a, _alu_b, _alu_c, _load_reg,_load_flags, _write) \
+`define MICROCODE(_ins, _t, _tnext, _ab_sel, _abh_sel, _ab_incdec, _sp_incdec, _pc_inc, _pcl_adl, _alu_sel, _alu_a, _abus, _alu_b, _alu_c, _load_reg, _load_flags, _write) \
 mc[(_ins << 3) | _t] = ( \
   (_tnext << `FIELD_SHIFT(`TNEXT_BITS)) | \
-  (_adh_sel << `FIELD_SHIFT(`ADH_BITS)) | \
-  (_adl_sel << `FIELD_SHIFT(`ADL_BITS)) | \
-  (_load_abh << `FIELD_SHIFT(`LOAD_ABH_BITS)) | \
-  (_load_abl << `FIELD_SHIFT(`LOAD_ABL_BITS)) | \
-  (_pc_sel << `FIELD_SHIFT(`PC_BITS)) | \
+  (_ab_sel << `FIELD_SHIFT(`AB_BITS)) | \
+  (_abh_sel << `FIELD_SHIFT(`ABH_BITS)) | \
+  (_ab_incdec << `FIELD_SHIFT(`AB_INCDEC_BITS)) | \
+  (_sp_incdec << `FIELD_SHIFT(`SP_INCDEC_BITS)) | \
   (_pc_inc << `FIELD_SHIFT(`PC_INC_BITS)) | \
-  (_db_sel << `FIELD_SHIFT(`DB_BITS)) | \
-  (_sb_sel << `FIELD_SHIFT(`SB_BITS)) | \
+  (_pcl_adl << `FIELD_SHIFT(`PCL_ADL_BITS)) | \
   (_alu_sel << `FIELD_SHIFT(`ALU_BITS)) | \
   (_alu_a << `FIELD_SHIFT(`ALU_A_BITS)) | \
+  (_abus << `FIELD_SHIFT(`ABUS_BITS)) | \
   (_alu_b << `FIELD_SHIFT(`ALU_B_BITS)) | \
   (_alu_c << `FIELD_SHIFT(`ALU_C_BITS)) | \
-  (_load_reg << `FIELD_SHIFT(`LOAD_REG_BITS)) | \
+  (_load_reg << `FIELD_SHIFT(`LOAD_ALUY_BITS)) | \
   (_load_flags << `FIELD_SHIFT(`LOAD_FLAGS_BITS)) | \
   (_write << `FIELD_SHIFT(`WRITE_BITS)) \
   );
 
-// ADH/ADL combinations used:
-//
-// PCHS/PCLS              -- Data Fetch
-// 1/S                    -- Stack
-// 1/ALU                  -- Stack Op
-// FF/VECLO               -- Vector Fectch
-// FF/VECHI               -- Vector Fetch
-// DI/ALU                 -- High Addres Fetch
-// 0/DI                   -- Zero Page
-// 0/ALU                  -- Zero Page Index
-// ALU/PCLS               -- High Address Carry
-// PCHS/ALU               -- Low ALU
-//
-// Could trivially go from 6 to 4 bits, which would give me 5 bits for timing state control to play with.
 //                                                                                                                                      Register Loads
-//                 INS   T  Tn    Adh       Adl        AH  AL  PC      INC   Db,       Sb,   Alu_op    Alu_a      Alu_b       Alu_c     Load     Flags      WC
+//                 INS  T  Tn   Ab      Abh         Ab       Sp      PC   PCL/  Alu_op  Alu_a       Abus       Alu_b       Alu_c     Load       Flags      WC
+//                                                  Cnt      Cnt     Inc  ADL                                  Alu_b       Alu_c     Load       Flags      WC
+
+`define BRK(_insbyte) \
+`MICROCODE( _insbyte,  2, `Tn , `AB_S,  `ABH_KEEP,  `none,   `none,   1, `none, `none,  `ALUA_REG, `ABUS_PCH, `ALUB_0,    `ALUC_0, `none,     `none,       1) \
+`MICROCODE( _insbyte,  3, `Tn , `AB_S,  `ABH_KEEP,  `none,   `SP_DEC, 0, `none, `none,  `ALUA_REG, `ABUS_PCL, `ALUB_0,    `ALUC_0, `none,     `none,       1) \
+`MICROCODE( _insbyte,  4, `Tn , `AB_S,  `ABH_KEEP,  `none,   `SP_DEC, 0, `none, `none,  `ALUA_REG, `ABUS_P,   `ALUB_0,    `ALUC_0, `none,     `none,       1) \
+`MICROCODE( _insbyte,  5, `Tn , `AB_AB, `ABH_KEEP,  `none,   `SP_DEC, 0, `none, `none,  `ALUA_VEC, `ABUS_0,   `ALUB_0,    `ALUC_0, `ALUY_ABL, `none,       0) \
+`MICROCODE( _insbyte,  6, `Tn , `AB_AB, `ABH_KEEP,  `AB_INC, `none,   0, `none, `none,  `none,     `ABUS_0,   `ALUB_DB,   `ALUC_0, `ALUY_PCL, `FLAGS_SETI, 0) \
+`MICROCODE( _insbyte,  7, `T1 , `AB_PC, `ABH_KEEP,  `none,   `none,   0, `none, `none,  `none,     `ABUS_0,   `ALUB_DB,   `ALUC_0, `ALUY_PCH, `none,       0) \
+`MICROCODE( _insbyte,  1, `Tn , `AB_PC, `ABH_KEEP,  `none,   `none,   1, `none, `none,  `none,     `ABUS_0,   `ALUB_DB,   `ALUC_0, `none,     `none,       0) \
+
+`define FLAG_OP(_insbyte, _flag) \
+`MICROCODE( _insbyte,  1, `Tn , `AB_PC, `ABH_KEEP,  `none,   `none,   1, `none, `none,  `none,     `ABUS_0,   `ALUB_DB,   `ALUC_0, `none,     _flag,       0)
+
+`define FLAG_OP2(_insbyte, _flag) \
+`MICROCODE( _insbyte,  2, `T1 , `AB_PC, `ABH_KEEP,  `none,   `none,   0, `none, `none,  `none,     `ABUS_0,   `ALUB_DB,   `ALUC_0, `none,     _flag,       0) \
+`MICROCODE( _insbyte,  1, `Tn , `AB_PC, `ABH_KEEP,  `none,   `none,   1, `none, `none,  `none,     `ABUS_0,   `ALUB_DB,   `ALUC_0, `none,     `none,       0)
+
+`define LDx(_insbyte, _load, _i) \
+`MICROCODE( _insbyte,  2, `T1 , `AB_PC, `ABH_KEEP,  `none,   `none,  _i, `none, `none,  `none,     `none,     `ALUB_DB,   `ALUC_0, _load,     `FLAGS_SBZN, 0) \
+`MICROCODE( _insbyte,  1, `Tn , `AB_PC, `ABH_KEEP,  `none,   `none,   1, `none, `none,  `none,     `none,     `none,      `none,    `none,    `none,       0)
+
+`define LDA(_insbyte, _inc) `LDx(_insbyte, `LOAD_A, _inc)
+`define LDX(_insbyte, _inc) `LDx(_insbyte, `LOAD_X, _inc)
+`define LDY(_insbyte, _inc) `LDx(_insbyte, `LOAD_Y, _inc)
+`define LDZ(_insbyte, _inc) `LDx(_insbyte, `LOAD_Z, _inc)
+
+`define Txx(_insbyte, _reg, _load, _flags) \
+`MICROCODE( _insbyte,  1, `Tn , `AB_PC, `ABH_KEEP,  `none,   `none,   1, `none, `none,  `ALUA_REG, _reg,      `ALUB_0,   `ALUC_0, _load,     _flags,      0)
+
+`ifdef NOTYET
 
 `define BRK(_insbyte) \
 `MICROCODE( _insbyte,  2, `Tn , `ADH_1,    `ADL_S,     1,  1, `PCHPCL,  1, `DB_PCH,`SB_FF,  `none,    `ALU_A_SB, `ALU_B_ADL, `none,    `none,   `none,       1) \
@@ -343,9 +371,6 @@ mc[(_ins << 3) | _t] = ( \
 `MICROCODE( _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_DI, `SB_A,   `none,    `none,     `none,      `none,    `none,   `none,       0) \
 `MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_A,   `none,    `none,     `none,      `none,    `none,   `none,       0)
 
-`define LDx(_insbyte, _load, _i) \
-`MICROCODE( _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL, _i, `DB_DI, `SB_DB,  `none,    `none,     `none,      `none,    _load,   `FLAGS_SBZN, 0) \
-`MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,     `none,      `none,    `none,   `none,       0)
 
 `define BRA(_insbyte, t2) \
 `MICROCODE( _insbyte,  2,   t2, `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_DB,  `none,    `ALU_A_SB, `ALU_B_ADL, `none,    `none,   `none,       0) \
@@ -379,14 +404,6 @@ mc[(_ins << 3) | _t] = ( \
 `define SHIFT_A(_insbyte, _aluop, _carry) \
 `MICROCODE( _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_A,  `SB_A,    `none,   `ALU_A_SB, `ALU_B_DB,  `none,    `none,   `none,       0) \
 `MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_SB, `SB_ALU, _aluop,   `none,     `none,      _carry,   `LOAD_A, `FLAGS_CNZ,  0)
-
-`define FLAG_OP(_insbyte, _flag) \
-`MICROCODE( _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_DI, `SB_FF,  `none,    `none,     `none,      `none,    `none,   _flag,       0) \
-`MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,     `none,      `none,    `none,   `none,       0)
-
-`define Txx(_insbyte, _sb, _load, _flags) \
-`MICROCODE( _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_SB,   _sb,   `none,    `none,     `none,      `none,    _load,   _flags,      0) \
-`MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,     `none,      `none,    `none,   `none,       0)
 
 `define DEC_REG(_insbyte, _reg, _load) \
 `MICROCODE( _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_0,     _reg, `none,    `ALU_A_SB, `ALU_B_NDB, `none,    `none,   `none,       0) \
@@ -519,11 +536,6 @@ mc[(_ins << 3) | _t] = ( \
 `define CPX(_insbyte,_inc) `ALUA(_insbyte, `ALU_SUM, `ALU_B_NDB, `SB_X, `ALU_C_1, `none,   `FLAGS_CNZ,  _inc)
 `define CPY(_insbyte,_inc) `ALUA(_insbyte, `ALU_SUM, `ALU_B_NDB, `SB_Y, `ALU_C_1, `none,   `FLAGS_CNZ,  _inc)
 
-
-`define LDA(_insbyte, _inc) `LDx(_insbyte, `LOAD_A, _inc)
-`define LDX(_insbyte, _inc) `LDx(_insbyte, `LOAD_X, _inc)
-`define LDY(_insbyte, _inc) `LDx(_insbyte, `LOAD_Y, _inc)
-
 `define ASL_MEM(_insbyte, c1, c2) `SHIFT_MEM(_insbyte, c1, c2, `ALU_SUM, `ALU_C_0)
 `define ROL_MEM(_insbyte, c1, c2) `SHIFT_MEM(_insbyte, c1, c2, `ALU_SUM, `ALU_C_P)
 `define LSR_MEM(_insbyte, c1, c2) `SHIFT_MEM(_insbyte, c1, c2, `ALU_ROR, `ALU_C_0)
@@ -533,5 +545,7 @@ mc[(_ins << 3) | _t] = ( \
 `define ROL_A(_insbyte) `SHIFT_A(_insbyte, `ALU_SUM, `ALU_C_P)
 `define LSR_A(_insbyte) `SHIFT_A(_insbyte, `ALU_ROR, `ALU_C_0)
 `define ROR_A(_insbyte) `SHIFT_A(_insbyte, `ALU_ROR, `ALU_C_P)
+
+`endif
 
 `endif //_6502_inc_vh_
