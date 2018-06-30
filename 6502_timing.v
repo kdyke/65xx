@@ -6,27 +6,11 @@
 `endif
 `define NMI_BUG_FIX 1
 
-`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, sync, load_sbz, onecycle, twocycle, decimal_cycle, write_allowed, decimal_extra_cycle);
-input clk;
-input reset;
-input ready;
-input [2:0] tnext_mc;
-input alu_carry_out;
-input taken_branch;
-input branch_page_cross;
-output sync;
-input decimal_cycle;
-input load_sbz;
-input onecycle;
-input twocycle;
-output [2:0] t;
-output [2:0] t_next;
-output reg write_allowed;
-output decimal_extra_cycle;
-
-wire sync;
-reg [2:0] t;
-reg [2:0] t_next;
+`SCHEM_KEEP_HIER module timing_ctrl(input clk, input reset, input ready, output reg [2:0] t, output reg [2:0] t_next, 
+                                    input [2:0] tnext_mc, input alu_carry_out, input taken_branch, input branch_page_cross, 
+                                    input intg, output wire pc_hold,
+                                    output wire sync, input load_sbz, input onecycle, input twocycle, input decimal_cycle, 
+                                    output reg write_allowed, output wire decimal_extra_cycle);
 
 // TODO - Separate the state machine from the output encoding?
 parameter T0 = 3'b000,
@@ -39,12 +23,14 @@ parameter T0 = 3'b000,
           T7 = 3'b111;
 
 `ifdef CMOS
-wire decimal_extra_cycle;
 assign decimal_extra_cycle = (t == 7 && load_sbz);
 assign sync = (t == 1 && ~(decimal_cycle)) | decimal_extra_cycle;
+// Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform the extra decimal correction cycle
+assign pc_hold = intg | decimal_cycle;
 `else
 assign decimal_extra_cycle = 0;
 assign sync = (t == 1);
+assign pc_hold = intg;
 `endif
 
 always @(posedge clk)
@@ -99,28 +85,18 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module predecode(ir_next, active, onecycle, twocycle);
-input [7:0] ir_next;
-input active;
-output onecycle;
-output twocycle;
+`SCHEM_KEEP_HIER module predecode(input [7:0] ir_next, input active, output reg onecycle, output reg twocycle);
 
-reg twocycle;
-
-`ifdef CMOS
 // This detects single-cycle instructions
-reg onecycle;
-always @(*)
+always @(ir_next)
 begin
+`ifdef CMOS
   if((ir_next & 8'b00000111) == 8'b00000011)
     onecycle = active;
   else
+`endif
     onecycle = 0;
 end
-`else
-wire onecycle;
-assign onecycle = 0;
-`endif
 
 // This detects the instruction patterns where we need to go immediately to T0 instead of T2 during a fetch cycle.
 always @(*)
@@ -154,27 +130,13 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module interrupt_control(clk, reset, irq, nmi, t, tnext_mc, reg_p, load_i, intg, nmig, resp, vector_lo);
-input clk;
-input reset;
-input irq;
-input nmi;
-input [2:0] t;
-input [2:0] tnext_mc;
-input [7:0] reg_p;
+`SCHEM_KEEP_HIER module interrupt_control(input clk, input reset, input irq, input nmi, 
+                                          input [2:0] t, input [2:0] tnext_mc, input [7:0] reg_p, 
+                                          input load_i, 
+                                          output reg intg, output reg nmig, output reg resp, output reg [7:0] vector_lo);
 
-input load_i;
-output intg;
-output nmig;
-output resp;
-output [7:0] vector_lo;
-
-// reset flip flop
-reg resp;
 reg nmil; // Delayed NMI for edge detection
-reg nmig;
-reg intp;
-reg intg;
+reg intp; // Internal interrupt detection
 
 always @(posedge clk)
 begin
@@ -218,8 +180,6 @@ begin
   end
 end
 
-reg [7:0] vector_lo;
-
 always @(*)
 begin
   if(resp == 1)
@@ -236,10 +196,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module branch_control(reg_p, ir, taken_branch);
-input [7:0] reg_p;
-input [7:5] ir;
-output reg taken_branch;
+`SCHEM_KEEP_HIER module branch_control(input [7:0] reg_p, input [7:5] ir, output reg taken_branch);
 
 always @(*)
 begin

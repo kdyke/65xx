@@ -2,16 +2,9 @@
 
 `timescale 10ns/10ns
 
-module decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub, half);
-  input [3:0] dec_in;
-  input carry_in;
-  input dec_add;
-  input dec_sub;
-  input half;
-  output [3:0] dec_out;
+module decadj_half_adder(input [3:0] dec_in, output wire [3:0] dec_out, input carry_in, input dec_add, input dec_sub, input half);
   
 	wire [3:0] correction_factor;
-  wire [3:0] dec_out;
 
   wire add_adj, sub_adj;
   
@@ -23,20 +16,10 @@ module decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub, half);
   
 endmodule
 
-module alu_half_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, dec_carry_out, half);
-  input [3:0] add_in1;
-  input [3:0] add_in2;
-  input add_cin;
-  input dec_add;
-  input half;
-  output carry_out;
-  output dec_carry_out;
-  output [3:0] add_out;
-  reg [3:0] add_out;
+module alu_half_adder(input [3:0] add_in1, input [3:0] add_in2, input add_cin, input dec_add, 
+                      output reg [3:0] add_out, output reg carry_out, output reg dec_carry_out, input half);
   
-  reg carry_out;
   reg carry_tmp;
-  reg dec_carry_out;
 	reg greater_than_nine;
   
   reg [4:0] add_tmp;
@@ -52,15 +35,8 @@ module alu_half_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, de
 
 endmodule
 
-module alu_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, half_carry_out);
-  input [7:0] add_in1;
-  input [7:0] add_in2;
-  input add_cin;
-  input dec_add;
-
-  output [7:0] add_out;
-  output carry_out;
-  output half_carry_out;
+module alu_adder(input [7:0] add_in1, input [7:0] add_in2, input add_cin, input dec_add, 
+                 output wire [7:0] add_out, output wire carry_out, output wire half_carry_out);
     
   wire dec_carry_out; // unused
   
@@ -70,20 +46,12 @@ module alu_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out, half_ca
 endmodule
 
 // Input muxing is done outside of the core ALU unit.
-`SCHEM_KEEP_HIER module alu_unit(clk, ready, a,b,alu_out,c_in,dec_add,op,carry_out,half_carry_out,overflow_out,alu_carry_out_last);
-  input clk;
-  input ready;
-  input [7:0] a;
-  input [7:0] b;
-	input [3:0] op;
-	input c_in;
-	input dec_add;
-
-  output [7:0] alu_out;
-  output carry_out;
-  output half_carry_out;
-  output overflow_out;
-  output reg alu_carry_out_last;
+`SCHEM_KEEP_HIER module alu_unit(input clk, input ready, 
+                                 input [7:0] a, input [7:0] b, output [7:0] alu_out,
+                                 input c_in,input dec_add,input [3:0] op,
+                                 output reg carry_out, output wire half_carry_out,
+                                 output wire overflow_out,
+                                 output reg alu_carry_out_last);
   
 	reg c;
 	
@@ -92,10 +60,6 @@ endmodule
  	reg [7:0] alu_out;
 
   wire adder_carry_out;
-  wire half_carry_out;
-  wire overflow_out;
-  
-  reg carry_out;
   
 	alu_adder add_u(a, b, c_in, dec_add, add_out, adder_carry_out, half_carry_out);
 	  
@@ -153,9 +117,7 @@ always @(*) begin
 
 endmodule
 
-`SCHEM_KEEP_HIER module decoder3to8(index, outbits);
-input [2:0] index;
-output reg [7:0] outbits;
+`SCHEM_KEEP_HIER module decoder3to8(input [2:0] index, output reg [7:0] outbits);
 
 always @(*)
 begin

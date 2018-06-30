@@ -1,34 +1,11 @@
 `include "6502_inc.vh"
 
-(* keep_hierarchy = "yes" *) module microcode(clk, ready, ir, t, tnext, adh_sel, adl_sel, db_sel, sb_sel, pchs_sel, pcls_sel, alu_op, alu_a, alu_b, alu_c,
-                  load_a, load_x, load_y, load_s, load_abh, load_abl, 
-                  load_flags,
-                  write_cycle, pc_inc);
-
-input clk;
-input ready;
-input [7:0] ir;
-input [2:0] t;
-output [2:0] tnext;
-output [2:0] adh_sel;
-output [2:0] adl_sel;
-output [2:0] db_sel;
-output [2:0] sb_sel;
-output [3:0] alu_op;
-output pchs_sel;
-output pcls_sel;
-output [2:0] alu_a;
-output [1:0] alu_b;
-output [1:0] alu_c;
-output load_a;
-output load_x;
-output load_y;
-output load_s;
-output load_abh;
-output load_abl;
-output [3:0] load_flags;
-output write_cycle;
-output pc_inc;
+(* keep_hierarchy = "yes" *) module microcode(input clk, input ready, input [7:0] ir, input [2:0] t, 
+                  output wire [2:0] tnext, output wire [2:0] adh_sel, output wire [2:0] adl_sel, 
+                  output wire [2:0] db_sel, output wire [2:0] sb_sel, output wire pchs_sel, output wire pcls_sel, 
+                  output wire [3:0] alu_op, output wire [2:0] alu_a, output wire [1:0] alu_b, output wire [1:0] alu_c,
+                  output wire load_a, output wire load_x, output wire load_y, output wire load_s, output wire load_abh, output wire load_abl, 
+                  output wire [3:0] load_flags, output wire write_cycle, output wire pc_inc);
 
 reg [`MICROCODE_BITS] mc_out;
 (* rom_style = "block" *) reg [`MICROCODE_BITS] mc[0:2047];

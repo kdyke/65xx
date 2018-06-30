@@ -1,32 +1,12 @@
 `include "6502_inc.vh"
 
-`SCHEM_KEEP_HIER module cpu6502(clk, reset, nmi, irq, ready, write, write_next, sync, address, address_next, data_i, data_o, data_o_next, cpu_state, t, cpu_int);
-
-initial begin
-end
-
-input clk, reset, irq, nmi, ready;
-input [7:0] data_i;
-output [7:0] data_o;
-output wire [7:0] data_o_next;
-output [15:0] address;
-output [15:0] address_next;
-output write_next;
-output write;
-output sync;
-output [7:0] cpu_state;
-output [2:0] t;
-output cpu_int;
-
-// FPGA debug
-wire [7:0] cpu_state;
-
-// current timing state
-wire [2:0] t;
-wire [2:0] t_next;
+`SCHEM_KEEP_HIER module cpu6502(input clk, input reset, input nmi, input irq, input ready, output reg write, output wire write_next, 
+  output wire sync, output wire [15:0] address, output wire [15:0] address_next, input [7:0] data_i, 
+  output wire [7:0] data_o, output wire [7:0] data_o_next, output wire [7:0] cpu_state, output wire [2:0] t, output wire cpu_int);
 
 // microcode output signals
 wire [2:0] tnext_mc;
+wire [2:0] t_next;
 wire [2:0] adh_sel;
 wire [2:0] adl_sel;
 wire [2:0] db_sel;
@@ -91,8 +71,6 @@ wire alu_carry_out,alu_half_carry_out;
 
 wire ready_i;
 
-wire sync;
-
 wire [7:0] pcls;
 wire pcl_carry;
 
@@ -107,6 +85,7 @@ wire decimal_extra_cycle;
 wire intg;
 wire nmig;
 wire resp;
+wire pc_hold;
 
 assign cpu_int = intg;
 
@@ -136,14 +115,14 @@ wire [7:0] vector_lo;
   assign address_next = { abh_next, abl_next };
   
   assign write_next = write_cycle & ~resp & write_allowed;
-  assign write = w_reg; 
+
   assign data_o = dor;
   assign data_o_next = db_out;
 
   always @(posedge clk)
   begin
     if(ready_i)
-      w_reg <= write_next;
+      write <= write_next;
   end
   
   assign cpu_state = ir; //{ dec_add, dec_sub, decimal_extra_cycle, decimal_cycle};
@@ -156,16 +135,8 @@ wire [7:0] vector_lo;
   interrupt_control interrupt_control(clk, reset, irq, nmi, t, tnext_mc, reg_p, load_flag_decode[`LF_I_1], intg, nmig, resp, vector_lo);
 
   // Timing control state machine
-  timing_ctrl timing(clk, reset, ready_i, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, 
+  timing_ctrl timing(clk, reset, ready_i, t, t_next, tnext_mc, alu_carry_out, taken_branch, branch_page_cross, intg, pc_hold,
                    sync, load_flag_decode[`LF_Z_SBZ], onecycle, twocycle, decimal_cycle, write_allowed, decimal_extra_cycle);
-
-// Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform the extra decimal correction cycle
-wire pc_hold;
-`ifdef CMOS
-assign pc_hold = intg | decimal_cycle;
-`else
-assign pc_hold = intg;
-`endif
 
   clocked_reset_reg8 ir_reg(clk, reset, sync & ready_i, ir_next, ir);
   

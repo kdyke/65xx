@@ -1,204 +1,8 @@
 `include "6502_inc.vh"
 
-`SCHEM_KEEP_HIER module adl_pcl_reg(clk, ready, pcls_sel, pc_inc, adl_sel, reg_s, alu, pcl, pcls, pcl_carry);
-input clk;
-input ready;
-input pcls_sel;
-input pc_inc;
-input [2:0] adl_sel;
-input [7:0] reg_s;
-input [7:0] alu;
-
-output [7:0] pcl;
-output [7:0] pcls;
-output pcl_carry;
-
-reg [7:0] adl_pcls;
-
-reg [8:0] pcls_in;
-reg [7:0] pcls;
-reg [7:0] pcl;
-
-reg pcl_carry;
-
-always @(*)
-begin
-  if(pcls_sel == `PCLS_PCL)
-    pcls_in = pcl + pc_inc;
-  else
-    pcls_in = adl_pcls;
-  {pcl_carry, pcls} = pcls_in;
-end
-
-always @(*)
-begin
-  case(adl_sel) // synthesis full_case parallel_case
-    `ADL_S     : adl_pcls = reg_s;
-    `ADL_ALU   : adl_pcls = alu;
-  endcase
-end
-
-always @(posedge clk)
-begin
-  if(ready)
-  begin
-    pcl <= pcls;
-  end
-end
-
-endmodule
-
-
-`SCHEM_KEEP_HIER module adh_pch_reg(clk, ready, pchs_sel, pcl_carry, adh_sel, data_i, alu, pchs, pch, pch_carry);
-input clk;
-input ready;
-input pchs_sel;
-input pcl_carry;
-input [2:0] adh_sel;
-input [7:0] data_i;
-input [7:0] alu;
-output [7:0] pchs;
-output [7:0] pch;
-output reg pch_carry;
-reg [7:0] pchs;
-
-reg [8:0] pchs_in;
-reg [7:0] pch;
-
-reg [7:0] adh_pchs;
-
-always @(*)
-begin
-  if(pchs_sel == `PCHS_PCH)
-    pchs_in = pch + pcl_carry;
-  else
-    pchs_in = adh_pchs;
-  {pch_carry,pchs} = pchs_in; // This is really weird.  If I don't try to keep the carry like for PCL, it actually uses *more* resources?
-  //$display("phs_sel: %d pch: %02x adh: %02x pchs_in: %02x pchs: %02x",pchs_sel,pch,adh,pchs_in,pchs);
-end
-
-always @(*)
-begin
-  case(adh_sel)  // synthesis full_case parallel_case
-    `ADH_DI  : adh_pchs = data_i;
-    `ADH_ALU : adh_pchs = alu;
-  endcase
-end
-
-always @(posedge clk)
-begin
-  if(ready)
-  begin
-    pch <= pchs;
-  end
-end
-
-endmodule
-
-`SCHEM_KEEP_HIER module adh_abh_reg(clk, ready, load_abh, adh_sel, data_i, pchs, alu, abh_next, abh);
-input clk;
-input ready;
-input load_abh;
-input [2:0] adh_sel;
-input [7:0] data_i;
-input [7:0] pchs;
-input [7:0] alu;
-output reg [7:0] abh;
-output reg [7:0] abh_next;
-
-reg [7:0] adh_abh;
-
-always @(*)
-begin
-  case(adh_sel)  // synthesis full_case parallel_case
-    `ADH_DI  : adh_abh = data_i;
-    `ADH_PCHS: adh_abh = pchs;
-    `ADH_ALU : adh_abh = alu;
-    `ADH_0   : adh_abh = 8'h00;
-    `ADH_1   : adh_abh = 8'h01;
-    `ADH_FF  : adh_abh = 8'hFF;
-  endcase
-end
-
-always @(*)
-begin
-  if(load_abh && ready)
-    abh_next = adh_abh;
-  else
-    abh_next = abh;
-end
-
-always @(posedge clk)
-begin
-  if(load_abh && ready)
-  begin
-    abh <= adh_abh;
-  end
-end
-
-endmodule
-
-`SCHEM_KEEP_HIER module adl_abl_reg(clk, ready, load_abl, adl_sel, data_i, pcls, reg_s, alu, vector_lo, adl_abl, abl_next, abl);
-input clk;
-input ready;
-input load_abl;
-input [2:0] adl_sel;
-input [7:0] data_i;
-input [7:0] pcls;
-input [7:0] reg_s;
-input [7:0] alu;
-input [7:0] vector_lo;
-
-output [7:0] adl_abl;
-output [7:0] abl;
-output reg [7:0] abl_next;
-reg [7:0] adl_abl;
-reg [7:0] abl;
-
-// ADL -> ABL
-always @(*)
-begin
-  case(adl_sel) // synthesis full_case parallel_case
-    `ADL_DI    : adl_abl = data_i;
-    `ADL_PCLS  : adl_abl = pcls;
-    `ADL_S     : adl_abl = reg_s;
-    `ADL_ALU   : adl_abl = alu;
-    `ADL_VECLO : adl_abl = vector_lo;
-    `ADL_VECHI : adl_abl = { vector_lo[7:1],1'b1 };
-  endcase
-end
-
-always @(*)
-begin
-  if(load_abl && ready)
-    abl_next = adl_abl;
-  else
-    abl_next = abl;
-end
-
-
-always @(posedge clk)
-begin
-  if(load_abl && ready)
-  begin
-    abl <= adl_abl;
-  end
-end
-
-endmodule
-
 // This is the "secondary bus"
-`SCHEM_KEEP_HIER module sb_mux(sb_sel, reg_a, reg_x, reg_y, reg_s, alu, pch, db, sb);
-input [2:0] sb_sel;
-input [7:0] reg_a;
-input [7:0] reg_x;
-input [7:0] reg_y;
-input [7:0] reg_s;
-input [7:0] alu;
-input [7:0] pch;
-input [7:0] db;
-output [7:0] sb;
-reg [7:0] sb;
+`SCHEM_KEEP_HIER module sb_mux(input [2:0] sb_sel, input [7:0] reg_a, input [7:0] reg_x, input [7:0] reg_y, 
+                               input [7:0] reg_s, input [7:0] alu, input [7:0] pch, input [7:0] db, output reg [7:0] sb);
 
 always @(*)
 begin
@@ -221,12 +25,10 @@ endmodule
                                  input [2:0] alu_a, 
                                  input [7:0] sb, 
                                  input [7:0] ir_dec, 
-                                 output [7:0] alua);
+                                 output reg [7:0] alua);
                                  
 reg [7:0] aluas;
                              
-reg [7:0] alua;
-                                 
 // ALU A input select
 always @(*)
 begin
@@ -256,11 +58,9 @@ endmodule
                                  input [1:0] alu_b, 
                                  input [7:0] db, 
                                  input [7:0] adl, 
-                                 output [7:0] alub);
+                                 output reg [7:0] alub);
 
 reg [7:0] alubs;
-
-reg [7:0] alub;
 
 // ALU B input select
 always @(*)
