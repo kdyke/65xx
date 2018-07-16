@@ -1,3 +1,25 @@
+/* 
+** Copyright (c) 2018 Kenneth C. Dyke
+** 
+** Permission is hereby granted, free of charge, to any person obtaining a copy
+** of this software and associated documentation files (the "Software"), to deal
+** in the Software without restriction, including without limitation the rights
+** to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+** copies of the Software, and to permit persons to whom the Software is
+** furnished to do so, subject to the following conditions:
+** 
+** The above copyright notice and this permission notice shall be included in all
+** copies or substantial portions of the Software.
+** 
+** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+** IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+** FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+** AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+** LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+** OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+** SOFTWARE.
+*/
+
 `include "6502_inc.vh"
 
 `timescale 10ns/10ns
@@ -47,7 +69,7 @@ endmodule
 
 // Input muxing is done outside of the core ALU unit.
 `SCHEM_KEEP_HIER module alu_unit(input clk, input ready, 
-                                 input [7:0] a, input [7:0] b, output [7:0] alu_out,
+                                 input [7:0] a, input [7:0] b, output reg [7:0] alu_out,
                                  input c_in,input dec_add,input [3:0] op,
                                  output reg carry_out, output wire half_carry_out,
                                  output wire overflow_out,
@@ -57,7 +79,6 @@ endmodule
 	
 	wire [7:0] add_out;
 	reg [7:0] tmp;
- 	reg [7:0] alu_out;
 
   wire adder_carry_out;
   
