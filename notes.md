@@ -1,6 +1,6 @@
 #### Implementation Notes
 
-The basic idea behind this whole design is to build everything assuming synchrnonous clocked memories and such.  This goes for both the internal "PLA" (stored in a block RAM) and external memories.
+The basic idea behind this whole design is to build everything assuming synchronous clocked memories and such.  This goes for both the internal "PLA" (stored in a block RAM) and external memories.
 
 The other primary design goal is to optimize things (as best as my feeble skills currently allow) assuming that we are targeting an FPGA.  This means using FPGA resources in such a way to give us the most bang for our buck (hence the desire to use a block RAM for the PLA instead of the usual sea of combinatorial logic).
 
@@ -10,7 +10,7 @@ Storing the microcode in block rams currently seems to save around 200 LUTs, alt
 
 On the original 6502 the timing control was (almost) a one-hot design, except for the magic T0+T2 state where both states were active simulataneously.   T0 was in general the next-to-last instruction state, following by T1 where the following instruction was fetched and any last bit of the previous instruction's execution was completed.
 
-In my design I can't really do the T0+T2 thing because I'm using a block RAM in place of a PLA, and so I can only have one "active" state at a time.  But the original T0+T2 state was likely just an optimization so that two cycle instructions wouldn't need duplicated PLA decodes for all of the cases where T2 would have otherwise done the right thing.  Because I'm using a block RAM, I don't have that problem so T0 just containts whatever state is needed.
+In my design I can't really do the T0+T2 thing because I'm using a block RAM in place of a PLA, and so I can only have one "active" state at a time.  But the original T0+T2 state was likely just an optimization so that two cycle instructions wouldn't need duplicated PLA decodes for all of the cases where T2 would have otherwise done the right thing.  Because I'm using a block RAM, I don't have that problem so T0 just contains whatever state is needed.
 
 #### "PLA" output encoding
 

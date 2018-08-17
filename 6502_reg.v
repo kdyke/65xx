@@ -27,39 +27,32 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module ab_reg(input clk, input ready, input [1:0] abh_sel, input getvec, input load_abl, input ab_inc, input ab_dec,
-                               input [7:0] b, input[7:0] aluy, output reg [15:0] ab_next, output reg [15:0] ab);
+`SCHEM_KEEP_HIER module ab_reg(input clk, input ready, input ab_inc, input [1:0] abh_sel, input abl_sel,
+                               input [7:0] b, input[7:0] alu_ea, output reg [15:0] ab_next, output reg [15:0] ab);
 
 reg [15:0] ab_add;
 
 always @(*)
 begin
-  if(ab_inc)
-    ab_add = ab + 1;
-  else if(ab_inc)
-    ab_add = ab - 1;
-  else
-    ab_add = ab;
+    ab_add = ab + ab_inc;
 end
 
 always @(*)
 begin
-  ab_next = ab;
-  if(ready)
+  //if(ready)
   begin
     case(abh_sel)
-      `ABH_B:     ab_next[15:8] = b;
-      `ABH_ALU:   ab_next[15:8] = aluy;
-      `ABH_ADJ:   ab_next[15:8] = ab_add[15:8];
+      `kABH_ABH:   ab_next[15:8] = ab_add[15:8];
+      `kABH_B:     ab_next[15:8] = b;
+      `kABH_ALU:   ab_next[15:8] = alu_ea;
+      `kABH_VEC:   ab_next[15:8] = 8'hff;
     endcase
-    if(getvec)
-      ab_next[15:8] = 8'hFF;
-    if(load_abl)
-      ab_next[7:0] = aluy;
-    else if(ab_inc|ab_dec)
+    if(abl_sel)
+      ab_next[7:0] = alu_ea;
+    else      
       ab_next[7:0] = ab_add[7:0];
   end
-  //$display("ab_next: %04x aluy: %02x",ab_next,aluy);
+  //$display("ab_next: %04x alu_ea: %02x abh_sel: %01x abl_sel: %d",ab_next,alu_ea,abh_sel,abl_sel);
 end
 
 always @(posedge clk)
@@ -70,19 +63,20 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module ad_reg(input clk, input ready, input load_adl, input load_adh, 
-                               input [7:0] aluy, output reg [15:0] ad_next, output reg [15:0] ad);
+`SCHEM_KEEP_HIER module ad_reg(input clk, input ready, input adh_sel, input adl_sel,
+                               input [7:0] alu_ea, output reg [15:0] ad_next, output reg [15:0] ad);
 
 always @(*)
 begin
   ad_next = ad;
-  if(ready)
+  //if(ready)
   begin
-    if(load_adl)
-      ad_next[7:0] = aluy;
-    if(load_adh)
-      ad_next[15:8] = aluy;
+    if(adl_sel)
+      ad_next[7:0] = alu_ea;
+    if(adh_sel)
+      ad_next[15:8] = alu_ea;
   end
+  //$display("ad_next: %04x alu_ea: %02x adh_sel: %01x adl_sel: %d",ad_next,alu_ea,adh_sel,adl_sel);
 end
 
 always @(posedge clk)
@@ -93,23 +87,47 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module pc_reg(input clk, input ready, input pc_inc, input load_pcl_adl,
-                               input load_pcl, input load_pch,
-                               input [7:0] adl, input [7:0] aluy, 
+`SCHEM_KEEP_HIER module pc_reg(input clk, input ready, input pc_inc, input cond_met, input [1:0] pch_sel, input [1:0] pcl_sel,
+                               input [7:0] adl, input [7:0] alu_ea, input aluc, input alub7,
                                output reg [15:0] pc_next, output reg[15:0] pc);
+
+reg [8:0] pcl_next;
+reg [7:0] pch_next;
+reg [7:0] pch_adj_factor;
+reg [7:0] pch_base;
+
+wire [8:0] pcl_incremented;
+wire [7:0] pch_incremented;
+
+assign pcl_incremented = pc[7:0] + pc_inc;
+assign pch_incremented = pc[15:8] + pcl_incremented[8];
 
 always @(*)
 begin
-  pc_next = pc;
-  if(load_pcl_adl)
-    pc_next[7:0] = adl;
-  else if(load_pcl)
-    pc_next[7:0] = aluy;
-  else if(load_pch)
-    pc_next[15:8] = aluy;
-  else if(pc_inc)
-    pc_next = pc + 1;
-  $display("pc_next: %04x pc: %04x adl: %d pcl: %d pch: %d inc: %d aluy: %02x",pc_next,pc,load_pcl_adl,load_pcl,load_pch,pc_inc,aluy);
+  // Default is pc_next is pc_incremented
+  pc_next[7:0] = pcl_incremented;
+  pc_next[15:8] = pch_incremented;
+  
+  // This could probably be reworked a bit to use fewer resources to eliminate the duplicated adder between
+  // the incrementer and kPCH_ADJ case, mostly for the PCH side of things.   For now I just want to get this
+  // all working again.
+  //if(ready)
+  begin
+    if(cond_met)
+    begin
+      if(pch_sel == `kPCH_ADJ)
+        pc_next[15:8] = pc[15:8] + {8{alub7}} + aluc;
+      else if(pch_sel == `kPCH_ALU)
+        pc_next[15:8] = alu_ea;
+      if(pcl_sel == `kPCL_ADL)
+        pc_next[7:0] = adl;
+      else if(pcl_sel == `kPCL_ALU)
+        pc_next[7:0] = alu_ea;
+    end    
+  end
+  
+  //$display("pc: %04x pc_next: %04x inc: %d pch: %d pcl: %d cond: %d adl: %02x pc_inc: %02x%02x alu_ea: %02x alub7: %d aluc: %d",
+  //  pc,pc_next,pc_inc,pch_sel,pcl_sel,cond_met,adl,pch_incremented,pcl_incremented[7:0],alu_ea,alub7,aluc);
 end
 
 always @(posedge clk)
@@ -121,7 +139,7 @@ end
 endmodule
 
 `SCHEM_KEEP_HIER module sp_reg(input clk, input reset, input ready, input e_bit, 
-                               input load_sph, input load_spl, input sp_inc, input sp_dec, input [7:0] aluy, 
+                               input [1:0] sp_inc, input sph_sel, input spl_sel, input [7:0] alu_ea, 
                                output reg [15:0] sp_next, output reg [15:0] sp);
 
 reg [15:0] sp_add_in;
@@ -129,10 +147,10 @@ wire [15:0] sp_add_out;
 
 always @(*)
 begin
-  case({sp_inc,sp_dec})
-    2'b01:    sp_add_in = 16'hFFFF;
-    2'b10:    sp_add_in = 16'h0001;
-    default:  sp_add_in = 16'h0000;
+  case(sp_inc) // May need to qualify this with ready signal eventually...
+    `kSP_DEC:    sp_add_in = 16'hFFFF;
+    `kSP_INC:    sp_add_in = 16'h0001;
+    default:    sp_add_in = 16'h0000;
   endcase
 end
 
@@ -143,24 +161,28 @@ begin
   sp_next = sp;
   if(reset)
     sp_next[15:8] = 8'h01;
-  else if(ready)
+  else
   begin  
-    if(load_sph)
-      sp_next[15:8] = aluy;
-    else if(load_spl)
-      sp_next[7:0] = aluy;
-    else if(sp_inc|sp_dec)
-    begin
-      sp_next[7:0] = sp_add_out[7:0];
-      if(e_bit == 0)
-        sp_next[15:8] = sp_add_out[15:8];
+    sp_next = sp;
+    //if(ready)
+    begin    
+      if(sph_sel)
+        sp_next[15:8] = alu_ea;
+      else if(spl_sel)
+        sp_next[7:0] = alu_ea;
+      else if(sp_inc != 0)
+      begin
+        sp_next[7:0] = sp_add_out[7:0];
+        if(e_bit == 0)
+          sp_next[15:8] = sp_add_out[15:8];
+      end
     end
   end
 end
 
 always @(posedge clk)
 begin
-  if(ready)
+  if(ready|reset)
     sp <= sp_next;
 end
 
@@ -172,37 +194,41 @@ endmodule
 
 always @(*)
 begin
-  reg_p[`PF_B] = ~intg;
+  reg_p[`kPF_B] = ~intg;
 end
 
 always @(posedge clk)
 begin
   if(reset)
-    reg_p[`PF_E] <= 1;    
+    reg_p[`kPF_E] <= 1;    
   else if(ready)
   begin
-    if(load_flag_decode[`LF_C_ACR])       reg_p[`PF_C] = carry;
-    else if(load_flag_decode[`LF_C_IR5])  reg_p[`PF_C] = ir5;
-    else if(load_flag_decode[`LF_C_DB0])  reg_p[`PF_C] = db_in[0];
+    if(load_flag_decode[`kLF_C_ACR])       reg_p[`kPF_C] = carry;
+    else if(load_flag_decode[`kLF_C_IR5])  reg_p[`kPF_C] = ir5;
+    else if(load_flag_decode[`kLF_C_DB0])  reg_p[`kPF_C] = db_in[0];
 
-    if(load_flag_decode[`LF_Z_SBZ])       reg_p[`PF_Z] = sb_z;
-    else if(load_flag_decode[`LF_Z_DB1])  reg_p[`PF_Z] = db_in[1];
+    if(load_flag_decode[`kLF_Z_SBZ])       
+    begin
+      //$display("P[Z] = %d",sb_z);
+      reg_p[`kPF_Z] = sb_z;
+    end
+    else if(load_flag_decode[`kLF_Z_DB1])  reg_p[`kPF_Z] = db_in[1];
     
-    if(load_flag_decode[`LF_I_DB2])       reg_p[`PF_I] = db_in[2];
-    else if(load_flag_decode[`LF_I_IR5])  reg_p[`PF_I] = ir5;
-    else if(load_flag_decode[`LF_I_1])    reg_p[`PF_I] = 1;
+    if(load_flag_decode[`kLF_I_DB2])       reg_p[`kPF_I] = db_in[2];
+    else if(load_flag_decode[`kLF_I_IR5])  reg_p[`kPF_I] = ir5;
+    else if(load_flag_decode[`kLF_I_1])    reg_p[`kPF_I] = 1;
 
-    if(load_flag_decode[`LF_D_DB3])       reg_p[`PF_D] = db_in[3];
-    else if(load_flag_decode[`LF_D_IR5])  reg_p[`PF_D] = ir5;
+    if(load_flag_decode[`kLF_D_DB3])       reg_p[`kPF_D] = db_in[3];
+    else if(load_flag_decode[`kLF_D_IR5])  reg_p[`kPF_D] = ir5;
     
-    if(load_flag_decode[`LF_V_AVR])       reg_p[`PF_V] = overflow;
-    else if(load_flag_decode[`LF_V_DB6])  reg_p[`PF_V] = db_in[6];
-    else if(load_flag_decode[`LF_V_0])    reg_p[`PF_V] = 0;
+    if(load_flag_decode[`kLF_V_AVR])       reg_p[`kPF_V] = overflow;
+    else if(load_flag_decode[`kLF_V_DB6])  reg_p[`kPF_V] = db_in[6];
+    else if(load_flag_decode[`kLF_V_0])    reg_p[`kPF_V] = 0;
       
-    if(load_flag_decode[`LF_N_SBN])       reg_p[`PF_N] = sb_n;
-    else if(load_flag_decode[`LF_N_DB7])  reg_p[`PF_N] = db_in[7];
+    if(load_flag_decode[`kLF_N_SBN])       reg_p[`kPF_N] = sb_n;
+    else if(load_flag_decode[`kLF_N_DB7])  reg_p[`kPF_N] = db_in[7];
     
-    if(load_flag_decode[`LF_E_IR0])       reg_p[`PF_E] = ir0;
+    if(load_flag_decode[`kLF_E_IR0])       reg_p[`kPF_E] = ir0;
   end
 end
 

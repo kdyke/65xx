@@ -7,19 +7,19 @@ module decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub);
   input carry_in;
   input dec_add;
   input dec_sub;
-  output [3:0] dec_out;
+  output reg [3:0] dec_out;
   
-	wire [3:0] correction_factor;
-  wire [3:0] dec_out;
-
-  wire add_adj, sub_adj;
+	reg [3:0] correction_factor;
+  reg [3:0] tmp;
+  reg add_adj, sub_adj;
   
-  assign add_adj = dec_add & carry_in;
-  assign sub_adj = dec_sub & ~carry_in;
-  
-  assign correction_factor = {sub_adj,add_adj,add_adj|sub_adj,1'b0};
-  assign dec_out = dec_in + correction_factor;
-  
+  always @(*) begin  
+    add_adj = dec_add & carry_in;
+    sub_adj = dec_sub & ~carry_in;
+    correction_factor = {sub_adj,add_adj,add_adj|sub_adj,1'b0};
+    tmp = dec_in + correction_factor;
+    dec_out = tmp;
+  end
 endmodule
 
 module alu_half_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out);
@@ -63,7 +63,7 @@ module alu_adder(add_in1, add_in2, add_cin, dec_add, dec_sub, add_out, carry_out
     
   alu_half_adder  low(add_in1[3:0],add_in2[3:0],add_cin,   dec_add,tmp[3:0],half_carry);
   alu_half_adder high(add_in1[7:4],add_in2[7:4],half_carry,dec_add,tmp[7:4],carry_out);
-
+  
   // We could insert a pre-decimal correction Z test here for 6502 compatibility.
   
   decadj_half_adder  decadj_low(tmp[3:0],add_out[3:0], half_carry_in, dec_add, dec_sub);
@@ -72,7 +72,7 @@ module alu_adder(add_in1, add_in2, add_cin, dec_add, dec_sub, add_out, carry_out
 endmodule
 
 // Input muxing is done outside of the core ALU unit.
-`SCHEM_KEEP_HIER module alu_unit(a,b,alu_out,c_in,dec_add,dec_sub,op,carry_out,overflow_out);
+`SCHEM_KEEP_HIER module alu_unit(a,b,alu_out,c_in,dec_add,dec_sub,op,carry_out,overflow_out,ea_add_out,ea_carry_out);
   input [7:0] a;
   input [7:0] b;
 	input [2:0] op;
@@ -81,17 +81,27 @@ endmodule
 	input dec_sub;
 
   output [7:0] alu_out;
+  output [7:0] ea_add_out;
+  output ea_carry_out;
+  
   output carry_out;
   output overflow_out;
   
 	reg c;
-	
+  
 	wire [7:0] add_out;
+  wire [8:0] ea_add;
 	reg [7:0] tmp;
  	reg [7:0] alu_out;
 
   wire adder_carry_out;
+  
   wire overflow_out;
+  
+  // Dedicated ALU adder path for EA calculations.
+  assign ea_add = a+b+c_in;
+  assign ea_add_out = ea_add[7:0];
+  assign ea_carry_out = ea_add[8];
   
   reg carry_out;
   
@@ -101,40 +111,61 @@ endmodule
   
 always @(*) begin
 	case(op) // synthesis full_case parallel_case
-		`ALU_ORA: 
+		`kALU_ORA: 
       begin
       c = 0;
 			tmp = a | b;
 			end
-		`ALU_AND: 
+		`kALU_AND: 
       begin
 			tmp = a & b;
       c = | tmp;      // This is a bit of a hack, used for 65C02 branch bit tests.
 			end
-		`ALU_EOR: 
+		`kALU_EOR: 
       begin
       c = 0;
 			tmp = a ^ b;
 			end
-		`ALU_ADC, `ALU_SBC: 
+		`kALU_ADC, `kALU_SBC: 
       begin
       c = adder_carry_out;
       tmp = add_out;
 			end
-		`ALU_ROR: 
+		`kALU_SHR: 
       begin
 			{tmp,c} = {c_in,a};
       end
-		`ALU_ASR: 
+		`kALU_ASR: 
       begin
-			{tmp,c} = {a[7],a[7:0]};  // Not sure what C is supposed to be, currently gets bottom bit
+			{tmp,c} = {a[7],a[7:0]};
+      end
+		`kALU_SHL: 
+      begin
+			{c,tmp} = {a,c_in};
       end
 	endcase
+
+  //$display("ALU op: %x a: %02x b: %02x c_in: %d -> %02x daa: %d dsa: %d flags vc: %d%d add: %02x",op,a,b,c_in,tmp,dec_add,dec_sub,overflow_out,c,add_out);
 
 	alu_out = tmp;
   carry_out = c;
   
-  $display("ALU op: %x a: %02x b: %02x c_in: %d -> %02x daa: %d flags vc: %d%d",op,a,b,c_in,tmp,dec_add,overflow_out,carry_out);
 	end
+
+endmodule
+
+`SCHEM_KEEP_HIER module z_unit(input clk,input [2:0] op, input [7:0] aluy, output wire z_out, output reg dld_z, input word_z);
+
+wire alu_z;
+
+assign alu_z = ~|aluy;
+
+always @(posedge clk)
+begin
+  if(op != `ALU_ORA)
+    dld_z <= alu_z;
+end
+
+assign z_out = alu_z & (~word_z | dld_z);
 
 endmodule

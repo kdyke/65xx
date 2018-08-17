@@ -5,20 +5,32 @@
                 input ready, 
                 input [7:0] ir, 
                 input [2:0] t, 
-                output [2:0] tnext, 
+                output mc_sync, 
+                output [2:0] alua_sel,
+                output [2:0] alub_sel,
+                output [1:0] aluc_sel,
+                output [1:0] dreg,
+                output [1:0] dreg_do,
+                output [1:0] areg,
+                output [2:0] alu_sel,
+                output [1:0] dbo_sel,
                 output [1:0] ab_sel,
-                output [1:0] abh_sel,
-                output [1:0] ab_incdec,
-                output [1:0] sp_incdec,
                 output pc_inc, 
-                output pcl_adl,
-                output [2:0] alu_sel, 
-                output [1:0] alu_a,
-                output [3:0] abus,
-                output [2:0] alu_b, 
-                output [1:0] alu_c,
-                output [3:0] load_reg, 
-                output [3:0] load_flags, 
+                output [1:0] pch_sel,
+                output [1:0] pcl_sel,
+                output [1:0] sp_incdec,
+                output sph_sel,
+                output spl_sel,
+                output ab_inc,
+                output [1:0] abh_sel,
+                output abl_sel,
+                output adh_sel,
+                output adl_sel,
+                output [2:0] load_reg, 
+                output [3:0] load_flags,
+                output [4:0] test_flags,
+                output test_flag0,
+                output word_z,
                 output write);
 
 reg [`MICROCODE_BITS] mc_out;
@@ -34,200 +46,197 @@ initial begin
 // Init all microcode slots we haven't implemented with a state that halts
 for( i = 0; i < 2048; i = i + 1 ) 
 begin
-   mc[i][`TNEXT_BITS] = `TKL;
+   mc[i][`LOAD_REG_BITS] = `kLOAD_KILL;
    //$display("init %d",i);
 end
 // synthesis translate on
 
-                            `BRK(8'h00)       // BRK
+                                    `BRK(8'h00)       // BRK
 
-                            `FLAG_OP(8'h18, `FLAGS_C) // CLC
-                            `FLAG_OP(8'h38, `FLAGS_C) // SEC
-                            `FLAG_OP(8'h58, `FLAGS_I) // CLI
-                            `FLAG_OP(8'h78, `FLAGS_I) // SEI
-                            `FLAG_OP(8'hB8, `FLAGS_V) // CLV
-                            `FLAG_OP(8'hD8, `FLAGS_D) // CLD
-                            `FLAG_OP(8'hF8, `FLAGS_D) // SED
+                                    `FLAG_OP(8'h18, `FLAGS_C) // CLC
+                                    `FLAG_OP(8'h38, `FLAGS_C) // SEC
+                                    `FLAG_OP(8'h58, `FLAGS_I) // CLI
+                                    `FLAG_OP2(8'h78, `FLAGS_I) // SEI
+                                    `FLAG_OP(8'hB8, `FLAGS_V) // CLV
+                                    `FLAG_OP(8'hD8, `FLAGS_D) // CLD
+                                    `FLAG_OP(8'hF8, `FLAGS_D) // SED
 
-                            `LDY(8'hA0,1)     // LDY #
-//`ADDR_zp_x_ind(8'hA1)       `LDA(8'hA1,0)     // LDA (zp,x)
-                            `LDX(8'hA2,1)     // LDX #
-                            `LDA(8'hA9,1)     // LDA #
+                                    `Txx(8'h8A, `ASEL_DREG `DREG_X `LOAD_A `FLAGS_SBZN)   // TXA
+                                    `Txx(8'h98, `ASEL_DREG `DREG_Y `LOAD_A `FLAGS_SBZN)   // TYA
+                                    `Txx(8'h9A, `ASEL_DREG `DREG_X `SPL_ALU)              // TXS
+                                    `Txx(8'hA8, `ASEL_DREG `DREG_A `LOAD_Y `FLAGS_SBZN)   // TAY
+                                    `Txx(8'hAA, `ASEL_DREG `DREG_A `LOAD_X `FLAGS_SBZN)   // TAX
+                                    `Txx(8'hBA, `ASEL_AREG `AREG_SPL `LOAD_X `FLAGS_SBZN) // TSX
 
-                            `Txx(8'h8A, `ABUS_X,   `ALUY_A,   `FLAGS_SBZN)  // TXA
-                            `Txx(8'h98, `ABUS_Y,   `ALUY_A,   `FLAGS_SBZN)  // TYA
-                            `Txx(8'h9A, `ABUS_X,   `ALUY_SPL, `none)        // TXS
-                            `Txx(8'hA8, `ABUS_A,   `ALUY_Y,   `FLAGS_SBZN)  // TAY
-                            `Txx(8'hAA, `ABUS_A,   `ALUY_X,   `FLAGS_SBZN)  // TAX
-                            `Txx(8'hBA, `ABUS_SPL, `ALUY_X,   `FLAGS_SBZN)  // TSX
+`ADDR_zp_x_ind(8'h01)               `ORA(8'h01,5,|0)        // ORA (zp,x)
+`ADDR_zp(8'h05)                     `ORA(8'h05,3,|0)        // ORA zp
+                                    `ORA(8'h09,2,`PC_INC)   // ORA #
+`ADDR_abs(8'h0D)                    `ORA(8'h0D,4,|0)        // ORA abs
+`ADDR_zp_ind_y(8'h11)               `ORA(8'h11,5,|0)        // ORA (zp),y
+`ADDR_zp_x(8'h15)                   `ORA(8'h15,3,|0)        // ORA zp,x
+`ADDR_abs_y(8'h19)                  `ORA(8'h19,4,|0)        // ORA abs,y
+`ADDR_abs_x(8'h1D)                  `ORA(8'h1D,4,|0)        // ORA abs,x
+
+`ADDR_zp_x_ind(8'h21)               `AND(8'h21,5,|0)        // AND (zp,x)
+`ADDR_zp(8'h25)                     `AND(8'h25,3,|0)        // AND zp
+                                    `AND(8'h29,2,`PC_INC)   // AND #
+`ADDR_abs(8'h2D)                    `AND(8'h2D,4,|0)        // AND abs
+`ADDR_zp_ind_y(8'h31)               `AND(8'h31,5,|0)        // AND (zp),y
+`ADDR_zp_x(8'h35)                   `AND(8'h35,3,|0)        // AND zp,x
+`ADDR_abs_y(8'h39)                  `AND(8'h39,4,|0)        // AND abs,y
+`ADDR_abs_x(8'h3D)                  `AND(8'h3D,4,|0)        // AND abs,x
+
+`ADDR_zp_x_ind(8'h41)               `EOR(8'h41,5,|0)        // EOR (zp,x)
+`ADDR_zp(8'h45)                     `EOR(8'h45,3,|0)        // EOR zp
+                                    `EOR(8'h49,2,`PC_INC)   // EOR #
+`ADDR_abs(8'h4D)                    `EOR(8'h4D,4,|0)        // EOR abs
+`ADDR_zp_ind_y(8'h51)               `EOR(8'h51,5,|0)        // EOR (zp),y
+`ADDR_zp_x(8'h55)                   `EOR(8'h55,3,|0)        // EOR zp,x
+`ADDR_abs_y(8'h59)                  `EOR(8'h59,4,|0)        // EOR abs,y
+`ADDR_abs_x(8'h5D)                  `EOR(8'h5D,4,|0)        // EOR abs,x
+
+`ADDR_zp_x_ind(8'h61)               `ADC(8'h61,5,|0)        // ADC (zp,x)
+`ADDR_zp(8'h65)                     `ADC(8'h65,3,|0)        // ADC zp
+                                    `ADC(8'h69,2,`PC_INC)   // ADC #
+`ADDR_abs(8'h6D)                    `ADC(8'h6D,4,|0)        // ADC abs
+`ADDR_zp_ind_y(8'h71)               `ADC(8'h71,5,|0)        // ADC (zp),y
+`ADDR_zp_x(8'h75)                   `ADC(8'h75,3,|0)        // ADC zp,x
+`ADDR_abs_y(8'h79)                  `ADC(8'h79,4,|0)        // ADC abs,y
+`ADDR_abs_x(8'h7D)                  `ADC(8'h7D,4,|0)        // ADC abs,x
+
+`ADDR_zp_x_ind_w(8'h81,`DREG_DO_A)  `STx(8'h81,5)           // STA (zp,x)
+`ADDR_zp_w(8'h84, `DREG_DO_Y)       `STx(8'h84,3)           // STY zp
+`ADDR_zp_w(8'h85, `DREG_DO_A)       `STx(8'h85,3)           // STA zp
+`ADDR_zp_w(8'h86, `DREG_DO_X)       `STx(8'h86,3)           // STX zp
+`ADDR_abs_w(8'h8C, `DREG_DO_Y)      `STx(8'h8C,4)           // STY abs
+`ADDR_abs_w(8'h8D, `DREG_DO_A)      `STx(8'h8D,4)           // STA abs
+`ADDR_abs_w(8'h8E, `DREG_DO_X)      `STx(8'h8E,4)           // STX abs
+`ADDR_zp_ind_y_w(8'h91, `DREG_DO_A) `STx(8'h91,5)           // STA (zp),y
+`ADDR_zp_x_w(8'h94, `DREG_DO_Y)     `STx(8'h94,3)           // STY zp,x
+`ADDR_zp_x_w(8'h95, `DREG_DO_A)     `STx(8'h95,3)           // STA zp,x
+`ADDR_zp_y_w(8'h96, `DREG_DO_X)     `STx(8'h96,3)           // STX zp,y
+`ADDR_abs_y_w(8'h99, `DREG_DO_A)    `STx(8'h99,4)           // STA abs,y
+`ADDR_abs_x_w(8'h9D, `DREG_DO_A)    `STx(8'h9D,4)           // STA abs,x
+
+                                    `LDY(8'hA0,2,`PC_INC)     // LDY #
+`ADDR_zp_x_ind(8'hA1)               `LDA(8'hA1,5,|0)          // LDA (zp,x)
+                                    `LDX(8'hA2,2,`PC_INC)     // LDX #
+`ADDR_zp(8'hA4)                     `LDY(8'hA4,3,|0)          // LDY zp
+`ADDR_zp(8'hA5)                     `LDA(8'hA5,3,|0)          // LDA zp
+`ADDR_zp(8'hA6)                     `LDX(8'hA6,3,|0)          // LDX zp
+                                    `LDA(8'hA9,2,`PC_INC)     // LDA #
+`ADDR_abs(8'hAC)                    `LDY(8'hAC,4,|0)          // LDY abs
+`ADDR_abs(8'hAD)                    `LDA(8'hAD,4,|0)          // LDA abs
+`ADDR_abs(8'hAE)                    `LDX(8'hAE,4,|0)          // LDX abs
+`ADDR_zp_ind_y(8'hB1)               `LDA(8'hB1,05,|0)         // LDA (zp),y
+`ADDR_zp_x(8'hB4)                   `LDY(8'hB4,3,|0)          // LDY zp,x
+`ADDR_zp_x(8'hB5)                   `LDA(8'hB5,3,|0)          // LDA zp,x
+`ADDR_zp_y(8'hB6)                   `LDX(8'hB6,3,|0)          // LDX zp,y
+`ADDR_abs_x(8'hBC)                  `LDY(8'hBC,4,|0)          // LDY abs,x
+`ADDR_abs_y(8'hB9)                  `LDA(8'hB9,4,|0)          // LDA abs,y
+`ADDR_abs_x(8'hBD)                  `LDA(8'hBD,4,|0)          // LDA abs,x
+`ADDR_abs_y(8'hBE)                  `LDX(8'hBE,4,|0)          // LDA abs,x
+
+                                    `CPY(8'hC0,2,`PC_INC)     // CPY #
+`ADDR_zp_x_ind(8'hC1)               `CMP(8'hC1,5,|0)          // CMP (zp,x)
+`ADDR_zp(8'hC4)                     `CPY(8'hC4,3,|0)          // CPY zp
+`ADDR_zp(8'hC5)                     `CMP(8'hC5,3,|0)          // CMP zp
+                                    `CMP(8'hC9,2,`PC_INC)     // CMP #
+`ADDR_abs(8'hCC)                    `CPY(8'hCC,4,|0)          // CPY abs
+`ADDR_abs(8'hCD)                    `CMP(8'hCD,4,|0)          // CMP abs
+`ADDR_zp_ind_y(8'hD1)               `CMP(8'hD1,5,|0)          // CMP (zp),y
+`ADDR_zp_x(8'hD5)                   `CMP(8'hD5,3,|0)          // CMP zp,x
+`ADDR_abs_y(8'hD9)                  `CMP(8'hD9,4,|0)          // CMP abs,y
+`ADDR_abs_x(8'hDD)                  `CMP(8'hDD,4,|0)          // CMP abs,x
+                                    `CPX(8'hE0,2,`PC_INC)     // CPX #
+`ADDR_zp(8'hE4)                     `CPX(8'hE4,3,|0)          // CPY zp
+`ADDR_abs(8'hEC)                    `CPX(8'hEC,4,|0)          // CPX abs
+
+`ADDR_zp_x_ind(8'hE1)               `SBC(8'hE1,5,|0)          // SBC (zp,x)
+`ADDR_zp(8'hE5)                     `SBC(8'hE5,3,|0)          // SBC zp
+                                    `SBC(8'hE9,2,`PC_INC)     // SBC #
+`ADDR_abs(8'hED)                    `SBC(8'hED,4,|0)          // SBC abs
+`ADDR_zp_ind_y(8'hF1)               `SBC(8'hF1,5,|0)          // SBC (zp),y
+`ADDR_zp_x(8'hF5)                   `SBC(8'hF5,3,|0)          // SBC zp,x
+`ADDR_abs_y(8'hF9)                  `SBC(8'hF9,4,|0)          // SBC abs,y
+`ADDR_abs_x(8'hFD)                  `SBC(8'hFD,4,|0)          // SBC abs,x
+
+`ADDR_zp(8'h24)                     `BIT(8'h24,3,`FLAGS_BIT)  // BIT zp
+`ADDR_abs(8'h2C)                    `BIT(8'h2C,4,`FLAGS_BIT)  // BIT abs
+                                  
+                                    `BPL(8'h10) // BPL
+                                    `BMI(8'h30) // BMI
+                                    `BVC(8'h50) // BVC
+                                    `BVS(8'h70) // BVS
+                                    `BRA(8'h80) // BRA
+                                    `BCC(8'h90) // BCC
+                                    `BCS(8'hB0) // BCS
+                                    `BNE(8'hD0) // BNE
+                                    `BEQ(8'hF0) // BEQ
+                                  
+                                    `DEC_REG(8'h88, `ASEL_DREG `DREG_Y `LOAD_Y) // DEY
+                                    `DEC_REG(8'hCA, `ASEL_DREG `DREG_X `LOAD_X) // DEX
+                                  
+                                    `INC_REG(8'hC8, `ASEL_DREG `DREG_Y `LOAD_Y) // INY
+                                    `INC_REG(8'hE8, `ASEL_DREG `DREG_X `LOAD_X) // INX                                  
+                                  
+                                    `NOP(8'hEA)         // NOP/ENDM
+                                    
+                                    `PUSH(8'h08, `BSEL_P)           // PHP
+                                    `PUSH(8'h48, `ASEL_DREG `DREG_A)           // PHA
+                                    `PUSH(8'hDA, `ASEL_DREG `DREG_X)           // PHX
+                                    `PUSH(8'h5A, `ASEL_DREG `DREG_Y)           // PHY
+                                    
+                                    `PULL(8'h28, `FLAGS_DB)                     // PLP
+                                    `PULL(8'h68, `BSEL_DB `LOAD_A `FLAGS_SBZN)  // PLA
+                                    `PULL(8'hFA, `BSEL_DB `LOAD_X `FLAGS_SBZN)  // PLX
+                                    `PULL(8'h7A, `BSEL_DB `LOAD_Y `FLAGS_SBZN)  // PLY
+                                    
+                                    `JMP(8'h4C)         // JMP abs
+                                    `JMPIND(8'h6C)      // JMP (abs)
+                                    
+                                    `JSR(8'h20)       // JSR
+                                    `RTS(8'h60)       // RTS
+                                    `RTI(8'h40)       // RTI
+                                    
+`ADDR_zp(8'h06)                     `ASL_MEM(8'h06, 3, `AB_ABn)     // ASL zp
+                                    `ASL_A(8'h0A)                   // ASL a
+`ADDR_abs(8'h0E)                    `ASL_MEM(8'h0E, 4, `AB_ABn)     // ASL abs
+`ADDR_zp_x(8'h16)                   `ASL_MEM(8'h16, 3, `AB_ABn)     // ASL zp,x
+`ADDR_abs_x(8'h1E)                  `ASL_MEM(8'h1E, 4, `AB_ABn)     // ASL abs,x
+                                    
+`ADDR_zp(8'h26)                     `ROL_MEM(8'h26, 3, `AB_ABn)     // ROL zp
+                                    `ROL_A(8'h2A)                   // ROL a
+`ADDR_abs(8'h2E)                    `ROL_MEM(8'h2E, 4, `AB_ABn)     // ROL abs
+`ADDR_zp_x(8'h36)                   `ROL_MEM(8'h36, 3, `AB_ABn)     // ROL zp,x
+`ADDR_abs_x(8'h3E)                  `ROL_MEM(8'h3E, 4, `AB_ABn)     // ROL abs,x
+                                    
+`ADDR_zp(8'h46)                     `LSR_MEM(8'h46, 3, `AB_ABn)     // LSR zp
+                                    `LSR_A(8'h4A)                   // LSR a
+`ADDR_abs(8'h4E)                    `LSR_MEM(8'h4E, 4, `AB_ABn)     // LSR abs
+`ADDR_zp_x(8'h56)                   `LSR_MEM(8'h56, 3, `AB_ABn)     // LSR zp,x
+`ADDR_abs_x(8'h5E)                  `LSR_MEM(8'h5E, 4, `AB_ABn)     // LSR abs,x
+                                    
+`ADDR_zp(8'h66)                     `ROR_MEM(8'h66, 3, `AB_ABn)     // ROR zp
+                                    `ROR_A(8'h6A)                   // ROR a
+`ADDR_abs(8'h6E)                    `ROR_MEM(8'h6E, 4, `AB_ABn)     // ROR abs
+`ADDR_zp_x(8'h76)                   `ROR_MEM(8'h76, 3, `AB_ABn)     // ROR zp,x
+`ADDR_abs_x(8'h7E)                  `ROR_MEM(8'h7E, 4, `AB_ABn)     // ROR abs,x
+                                    
+`ADDR_zp(8'hC6)                     `DEC_MEM(8'hC6, 3, `AB_ABn)     // DEC zp
+`ADDR_abs(8'hCE)                    `DEC_MEM(8'hCE, 4, `AB_ABn)     // DEC abs
+`ADDR_zp_x(8'hD6)                   `DEC_MEM(8'hD6, 3, `AB_ABn)     // DEC zp,x
+`ADDR_abs_x(8'hDE)                  `DEC_MEM(8'hDE, 4, `AB_ABn)     // DEC abs,x
+                                    
+`ADDR_zp(8'hE6)                     `INC_MEM(8'hE6, 3, `AB_ABn)     // INC zp
+`ADDR_abs(8'hEE)                    `INC_MEM(8'hEE, 4, `AB_ABn)     // INC abs
+`ADDR_zp_x(8'hF6)                   `INC_MEM(8'hF6, 3, `AB_ABn)     // INC zp,x
+`ADDR_abs_x(8'hFE)                  `INC_MEM(8'hFE, 4, `AB_ABn)     // INC abs,x
 
 `ifdef NOTDEFINED
-                            
-`ADDR_zp_x_ind(8'h01)       `ORA(8'h01,0)     // ORA (zp,x)
-`ADDR_zp(8'h05,`T0)         `ORA(8'h05,0)     // ORA zp
-                            `ORA(8'h09,1)     // ORA #
-`ADDR_abs(8'h0D,`T0)        `ORA(8'h0D,0)     // ORA abs
-`ADDR_zp_ind_y(8'h11)       `ORA(8'h11,0)     // ORA (zp),y
-`ADDR_zp_x(8'h15,`T0)       `ORA(8'h15,0)     // ORA zp,x
-`ADDR_abs_y(8'h19)          `ORA(8'h19,0)     // ORA abs,y
-`ADDR_abs_x(8'h1D,`TNC,`T0) `ORA(8'h1D,0)     // ORA abs,x
-
-`ADDR_zp_x_ind(8'h21)       `AND(8'h21,0)     // AND (zp,x)
-`ADDR_zp(8'h25,`T0)         `AND(8'h25,0)     // AND zp
-                            `AND(8'h29,1)     // AND #
-`ADDR_abs(8'h2D,`T0)        `AND(8'h2D,0)     // AND abs
-`ADDR_zp_ind_y(8'h31)       `AND(8'h31,0)     // AND (zp),y
-`ADDR_zp_x(8'h35,`T0)       `AND(8'h35,0)     // AND zp,x
-`ADDR_abs_y(8'h39)          `AND(8'h39,0)     // AND abs,y
-`ADDR_abs_x(8'h3D,`TNC,`T0) `AND(8'h3D,0)     // AND abs,x
-
-`ADDR_zp(8'h24,`T0)         `BIT(8'h24,`FLAGS_BIT,0)       // BIT zp
-`ADDR_abs(8'h2C,`T0)        `BIT(8'h2C,`FLAGS_BIT,0)       // BIT abs
-
-`ADDR_zp_x_ind(8'h41)       `EOR(8'h41,0)     // EOR (zp,x)
-`ADDR_zp(8'h45,`T0)         `EOR(8'h45,0)     // EOR zp
-                            `EOR(8'h49,1)     // EOR #
-`ADDR_abs(8'h4D,`T0)        `EOR(8'h4D,0)     // EOR abs
-`ADDR_zp_ind_y(8'h51)       `EOR(8'h51,0)     // EOR (zp),y
-`ADDR_zp_x(8'h55,`T0)       `EOR(8'h55,0)     // EOR zp,x
-`ADDR_abs_y(8'h59)          `EOR(8'h59,0)     // EOR abs,y
-`ADDR_abs_x(8'h5D,`TNC,`T0) `EOR(8'h5D,0)     // EOR abs,x
-
-`ADDR_zp_x_ind(8'h61)       `ADC(8'h61,0)     // ADC (zp,x)
-`ADDR_zp(8'h65,`T0)         `ADC(8'h65,0)     // ADC zp
-                            `ADC(8'h69,1)     // ADC #
-`ADDR_abs(8'h6D,`T0)        `ADC(8'h6D,0)     // ADC abs
-`ADDR_zp_ind_y(8'h71)       `ADC(8'h71,0)     // ADC (zp),y
-`ADDR_zp_x(8'h75,`T0)       `ADC(8'h75,0)     // ADC zp,x
-`ADDR_abs_y(8'h79)          `ADC(8'h79,0)     // ADC abs,y
-`ADDR_abs_x(8'h7D,`TNC,`T0) `ADC(8'h7D,0)     // ADC abs,x
-
-`ADDR_zp_x_ind_w(8'h81,`DB_SB, `SB_A)         `STx(8'h81)       // STA (zp,x)
-`ADDR_zp_w(8'h84,`T0, `DB_SB, `SB_Y)          `STx(8'h84)       // STY zp
-`ADDR_zp_w(8'h85,`T0, `DB_SB, `SB_A)          `STx(8'h85)       // STA zp
-`ADDR_zp_w(8'h86,`T0, `DB_SB, `SB_X)          `STx(8'h86)       // STX zp
-`ADDR_abs_w(8'h8C,`T0, `DB_SB, `SB_Y)         `STx(8'h8C)       // STY abs
-`ADDR_abs_w(8'h8D,`T0, `DB_SB, `SB_A)         `STx(8'h8D)       // STA abs
-`ADDR_abs_w(8'h8E,`T0, `DB_SB, `SB_X)         `STx(8'h8E)       // STX abs
-`ADDR_zp_ind_y_w(8'h91, `DB_SB, `SB_A)        `STx(8'h91)       // STA (zp),y
-`ADDR_zp_x_w(8'h94,`T0, `DB_SB, `SB_Y)        `STx(8'h94)       // STY zp,x
-`ADDR_zp_x_w(8'h95,`T0, `DB_SB, `SB_A)        `STx(8'h95)       // STA zp,x
-`ADDR_zp_y_w(8'h96, `DB_SB, `SB_X)            `STx(8'h96)       // STX zp,y
-`ADDR_abs_y_w(8'h99, `DB_SB, `SB_A)           `STx(8'h99)       // STA abs,y
-`ADDR_abs_x_w(8'h9D,`TNC,`T0, `DB_SB, `SB_A)  `STx(8'h9D)       // STA abs,x
-
-                            `LDY(8'hA0,1)     // LDY #
-`ADDR_zp_x_ind(8'hA1)       `LDA(8'hA1,0)     // LDA (zp,x)
-                            `LDX(8'hA2,1)     // LDX #
-                            `LDA(8'hA9,1)     // LDA #
-`ADDR_zp(8'hA4,`T0)         `LDY(8'hA4,0)     // LDY zp
-`ADDR_zp(8'hA5,`T0)         `LDA(8'hA5,0)     // LDA zp
-`ADDR_zp(8'hA6,`T0)         `LDX(8'hA6,0)     // LDX zp
-`ADDR_abs(8'hAC,`T0)        `LDY(8'hAC,0)     // LDY abs
-`ADDR_abs(8'hAD,`T0)        `LDA(8'hAD,0)     // LDA abs
-`ADDR_abs(8'hAE,`T0)        `LDX(8'hAE,0)     // LDX abs
-`ADDR_zp_ind_y(8'hB1)       `LDA(8'hB1,0)     // LDA (zp),y
-`ADDR_zp_x(8'hB4,`T0)       `LDY(8'hB4,0)     // LDY zp,x
-`ADDR_zp_x(8'hB5,`T0)       `LDA(8'hB5,0)     // LDA zp,x
-`ADDR_zp_y(8'hB6)           `LDX(8'hB6,0)     // LDX zp,y
-`ADDR_abs_y(8'hB9)          `LDA(8'hB9,0)     // LDA abs,y
-`ADDR_abs_x(8'hBC,`TNC,`T0) `LDY(8'hBC,0)     // LDY abs,x
-`ADDR_abs_x(8'hBD,`TNC,`T0) `LDA(8'hBD,0)     // LDA abs,x
-`ADDR_abs_y(8'hBE)          `LDX(8'hBE,0)     // LDX abs,y
-
-                            `CPY(8'hC0,1)     // CPY #
-`ADDR_zp_x_ind(8'hC1)       `CMP(8'hC1,0)     // CMP (zp,x)
-`ADDR_zp(8'hC4,`T0)         `CPY(8'hC4,0)     // CPY zp
-`ADDR_zp(8'hC5,`T0)         `CMP(8'hC5,0)     // CMP zp
-                            `CMP(8'hC9,1)     // CMP #
-`ADDR_abs(8'hCC,`T0)        `CPY(8'hCC,0)     // CPY abs
-`ADDR_abs(8'hCD,`T0)        `CMP(8'hCD,0)     // CMP abs
-`ADDR_zp_ind_y(8'hD1)       `CMP(8'hD1,0)     // CMP (zp),y
-`ADDR_zp_x(8'hD5,`T0)       `CMP(8'hD5,0)     // CMP zp,x
-`ADDR_abs_y(8'hD9)          `CMP(8'hD9,0)     // CMP abs,y
-`ADDR_abs_x(8'hDD,`TNC,`T0) `CMP(8'hDD,0)     // CMP abs,x
-                            `CPX(8'hE0,1)     // CPX #
-`ADDR_zp(8'hE4,`T0)         `CPX(8'hE4,0)     // CPY zp
-`ADDR_abs(8'hEC,`T0)        `CPX(8'hEC,0)     // CPX abs
-
-`ADDR_zp_x_ind(8'hE1)       `SBC(8'hE1,0)     // SBC (zp,x)
-`ADDR_zp(8'hE5,`T0)         `SBC(8'hE5,0)     // SBC zp
-                            `SBC(8'hE9,1)     // SBC #
-`ADDR_abs(8'hED,`T0)        `SBC(8'hED,0)     // SBC abs
-`ADDR_zp_ind_y(8'hF1)       `SBC(8'hF1,0)     // SBC (zp),y
-`ADDR_zp_x(8'hF5,`T0)       `SBC(8'hF5,0)     // SBC zp,x
-`ADDR_abs_y(8'hF9)          `SBC(8'hF9,0)     // SBC abs,y
-`ADDR_abs_x(8'hFD,`TNC,`T0) `SBC(8'hFD,0)     // SBC abs,x
-
-                            `BRA(8'h10,`TBR) // BPL
-                            `BRA(8'h30,`TBR) // BMI
-                            `BRA(8'h50,`TBR) // BVC
-                            `BRA(8'h70,`TBR) // BVS
-                            `BRA(8'h90,`TBR) // BCC
-                            `BRA(8'hB0,`TBR) // BCS
-                            `BRA(8'hD0,`TBR) // BNE
-                            `BRA(8'hF0,`TBR) // BEQ
-
-`ADDR_zp(8'h06,`Tn)         `ASL_MEM(8'h06, 3, 4)     // ASL zp
-                            `ASL_A(8'h0A)             // ASL a
-`ADDR_abs(8'h0E,`Tn)        `ASL_MEM(8'h0E, 4, 5)     // ASL abs
-`ADDR_zp_x(8'h16,`Tn)       `ASL_MEM(8'h16, 4, 5)     // ASL zp,x
-`ADDR_abs_x(8'h1E,`Tn,`Tn)  `ASL_MEM(8'h1E, 5, 6)     // ASL abs,x
-
-`ADDR_zp(8'h26,`Tn)         `ROL_MEM(8'h26, 3, 4)     // ROL zp
-                            `ROL_A(8'h2A)             // ROL a
-`ADDR_abs(8'h2E,`Tn)        `ROL_MEM(8'h2E, 4, 5)     // ROL abs
-`ADDR_zp_x(8'h36,`Tn)       `ROL_MEM(8'h36, 4, 5)     // ROL zp,x
-`ADDR_abs_x(8'h3E,`Tn,`Tn)  `ROL_MEM(8'h3E, 5, 6)     // ROL abs,x
-
-`ADDR_zp(8'h46,`Tn)         `LSR_MEM(8'h46, 3, 4)     // LSR zp
-                            `LSR_A(8'h4A)             // LSR a
-`ADDR_abs(8'h4E,`Tn)        `LSR_MEM(8'h4E, 4, 5)     // LSR abs
-`ADDR_zp_x(8'h56,`Tn)       `LSR_MEM(8'h56, 4, 5)     // LSR zp,x
-`ADDR_abs_x(8'h5E,`Tn,`Tn)  `LSR_MEM(8'h5E, 5, 6)     // LSR abs,x
-
-`ADDR_zp(8'h66,`Tn)         `ROR_MEM(8'h66, 3, 4)     // ROR zp
-                            `ROR_A(8'h6A)             // ROR a
-`ADDR_abs(8'h6E,`Tn)        `ROR_MEM(8'h6E, 4, 5)     // ROR abs
-`ADDR_zp_x(8'h76,`Tn)       `ROR_MEM(8'h76, 4, 5)     // ROR zp,x
-`ADDR_abs_x(8'h7E,`Tn,`Tn)  `ROR_MEM(8'h7E, 5, 6)     // ROR abs,x
-
-                            `DEC_REG(8'h88, `SB_Y, `LOAD_Y) // DEY
-                            `DEC_REG(8'hCA, `SB_X, `LOAD_X) // DEX
-                            `INC_REG(8'hC8, `SB_Y, `LOAD_Y) // INY
-                            `INC_REG(8'hE8, `SB_X, `LOAD_X) // INX
-
-`ADDR_zp(8'hC6,`Tn)         `DEC_MEM(8'hC6, 3, 4)     // DEC zp
-`ADDR_abs(8'hCE,`Tn)        `DEC_MEM(8'hCE, 4, 5)     // DEC abs
-`ADDR_zp_x(8'hD6,`Tn)       `DEC_MEM(8'hD6, 4, 5)     // DEC zp,x
-`ADDR_abs_x(8'hDE,`Tn,`Tn)  `DEC_MEM(8'hDE, 5, 6)     // DEC abs,x
-
-`ADDR_zp(8'hE6,`Tn)         `INC_MEM(8'hE6, 3, 4)     // INC zp
-`ADDR_abs(8'hEE,`Tn)        `INC_MEM(8'hEE, 4, 5)     // INC abs
-`ADDR_zp_x(8'hF6,`Tn)       `INC_MEM(8'hF6, 4, 5)     // INC zp,x
-`ADDR_abs_x(8'hFE,`Tn,`Tn)  `INC_MEM(8'hFE, 5, 6)     // INC abs,x
-
-                            `PUSH(8'h08, `DB_P, `SB_FF)           // PHP
-                            `PUSH(8'h48, `DB_A, `SB_FF)           // PHA
-                            `PULL(8'h28, `none,   `FLAGS_DB)    // PLP
-                            `PULL(8'h68, `LOAD_A, `FLAGS_SBZN)  // PLA
-
-                            `JSR(8'h20)       // JSR
-                            `RTS(8'h60)       // RTS
-                            `RTI(8'h40)       // RTI
-                            `JMP(8'h4C, 2)    // JMP abs
-`ADDR_jmp_abs(8'h6C)        `JMP(8'h6C, 4)    // JMP (abs)
-
-                            `NOP1_2(8'hEA)      // NOP
 
                             // "Standard" CMOS Extensions
 `ifdef CMOS
-                            `BRA(8'h80,`Tn)  // BRA
-
-                            `PUSH(8'hDA, `DB_SB, `SB_X)           // PHX
-                            `PUSH(8'h5A, `DB_SB, `SB_Y)           // PHY
-                            `PULL(8'hFA, `LOAD_X, `FLAGS_SBZN)    // PLX
-                            `PULL(8'h7A, `LOAD_Y, `FLAGS_SBZN)    // PLY
                             
 `ADDR_jmp_abs_x(8'h7C)      `JMP(8'h7C, 5)    // JMP (abs,x)
                             
@@ -354,27 +363,51 @@ end
 end
 
 // microcode outputs wired to specific bits
-assign tnext   = mc_out[`TNEXT_BITS];
-assign ab_sel  = mc_out[`AB_BITS];
-assign abh_sel = mc_out[`ABH_BITS];
-assign ab_incdec = mc_out[`AB_INCDEC_BITS];
-assign sp_incdec = mc_out[`SP_INCDEC_BITS];
-assign pcl_adl = mc_out[`PCL_ADL_BITS];
-assign alu_sel = mc_out[`ALU_BITS];
-assign alu_a = mc_out[`ALU_A_BITS];
-assign abus  = mc_out[`ABUS_BITS];
-assign alu_b = mc_out[`ALU_B_BITS];
-assign alu_c = mc_out[`ALU_C_BITS];
-assign load_reg = mc_out[`LOAD_ALUY_BITS];
+assign mc_sync   = mc_out[`SYNC_BITS];
+assign alua_sel  = mc_out[`ASEL_BITS];
+assign alub_sel  = mc_out[`BSEL_BITS];
+assign aluc_sel  = mc_out[`CSEL_BITS];
+assign dreg      = mc_out[`DREG_BITS];
+assign dreg_do   = mc_out[`DREG_DO_BITS];
+assign areg      = mc_out[`AREG_BITS];
+assign alu_sel   = mc_out[`ALU_BITS];
+assign dbo_sel   = mc_out[`DBO_BITS];
+assign ab_sel    = mc_out[`AB_BITS];
+assign pc_inc    = mc_out[`PC_INC_BITS];
+assign pch_sel   = mc_out[`PCH_BITS];
+assign pcl_sel   = mc_out[`PCL_BITS];
+assign sp_incdec = mc_out[`SP_CNT_BITS];
+assign sph_sel   = mc_out[`SPH_SEL_BITS];
+assign spl_sel   = mc_out[`SPL_SEL_BITS];
+assign ab_inc    = mc_out[`AB_INC_BITS];
+assign abh_sel   = mc_out[`ABH_SEL_BITS];
+assign abl_sel   = mc_out[`ABL_SEL_BITS];
+assign adh_sel   = mc_out[`ADH_SEL_BITS];
+assign adl_sel   = mc_out[`ADL_SEL_BITS];
+assign load_reg  = mc_out[`LOAD_REG_BITS];
 assign load_flags = mc_out[`LOAD_FLAGS_BITS];
-assign write = mc_out[`WRITE_BITS];
-assign pc_inc = mc_out[`PC_INC_BITS];
+assign word_z     = mc_out[`WORD_Z_BITS];
+assign write      = mc_out[`WRITE_BITS];
+assign test_flags = mc_out[`TEST_FLAGS_BITS];
+assign test_flag0 = mc_out[`TEST_FLAG0_BITS];
 
 always @(posedge clk)
 begin
+  //$display("mc[%02x|%d] sync: %01d alu: %03b bits: %051b",ir,t,mc[{ir, t}][`SYNC_BITS],mc[{ir, t}][`ALU_BITS],mc[{ir, t}]);
   if(ready)
+  begin
     mc_out <= mc[{ir, t}];
-  $display("mc[%02x|%d] tn: %04x  alu: %d",ir,t,mc[{ir, t}][`TNEXT_BITS],alu_sel);
+    if(mc[{ir, t}][`LOAD_REG_BITS] == `kLOAD_KILL)
+    begin
+      $display("unimplemented microcode insn: %02x cycle: %d",ir,t);
+      $finish;
+    end
+  end
+//  if(write == 1)
+//  begin
+//      $display("mc write!");
+//        $finish;
+//  end
 end
 
 endmodule

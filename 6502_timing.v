@@ -6,11 +6,11 @@
 `endif
 `define NMI_BUG_FIX 1
 
-`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, tnext_mc, sync, onecycle);
+`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
 input clk;
 input reset;
 input ready;
-input [2:0] tnext_mc;
+input mc_sync;
 output sync;
 input onecycle;
 output [2:0] t;
@@ -34,10 +34,10 @@ assign sync = (t == 1);
 
 always @(posedge clk)
 begin
-  if(reset)       t <= T2; // TODO -
+  if(reset)       t <= T2;
   else if(ready) begin
     t <= t_next;
-    $display("T: %d t_next: %d sync: %d",t,t_next,sync);
+    //$display("T: %d t_next: %d sync: %d",t,t_next,sync);
   end
 end
 
@@ -46,12 +46,20 @@ begin
   t_next = t+1;
   if(onecycle)
     t_next = T1;
-  if(tnext_mc == `T1)
+  if(mc_sync)
     t_next = T1;
+
+  //$display("Tn: %d t_next: %d mc_sync: %d onecycle: %d",t,t_next,mc_sync,onecycle);
+  
   // synthesis translate_off
-  else if(t != 1 && tnext_mc == `TKL)
+  //if(t == 7 && !mc_sync)
+  //begin
+  //  $display("Ran off end of microcode");
+  //  $finish;
+  //end
+  if(t == 0)
   begin
-    $display("Microcode KIL encountered");
+    $display("Jumped to T0!");
     $finish;
   end
   // synthesis translate_on
@@ -80,18 +88,17 @@ begin
 
   default:      onecycle = 0;
   endcase
-  $display("onecycle: %02x %d %d",ir_next,onecycle,active);
+  //$display("onecycle: %02x %d %d",ir_next,onecycle,active);
 end
 
 endmodule
 
-`SCHEM_KEEP_HIER module interrupt_control(clk, reset, irq, nmi, t, tnext_mc, reg_p, load_i, intg, nmig, resp, vector_lo);
+`SCHEM_KEEP_HIER module interrupt_control(clk, reset, irq, nmi, t, reg_p, load_i, intg, nmig, resp, vector_lo);
 input clk;
 input reset;
 input irq;
 input nmi;
 input [2:0] t;
-input [2:0] tnext_mc;
 input [7:0] reg_p;
 
 input load_i;
@@ -110,9 +117,9 @@ reg intg;
 always @(posedge clk)
 begin
   if(reset)
-    resp = 1;
-  else if(t == 0)
-    resp = 0;
+    resp <= 1;
+  else if(load_i)
+    resp <= 0;
 end
 
 // INT is always the last read value of the interrupt status
@@ -133,9 +140,9 @@ begin
     nmig <= 1;
   nmil <= nmi;    // remember current state
   
-  if(reset || (tnext_mc == `T1))
+  if(reset || (t == 2))
   begin
-    if((intp & ~reg_p[`PF_I]) | nmig | reset)
+    if((intp & ~reg_p[`kPF_I]) | nmig | reset)
       intg <= 1;
   end
   // internal pending interrupt is always cleared at the same time we set interrupt mask.
@@ -161,20 +168,37 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module branch_control(reg_p, ir, taken_branch);
+`SCHEM_KEEP_HIER module cond_control(reg_p, dld_z, test_flags, test_bit, cond_met);
 input [7:0] reg_p;
-input [7:5] ir;
-output reg taken_branch;
+input [4:0] test_flags;
+input test_bit;
+input dld_z;
+output reg cond_met;
+
+wire no_flag;
+
+assign no_flag = ~|test_flags;
 
 always @(*)
 begin
-  taken_branch = 0;
-	case({ir[7],ir[6]}) // synthesis full_case parallel_case
-		2'b00: taken_branch = (reg_p[`PF_N] == ir[5]);
-		2'b01: taken_branch = (reg_p[`PF_V] == ir[5]);
-		2'b10: taken_branch = (reg_p[`PF_C] == ir[5]);
-		2'b11: taken_branch = (reg_p[`PF_Z] == ir[5]);
-	endcase
+  cond_met = ~(~test_bit ^ (no_flag | 
+                          (test_flags[`kF_Z] & reg_p[`kPF_Z]) |
+                          (test_flags[`kF_V] & reg_p[`kPF_V]) |
+                          (test_flags[`kF_C] & reg_p[`kPF_C]) |
+                          (test_flags[`kF_N] & reg_p[`kPF_N])));
+`ifdef NOTDEF
+  $display("cond_met: %d  bit: %d no_flag: %d z: %d:%d v: %d:%d c: %d:%d n: %d:%d  x: %d",
+    cond_met,test_bit,no_flag,
+    test_flags[`kF_Z],reg_p[`kPF_Z],
+    test_flags[`kF_V],reg_p[`kPF_V],
+    test_flags[`kF_C],reg_p[`kPF_C],
+    test_flags[`kF_N],reg_p[`kPF_N],
+    (no_flag | 
+                              (test_flags[`kF_Z] & reg_p[`kPF_Z]) |
+                              (test_flags[`kF_V] & reg_p[`kPF_V]) |
+                              (test_flags[`kF_C] & reg_p[`kPF_C]) |
+                              (test_flags[`kF_N] & reg_p[`kPF_N])));
+`endif
 end
 
 endmodule

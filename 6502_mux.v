@@ -1,5 +1,21 @@
 `include "6502_inc.vh"
 
+`SCHEM_KEEP_HIER module dbo_mux(input [1:0] dbo_sel, input [7:0] data_i, input [7:0] dreg_bus, input [7:0] alu_out, input [7:0] pc_next,
+                                output reg [7:0] data_o_next);
+
+always @(*)
+begin
+  case(dbo_sel)  // synthesis full_case parallel_case
+    `kDBO_ALU   : data_o_next = alu_out;
+    `kDBO_DREG  : data_o_next = dreg_bus;
+    `kDBO_DI    : data_o_next = data_i;
+    `kDBO_PCHn  : data_o_next = pc_next;
+  endcase
+end
+
+endmodule
+
+// This is poorly named as a mux since there's also an output register in here now.
 `SCHEM_KEEP_HIER module addrbus_mux(input clk, input ready, input [1:0] ab_sel, 
                                     input [15:0] ad, input [15:0] ab, input [15:0] sp, input [15:0] pc, 
                                     output reg [15:0] abus_next, output reg [15:0] abus);
@@ -9,10 +25,10 @@ reg [15:0] tmp;
 always @(*)
 begin
   case(ab_sel)  // synthesis full_case parallel_case
-    `AB_PC  : tmp = pc;
-    `AB_AB  : tmp = ab;
-    `AB_AD  : tmp = ad;
-    `AB_S   : tmp = sp;
+    `kAB_PCn  : tmp = pc;
+    `kAB_ABn  : tmp = ab;
+    `kAB_ADn  : tmp = ad;
+    `kAB_SPn  : tmp = sp;
   endcase
 end
 
@@ -35,43 +51,40 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module aluabus_mux(aluabus_sel, reg_a, reg_x, reg_y, reg_z, reg_p, reg_b, reg_pch, reg_sph, reg_pcl, reg_spl, aluabus);
-input [3:0] aluabus_sel;
-input [7:0] reg_a;
-input [7:0] reg_x;
-input [7:0] reg_y;
-input [7:0] reg_z;
-input [7:0] reg_p;
-input [7:0] reg_b;
-input [7:0] reg_sph;
-input [7:0] reg_pch;
-input [7:0] reg_spl;
-input [7:0] reg_pcl;
-
-output reg [7:0] aluabus;
+`SCHEM_KEEP_HIER module dreg_mux(input [1:0] dreg, input [7:0] reg_a, input [7:0] reg_x, input [7:0] reg_y, input [7:0] reg_z, output reg [7:0] dreg_bus);
 
 always @(*)
 begin
-  case(aluabus_sel)  // synthesis full_case parallel_case
-    `ABUS_0   : aluabus = 8'h00;
-    `ABUS_A   : aluabus = reg_a;
-    `ABUS_X   : aluabus = reg_x;
-    `ABUS_Y   : aluabus = reg_y;
-    `ABUS_Z   : aluabus = reg_z;
-    `ABUS_P   : aluabus = reg_p;
-    `ABUS_B   : aluabus = reg_b;
-    `ABUS_PCH : aluabus = reg_pch;
-    `ABUS_SPH : aluabus = reg_sph;
-    `ABUS_PCL : aluabus = reg_pcl;
-    `ABUS_SPL : aluabus = reg_spl;
+  case(dreg)  // synthesis full_case parallel_case
+    `kDREG_A   : dreg_bus = reg_a;
+    `kDREG_X   : dreg_bus = reg_x;
+    `kDREG_Y   : dreg_bus = reg_y;
+    `kDREG_Z   : dreg_bus = reg_z;
   endcase
   //$display("aluabus: %02x",aluabus);
 end
 
 endmodule
 
-`SCHEM_KEEP_HIER module alua_mux(input [1:0] alua_sel, 
-                                 input [7:0] alua_reg,
+`SCHEM_KEEP_HIER module areg_mux(input [1:0] areg, input [7:0] pch, input [7:0] sph, input [7:0] pcl, input [7:0] spl, output reg [7:0] areg_bus);
+
+always @(*)
+begin
+  case(areg)  // synthesis full_case parallel_case
+    `kAREG_PCH   : areg_bus = pch;
+    `kAREG_SPH   : areg_bus = sph;
+    `kAREG_PCL   : areg_bus = pcl;
+    `kAREG_SPL   : areg_bus = spl;
+  endcase
+  //$display("aluabus: %02x",aluabus);
+end
+
+endmodule
+
+`SCHEM_KEEP_HIER module alua_mux(input [2:0] alua_sel, 
+                                 input [7:0] areg_bus,
+                                 input [7:0] dreg_bus,
+                                 input [7:0] db,
                                  input [7:0] vector_lo,
                                  output reg [7:0] alua);
    
@@ -79,9 +92,14 @@ endmodule
 always @(*)
 begin
   case(alua_sel)  // synthesis full_case parallel_case
-    `ALUA_REG  : alua = alua_reg;
-    `ALUA_NREG : alua = ~alua_reg;
-    `ALUA_VEC  : alua = vector_lo;
+    `kASEL_0      : alua = 8'h00;
+    `kASEL_AREG   : alua = areg_bus;
+    `kASEL_DREG   : alua = dreg_bus;
+    `kASEL_VEC    : alua = vector_lo;
+    `kASEL_FF     : alua = 8'hff;
+    `kASEL_DB     : alua = db;
+    `kASEL_NDREG  : alua = ~dreg_bus;
+    `kASEL_NVEC   : alua = ~vector_lo;
   endcase
   //$display("alua_sel: %d result: %02x reg: %02x nreg: %02x vec: %02x",alua_sel,alua,alua_reg,~alua_reg,vector_lo);
 end
@@ -109,6 +127,8 @@ endmodule
 
 `SCHEM_KEEP_HIER module alub_mux(input [2:0] alub_sel, 
                                  input [7:0] db, 
+                                 input [7:0] reg_p,
+                                 input [7:0] reg_b,
                                  input [2:0] bit_index, 
                                  output [7:0] alub);
 
@@ -121,14 +141,16 @@ endmodule
 always @(*)
 begin
   case(alub_sel)  // synthesis full_case parallel_case
-    `ALUB_0    : alub = 8'h00;
-    `ALUB_DB   : alub = db;
-    `ALUB_BIT  : alub = bit;
-    `ALUB_FF   : alub = 8'hFF;
-    `ALUB_NDB  : alub = ~db;
-    `ALUB_NBIT : alub = ~bit;
+    `kBSEL_0    : alub = 8'h00;
+    `kBSEL_DB   : alub = db;
+    `kBSEL_BIT  : alub = bit;
+    `kBSEL_B    : alub = reg_b;
+    `kBSEL_FF   : alub = 8'hFF;
+    `kBSEL_NDB  : alub = ~db;
+    `kBSEL_NBIT : alub = ~bit;
+    `kBSEL_P    : alub = reg_p;
   endcase
-  $display("alub: %02x",alub);
+  //$display("alub: %02x sel = %d",alub,alub_sel);
 end
 
 endmodule
@@ -142,10 +164,10 @@ endmodule
 always @(*)
 begin
   case(aluc_sel)  // synthesis full_case parallel_case
-    `ALUC_0 : aluc = 0;
-    `ALUC_1 : aluc = 1;
-    `ALUC_P : aluc = carry;
-    `ALUC_A : aluc = last_carry;
+    `kCSEL_0 : aluc = 0;
+    `kCSEL_1 : aluc = 1;
+    `kCSEL_P : aluc = carry;
+    `kCSEL_D : aluc = last_carry;
   endcase
 end
 
@@ -169,7 +191,7 @@ begin
   end
   else
     ir_next = ir;
-  $display("ir_next: %02x sync: %d",ir_next,sync);
+  //$display("ir_next: %02x sync: %d",ir_next,sync);
 end
 
 endmodule
@@ -179,43 +201,37 @@ endmodule
 `SCHEM_KEEP_HIER module flags_decode(input [3:0] load_flags, output reg [15:0] load_flags_decode);
 always @(*)
 case (load_flags)   // synthesis full_case parallel_case
-  `none       : load_flags_decode = 0;
-  `FLAGS_DB   : load_flags_decode = (`LM_C_DB0 | `LM_Z_DB1 | `LM_I_DB2 | `LM_D_DB3 | `LM_V_DB6 | `LM_N_DB7);
-  `FLAGS_SBZN : load_flags_decode = (`LM_Z_SBZ | `LM_N_SBN);
-  `FLAGS_D    : load_flags_decode = (`LM_D_IR5);
-  `FLAGS_I    : load_flags_decode = (`LM_I_IR5);
-  `FLAGS_C    : load_flags_decode = (`LM_C_IR5);
-  `FLAGS_V    : load_flags_decode = (`LM_V_0);
-  `FLAGS_Z    : load_flags_decode = (`LM_Z_SBZ);
-  `FLAGS_CNZ  : load_flags_decode = (`LM_C_ACR | `LM_Z_SBZ | `LM_N_SBN);
-  `FLAGS_ALU  : load_flags_decode = (`LM_C_ACR | `LM_V_AVR | `LM_Z_SBZ | `LM_N_SBN);
-  `FLAGS_BIT  : load_flags_decode = (`LM_V_DB6 | `LM_N_DB7);
-  `FLAGS_SETI : load_flags_decode = (`LM_I_1|`LM_D_IR5);     // Clear D flag too
-  `FLAGS_E    : load_flags_decode = (`LM_E_IR0);
+  `kFLAGS_DB   : load_flags_decode = (`LM_C_DB0 | `LM_Z_DB1 | `LM_I_DB2 | `LM_D_DB3 | `LM_V_DB6 | `LM_N_DB7);
+  `kFLAGS_SBZN : load_flags_decode = (`LM_Z_SBZ | `LM_N_SBN);
+  `kFLAGS_D    : load_flags_decode = (`LM_D_IR5);
+  `kFLAGS_I    : load_flags_decode = (`LM_I_IR5);
+  `kFLAGS_C    : load_flags_decode = (`LM_C_IR5);
+  `kFLAGS_V    : load_flags_decode = (`LM_V_0);
+  `kFLAGS_Z    : load_flags_decode = (`LM_Z_SBZ);
+  `kFLAGS_CNZ  : load_flags_decode = (`LM_C_ACR | `LM_Z_SBZ | `LM_N_SBN);
+  `kFLAGS_ALU  : load_flags_decode = (`LM_C_ACR | `LM_V_AVR | `LM_Z_SBZ | `LM_N_SBN);
+  `kFLAGS_BIT  : load_flags_decode = (`LM_V_DB6 | `LM_N_DB7);
+  `kFLAGS_SETI : load_flags_decode = (`LM_I_1|`LM_D_IR5);     // Clear D flag too
+  `kFLAGS_E    : load_flags_decode = (`LM_E_IR0);
+  default      : load_flags_decode = 0;
 endcase
 
 endmodule
 
-`SCHEM_KEEP_HIER module reg_decode(input [3:0] load_reg, output reg [13:0] load_reg_decode);
+`SCHEM_KEEP_HIER module reg_decode(input [2:0] load_reg, output reg [4:0] load_reg_decode);
 
 always @(*)
+begin
 case (load_reg) // synthesis full_case parallel_case
-  `none       : load_reg_decode = 0;
-  `ALUY_A     : load_reg_decode = `LOAD_A;
-  `ALUY_X     : load_reg_decode = `LOAD_X;
-  `ALUY_Y     : load_reg_decode = `LOAD_Y;
-  `ALUY_Z     : load_reg_decode = `LOAD_Z;
-  `ALUY_P     : load_reg_decode = `LOAD_P;
-  `ALUY_B     : load_reg_decode = `LOAD_B;
-  `ALUY_ABH   : load_reg_decode = `LOAD_ABH;
-  `ALUY_ADH   : load_reg_decode = `LOAD_ADH;
-  `ALUY_PCH   : load_reg_decode = `LOAD_PCH;
-  `ALUY_SPH   : load_reg_decode = `LOAD_SPH;
-  `ALUY_ABL   : load_reg_decode = `LOAD_ABL;
-  `ALUY_ADL   : load_reg_decode = `LOAD_ADL;
-  `ALUY_PCL   : load_reg_decode = `LOAD_PCL;
-  `ALUY_SPL   : load_reg_decode = `LOAD_SPL;  
+  `kLOAD_A    : load_reg_decode = `LR_A;
+  `kLOAD_X    : load_reg_decode = `LR_X;
+  `kLOAD_Y    : load_reg_decode = `LR_Y;
+  `kLOAD_Z    : load_reg_decode = `LR_Z;
+  `kLOAD_B    : load_reg_decode = `LR_B;
+  default     : load_reg_decode = 0;
 endcase
+//$display("load_reg: %02x decode: %016b",load_reg,load_reg_decode);
+end
 
 endmodule
   
