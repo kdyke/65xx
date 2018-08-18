@@ -185,19 +185,22 @@ begin
                           (test_flags[`kF_Z] & reg_p[`kPF_Z]) |
                           (test_flags[`kF_V] & reg_p[`kPF_V]) |
                           (test_flags[`kF_C] & reg_p[`kPF_C]) |
-                          (test_flags[`kF_N] & reg_p[`kPF_N])));
+                          (test_flags[`kF_N] & reg_p[`kPF_N]) |
+                          (test_flags[`kF_B] & dld_z)));
 `ifdef NOTDEF
-  $display("cond_met: %d  bit: %d no_flag: %d z: %d:%d v: %d:%d c: %d:%d n: %d:%d  x: %d",
+  $display("cond_met: %d  bit: %d no_flag: %d z: %d:%d v: %d:%d c: %d:%d n: %d:%d b: %d:%d x: %d",
     cond_met,test_bit,no_flag,
     test_flags[`kF_Z],reg_p[`kPF_Z],
     test_flags[`kF_V],reg_p[`kPF_V],
     test_flags[`kF_C],reg_p[`kPF_C],
     test_flags[`kF_N],reg_p[`kPF_N],
+    test_flags[`kF_B],dld_z,
     (no_flag | 
                               (test_flags[`kF_Z] & reg_p[`kPF_Z]) |
                               (test_flags[`kF_V] & reg_p[`kPF_V]) |
                               (test_flags[`kF_C] & reg_p[`kPF_C]) |
-                              (test_flags[`kF_N] & reg_p[`kPF_N])));
+                              (test_flags[`kF_N] & reg_p[`kPF_N]) |
+                              (test_flags[`kF_B] & dld_z)));
 `endif
 end
 

@@ -99,43 +99,54 @@ begin
     `kASEL_FF     : alua = 8'hff;
     `kASEL_DB     : alua = db;
     `kASEL_NDREG  : alua = ~dreg_bus;
-    `kASEL_NVEC   : alua = ~vector_lo;
+    `kASEL_NDB    : alua = ~db;
   endcase
   //$display("alua_sel: %d result: %02x reg: %02x nreg: %02x vec: %02x",alua_sel,alua,alua_reg,~alua_reg,vector_lo);
 end
 
 endmodule
 
-`SCHEM_KEEP_HIER module decoder3to8(index, outbits);
+`SCHEM_KEEP_HIER module decoder3to8(index, inv, outbits);
 input [2:0] index;
+input inv;
 output reg [7:0] outbits;
 
 always @(*)
 begin
-  case(index)
-    0 : outbits = 8'b00000001;
-    1 : outbits = 8'b00000010;
-    2 : outbits = 8'b00000100;
-    3 : outbits = 8'b00001000;
-    4 : outbits = 8'b00010000;
-    5 : outbits = 8'b00100000;
-    6 : outbits = 8'b01000000;
-    7 : outbits = 8'b10000000;
+  case({inv,index})
+    0  : outbits = 8'b00000001;
+    1  : outbits = 8'b00000010;
+    2  : outbits = 8'b00000100;
+    3  : outbits = 8'b00001000;
+    4  : outbits = 8'b00010000;
+    5  : outbits = 8'b00100000;
+    6  : outbits = 8'b01000000;
+    7  : outbits = 8'b10000000;
+    8  : outbits = 8'b11111110;
+    9  : outbits = 8'b11111101;
+    10 : outbits = 8'b11111011;
+    11 : outbits = 8'b11110111;
+    12 : outbits = 8'b11101111;
+    13 : outbits = 8'b11011111;
+    14 : outbits = 8'b10111111;
+    15 : outbits = 8'b01111111;
   endcase
 end
 endmodule
 
 `SCHEM_KEEP_HIER module alub_mux(input [2:0] alub_sel, 
                                  input [7:0] db, 
+                                 input [7:0] dbd,
                                  input [7:0] reg_p,
                                  input [7:0] reg_b,
                                  input [2:0] bit_index, 
+                                 input bit_inv,
                                  output [7:0] alub);
 
   reg [7:0] alub;
   wire [7:0] bit;
 
-  decoder3to8 dec3to8(bit_index, bit);
+  decoder3to8 dec3to8(bit_index, bit_inv, bit);
   
 // ALU B input select
 always @(*)
@@ -147,10 +158,10 @@ begin
     `kBSEL_B    : alub = reg_b;
     `kBSEL_FF   : alub = 8'hFF;
     `kBSEL_NDB  : alub = ~db;
-    `kBSEL_NBIT : alub = ~bit;
+    `kBSEL_DBD  : alub = dbd;
     `kBSEL_P    : alub = reg_p;
   endcase
-  //$display("alub: %02x sel = %d",alub,alub_sel);
+  //$display("alub: %02x sel = %d  bit: %d %02x",alub,alub_sel,bit_index,bit);
 end
 
 endmodule

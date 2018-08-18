@@ -8,6 +8,7 @@
                 output mc_sync, 
                 output [2:0] alua_sel,
                 output [2:0] alub_sel,
+                output bit_inv,
                 output [1:0] aluc_sel,
                 output [1:0] dreg,
                 output [1:0] dreg_do,
@@ -128,7 +129,7 @@ end
 `ADDR_abs(8'hAC)                    `LDY(8'hAC,4,|0)          // LDY abs
 `ADDR_abs(8'hAD)                    `LDA(8'hAD,4,|0)          // LDA abs
 `ADDR_abs(8'hAE)                    `LDX(8'hAE,4,|0)          // LDX abs
-`ADDR_zp_ind_y(8'hB1)               `LDA(8'hB1,05,|0)         // LDA (zp),y
+`ADDR_zp_ind_y(8'hB1)               `LDA(8'hB1,5,|0)          // LDA (zp),y
 `ADDR_zp_x(8'hB4)                   `LDY(8'hB4,3,|0)          // LDY zp,x
 `ADDR_zp_x(8'hB5)                   `LDA(8'hB5,3,|0)          // LDA zp,x
 `ADDR_zp_y(8'hB6)                   `LDX(8'hB6,3,|0)          // LDX zp,y
@@ -233,78 +234,76 @@ end
 `ADDR_zp_x(8'hF6)                   `INC_MEM(8'hF6, 3, `AB_ABn)     // INC zp,x
 `ADDR_abs_x(8'hFE)                  `INC_MEM(8'hFE, 4, `AB_ABn)     // INC abs,x
 
-`ifdef NOTDEFINED
+                                    // "Standard" CMOS Extensions
+                                    `JMPINDX(8'h7C)    // JMP (abs,x)
 
-                            // "Standard" CMOS Extensions
-`ifdef CMOS
-                            
-`ADDR_jmp_abs_x(8'h7C)      `JMP(8'h7C, 5)    // JMP (abs,x)
-                            
-                            `DEC_REG(8'h3A, `SB_A, `LOAD_A) // DEC
-                            `INC_REG(8'h1A, `SB_A, `LOAD_A) // INC
-                            
-                            // (zp)
-`ADDR_zp_ind(8'h12)         `ORA(8'h12,0)
-`ADDR_zp_ind(8'h32)         `AND(8'h32,0)
-`ADDR_zp_ind(8'h52)         `EOR(8'h52,0)
-`ADDR_zp_ind(8'h72)         `ADC(8'h72,0)
-`ADDR_zp_ind_w(8'h92, `DB_SB, `SB_A)         `STx(8'h92)
-`ADDR_zp_ind(8'hB2)         `LDA(8'hB2,0)
-`ADDR_zp_ind(8'hD2)         `CMP(8'hD2,0)
-`ADDR_zp_ind(8'hF2)         `SBC(8'hF2,0)
+                                    `DEC_REG(8'h3A, `ASEL_DREG `DREG_A `LOAD_A) // DEY
+                                    `INC_REG(8'h1A, `ASEL_DREG `DREG_A `LOAD_A) // INX                                  
 
-                            // STZ
-`ADDR_zp_w(8'h64,`T0, `DB_0, `SB_FF)         `STx(8'h64)       // STZ zp
-`ADDR_zp_x_w(8'h74,`T0, `DB_0, `SB_FF)       `STx(8'h74)       // STZ zp,x
-`ADDR_abs_w(8'h9C,`T0, `DB_0, `SB_FF)        `STx(8'h9C)       // STZ abs
-`ADDR_abs_x_w(8'h9E,`TNC,`T0, `DB_0, `SB_FF) `STx(8'h9E)       // STZ abs,x
+                                    // (zp),z
+`ADDR_zp_ind_z(8'h12)               `ORA(8'h12,5,|0)
+`ADDR_zp_ind_z(8'h32)               `AND(8'h32,5,|0)
+`ADDR_zp_ind_z(8'h52)               `EOR(8'h52,5,|0)
+`ADDR_zp_ind_z(8'h72)               `ADC(8'h72,5,|0)
+`ADDR_zp_ind_z_w(8'h92, `DREG_DO_A) `STx(8'h92,5)
+`ADDR_zp_ind_z(8'hB2)               `LDA(8'hB2,5,|0)
+`ADDR_zp_ind_z(8'hD2)               `CMP(8'hD2,5,|0)
+`ADDR_zp_ind_z(8'hF2)               `SBC(8'hF2,5,|0)
 
-                            `BIT(8'h89, `none, 1)           // BIT #
-`ADDR_zp_x(8'h34,`T0)       `BIT(8'h34,`FLAGS_BIT, 0)       // BIT zp,x
-`ADDR_abs_x(8'h3C,`TNC,`T0) `BIT(8'h3C,`FLAGS_BIT, 0)       // BIT abs,x
+                                    // STZ
+`ADDR_zp_w(8'h64, `DREG_DO_Z)       `STx(8'h64,3)             // STZ zp
+`ADDR_zp_x_w(8'h74, `DREG_DO_Z)     `STx(8'h74,3)             // STZ zp,x
+`ADDR_abs_w(8'h9C, `DREG_DO_Z)      `STx(8'h9C,4)             // STZ abs
+`ADDR_abs_x_w(8'h9E, `DREG_DO_Z)    `STx(8'h9E,4)             // STZ abs,x
 
-`ADDR_zp(8'h14,`Tn)         `TRB(8'h14, 3, 4)     // TRB zp
-`ADDR_abs(8'h1C,`Tn)        `TRB(8'h1C, 4, 5)     // TRB abs
+                                    `BITIMM(8'h89)            // BIT #
+`ADDR_zp_x(8'h34)                   `BIT(8'h34,3,`FLAGS_BIT)  // BIT zp
+`ADDR_abs_x(8'h3C)                  `BIT(8'h3C,4,`FLAGS_BIT)  // BIT abs
 
-`ADDR_zp(8'h04,`Tn)         `TSB(8'h04, 3, 4)     // TSB zp
-`ADDR_abs(8'h0C,`Tn)        `TSB(8'h0C, 4, 5)     // TSB abs
+                                    `BBR(8'h0F)               // BBR 0
+                                    `BBR(8'h1F)               // BBR 0
+                                    `BBR(8'h2F)               // BBR 0
+                                    `BBR(8'h3F)               // BBR 0
+                                    `BBR(8'h4F)               // BBR 0
+                                    `BBR(8'h5F)               // BBR 0
+                                    `BBR(8'h6F)               // BBR 0
+                                    `BBR(8'h7F)               // BBR 0
+                                    `BBS(8'h8F)               // BBR 0
+                                    `BBS(8'h9F)               // BBR 0
+                                    `BBS(8'hAF)               // BBR 0
+                                    `BBS(8'hBF)               // BBR 0
+                                    `BBS(8'hCF)               // BBR 0
+                                    `BBS(8'hDF)               // BBR 0
+                                    `BBS(8'hEF)               // BBR 0
+                                    `BBS(8'hFF)               // BBR 0
+
+`ADDR_zp(8'h14)                     `TRB(8'h14, 3)            // TRB zp
+`ADDR_abs(8'h1C)                    `TRB(8'h1C, 4)            // TRB abs
+                                                              
+`ADDR_zp(8'h04)                     `TSB(8'h04, 3)            // TSB zp
+`ADDR_abs(8'h0C)                    `TSB(8'h0C, 4)            // TSB abs
 
                             // WDC65C02 and Rockwell extensions
-`ADDR_zp(8'h07,`Tn)         `RMB(8'h07, 3, 4)     // RMB0 zp
-`ADDR_zp(8'h17,`Tn)         `RMB(8'h17, 3, 4)     // RMB1 zp
-`ADDR_zp(8'h27,`Tn)         `RMB(8'h27, 3, 4)     // RMB2 zp
-`ADDR_zp(8'h37,`Tn)         `RMB(8'h37, 3, 4)     // RMB3 zp
-`ADDR_zp(8'h47,`Tn)         `RMB(8'h47, 3, 4)     // RMB4 zp
-`ADDR_zp(8'h57,`Tn)         `RMB(8'h57, 3, 4)     // RMB5 zp
-`ADDR_zp(8'h67,`Tn)         `RMB(8'h67, 3, 4)     // RMB6 zp
-`ADDR_zp(8'h77,`Tn)         `RMB(8'h77, 3, 4)     // RMB7 zp
+`ADDR_zp(8'h07)                     `RMB(8'h07)     // RMB0 zp
+`ADDR_zp(8'h17)                     `RMB(8'h17)     // RMB1 zp
+`ADDR_zp(8'h27)                     `RMB(8'h27)     // RMB2 zp
+`ADDR_zp(8'h37)                     `RMB(8'h37)     // RMB3 zp
+`ADDR_zp(8'h47)                     `RMB(8'h47)     // RMB4 zp
+`ADDR_zp(8'h57)                     `RMB(8'h57)     // RMB5 zp
+`ADDR_zp(8'h67)                     `RMB(8'h67)     // RMB6 zp
+`ADDR_zp(8'h77)                     `RMB(8'h77)     // RMB7 zp
+                                    
+`ADDR_zp(8'h87)                     `SMB(8'h87)     // SMB0 zp
+`ADDR_zp(8'h97)                     `SMB(8'h97)     // SMB1 zp
+`ADDR_zp(8'hA7)                     `SMB(8'hA7)     // SMB2 zp
+`ADDR_zp(8'hB7)                     `SMB(8'hB7)     // SMB3 zp
+`ADDR_zp(8'hC7)                     `SMB(8'hC7)     // SMB4 zp
+`ADDR_zp(8'hD7)                     `SMB(8'hD7)     // SMB5 zp
+`ADDR_zp(8'hE7)                     `SMB(8'hE7)     // SMB6 zp
+`ADDR_zp(8'hF7)                     `SMB(8'hF7)     // SMB7 zp
 
-`ADDR_zp(8'h87,`Tn)         `SMB(8'h87, 3, 4)     // SMB0 zp
-`ADDR_zp(8'h97,`Tn)         `SMB(8'h97, 3, 4)     // SMB1 zp
-`ADDR_zp(8'hA7,`Tn)         `SMB(8'hA7, 3, 4)     // SMB2 zp
-`ADDR_zp(8'hB7,`Tn)         `SMB(8'hB7, 3, 4)     // SMB3 zp
-`ADDR_zp(8'hC7,`Tn)         `SMB(8'hC7, 3, 4)     // SMB4 zp
-`ADDR_zp(8'hD7,`Tn)         `SMB(8'hD7, 3, 4)     // SMB5 zp
-`ADDR_zp(8'hE7,`Tn)         `SMB(8'hE7, 3, 4)     // SMB6 zp
-`ADDR_zp(8'hF7,`Tn)         `SMB(8'hF7, 3, 4)     // SMB7 zp
-
-                            `BBR(8'h0F)   // BBR 0
-                            `BBR(8'h1F)   // BBR 0
-                            `BBR(8'h2F)   // BBR 0
-                            `BBR(8'h3F)   // BBR 0
-                            `BBR(8'h4F)   // BBR 0
-                            `BBR(8'h5F)   // BBR 0
-                            `BBR(8'h6F)   // BBR 0
-                            `BBR(8'h7F)   // BBR 0
-                            `BBS(8'h8F)   // BBR 0
-                            `BBS(8'h9F)   // BBR 0
-                            `BBS(8'hAF)   // BBR 0
-                            `BBS(8'hBF)   // BBR 0
-                            `BBS(8'hCF)   // BBR 0
-                            `BBS(8'hDF)   // BBR 0
-                            `BBS(8'hEF)   // BBR 0
-                            `BBS(8'hFF)   // BBR 0
-
+`ifdef NOTDEFINED
+                            
                             // Various flavors of CMOS NOPs
                             `NOP2_2(8'h02)
                             `NOP2_2(8'h22)
@@ -358,7 +357,6 @@ end
                             `NOP3_4(8'hFC)
                             
 `endif
-`endif
 
 end
 
@@ -369,6 +367,7 @@ assign alub_sel  = mc_out[`BSEL_BITS];
 assign aluc_sel  = mc_out[`CSEL_BITS];
 assign dreg      = mc_out[`DREG_BITS];
 assign dreg_do   = mc_out[`DREG_DO_BITS];
+assign bit_inv   = mc_out[`BIT_INV_BITS];
 assign areg      = mc_out[`AREG_BITS];
 assign alu_sel   = mc_out[`ALU_BITS];
 assign dbo_sel   = mc_out[`DBO_BITS];

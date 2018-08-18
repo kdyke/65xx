@@ -96,7 +96,8 @@ wire [7:0] alu_out;
 wire [7:0] alu_ea;      // Shorter ALU out path that doesn't include decimal correction
 wire alu_ea_c;
 wire [7:0] ir_next;
-
+wire [7:0] dbd;
+wire bit_inv;
 wire dec_add, dec_sub;
 wire alu_carry_out;
 
@@ -121,7 +122,8 @@ wire [7:0] vector_lo;
     
   // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
   microcode mc_inst(.clk(clk), .ready(ready_i), .ir(ir_next), .t(t_next), .mc_sync(mc_sync), .alua_sel(alua_sel), .alub_sel(alub_sel),
-                  .aluc_sel(aluc_sel), .dreg(dreg), .dreg_do(dreg_do), .areg(areg), .alu_sel(alu_sel), .dbo_sel(dbo_sel), .ab_sel(ab_sel),
+                  .aluc_sel(aluc_sel), .bit_inv(bit_inv),
+                  .dreg(dreg), .dreg_do(dreg_do), .areg(areg), .alu_sel(alu_sel), .dbo_sel(dbo_sel), .ab_sel(ab_sel),
                   .pc_inc(pc_inc), .pch_sel(pch_sel), .pcl_sel(pcl_sel), 
                   .sp_incdec(sp_incdec), .sph_sel(sph_sel), .spl_sel(spl_sel),
                   .ab_inc(ab_inc), .abh_sel(abh_sel), .abl_sel(abl_sel),
@@ -175,7 +177,7 @@ wire [7:0] vector_lo;
   
   ab_reg reg_ab(clk, ready, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, ab_next, ab);
   ad_reg reg_ad(clk, ready, adh_sel, adl_sel, alu_ea, ad_next, ad);
-  pc_reg reg_pc(clk, ready, pc_inc & ~pc_hold, cond_met, pch_sel, pcl_sel, ad[7:0], alu_ea, alu_ea_c, alub_bus[7], pc_next, pc);
+  pc_reg reg_pc(clk, ready, pc_inc & ~pc_hold, cond_met, pch_sel, pcl_sel, ad[7:0], alu_ea, alu_ea_c, data_i[7], pc_next, pc);
   sp_reg reg_sp(clk, reset, ready, reg_p[`kPF_E], sp_incdec, sph_sel, spl_sel, alu_ea, sp_next, sp);
   
   wire [7:0] ir_dec;
@@ -184,9 +186,10 @@ wire [7:0] vector_lo;
   areg_mux areg_mux(areg, pc[15:8], sp[15:8], pc[7:0], sp[7:0], areg_bus);
   
   alua_mux alua_mux(alua_sel, areg_bus, dreg_bus, data_i, vector_lo, alua_bus);
-  alub_mux alub_mux(alub_sel, data_i, reg_p, reg_b, ir[2:0], alub_bus);
+  alub_mux alub_mux(alub_sel, data_i, dbd, reg_p, reg_b, ir[6:4], bit_inv, alub_bus);
   aluc_mux aluc_mux(aluc_sel, reg_p[`kPF_C], alu_carry_out_last, aluc_bus);
     
+  clocked_reg8 dbd_reg(clk, ready_i, data_i, dbd);
   clocked_reg8 a_reg(clk, load_reg_decode[`kLR_A] && ready_i, alu_out, reg_a);
   clocked_reg8 x_reg(clk, load_reg_decode[`kLR_X] && ready_i, alu_out, reg_x);
   clocked_reg8 y_reg(clk, load_reg_decode[`kLR_Y] && ready_i, alu_out, reg_y);
