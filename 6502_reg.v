@@ -39,7 +39,6 @@ end
 
 always @(*)
 begin
-  //if(ready)
   begin
     case(abh_sel)
       `kABH_ABH:   ab_next[15:8] = ab_add[15:8];
@@ -69,7 +68,6 @@ endmodule
 always @(*)
 begin
   ad_next = ad;
-  //if(ready)
   begin
     if(adl_sel)
       ad_next[7:0] = alu_ea;
@@ -111,7 +109,6 @@ begin
   // This could probably be reworked a bit to use fewer resources to eliminate the duplicated adder between
   // the incrementer and kPCH_ADJ case, mostly for the PCH side of things.   For now I just want to get this
   // all working again.
-  //if(ready)
   begin
     if(cond_met)
     begin
@@ -164,7 +161,6 @@ begin
   else
   begin  
     sp_next = sp;
-    //if(ready)
     begin    
       if(sph_sel)
         sp_next[15:8] = alu_ea;
@@ -207,11 +203,7 @@ begin
     else if(load_flag_decode[`kLF_C_IR5])  reg_p[`kPF_C] = ir5;
     else if(load_flag_decode[`kLF_C_DB0])  reg_p[`kPF_C] = db_in[0];
 
-    if(load_flag_decode[`kLF_Z_SBZ])       
-    begin
-      //$display("P[Z] = %d",sb_z);
-      reg_p[`kPF_Z] = sb_z;
-    end
+    if(load_flag_decode[`kLF_Z_SBZ])       reg_p[`kPF_Z] = sb_z;
     else if(load_flag_decode[`kLF_Z_DB1])  reg_p[`kPF_Z] = db_in[1];
     
     if(load_flag_decode[`kLF_I_DB2])       reg_p[`kPF_I] = db_in[2];

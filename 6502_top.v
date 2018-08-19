@@ -101,8 +101,6 @@ wire bit_inv;
 wire dec_add, dec_sub;
 wire alu_carry_out;
 
-wire ready_i;
-
 wire sync;
 
 wire onecycle;
@@ -121,7 +119,7 @@ wire [7:0] vector_lo;
   alu_unit alu_inst(alua_bus, alub_bus, alu_out, aluc_bus, dec_add, dec_sub, alu_sel, alu_carry_out, alu_overflow_out, alu_ea, alu_ea_c);
     
   // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
-  microcode mc_inst(.clk(clk), .ready(ready_i), .ir(ir_next), .t(t_next), .mc_sync(mc_sync), .alua_sel(alua_sel), .alub_sel(alub_sel),
+  microcode mc_inst(.clk(clk), .ready(ready), .ir(ir_next), .t(t_next), .mc_sync(mc_sync), .alua_sel(alua_sel), .alub_sel(alub_sel),
                   .aluc_sel(aluc_sel), .bit_inv(bit_inv),
                   .dreg(dreg), .dreg_do(dreg_do), .areg(areg), .alu_sel(alu_sel), .dbo_sel(dbo_sel), .ab_sel(ab_sel),
                   .pc_inc(pc_inc), .pch_sel(pch_sel), .pcl_sel(pcl_sel), 
@@ -139,8 +137,6 @@ wire [7:0] vector_lo;
   reg_decode     reg_decode(load_reg, load_reg_decode);
   flags_decode flags_decode(load_flags, load_flags_decode);
 
-  assign ready_i = ready | write_next;
-
   cond_control cond_control(reg_p, dld_z, test_flags, test_flag0, cond_met);
   
   ir_next_mux ir_next_mux(sync, intg, data_i, ir, ir_next);
@@ -154,7 +150,7 @@ wire [7:0] vector_lo;
 
   always @(posedge clk)
   begin
-    if(ready_i)
+    if(ready)
       w_reg <= write_next;
   end
   
@@ -165,13 +161,13 @@ wire [7:0] vector_lo;
   interrupt_control interrupt_control(clk, reset, irq, nmi, t, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp, vector_lo);
 
   // Timing control state machine
-  timing_ctrl timing(clk, reset, ready_i, t, t_next, mc_sync, sync, onecycle);
+  timing_ctrl timing(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
 
   // Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform the extra decimal correction cycle
   wire pc_hold;
   assign pc_hold = intg;
 
-  clocked_reset_reg8 ir_reg(clk, reset, sync & ready_i, ir_next, ir);
+  clocked_reset_reg8 ir_reg(clk, reset, sync & ready, ir_next, ir);
 
   addrbus_mux addrbus_mux(clk, ready, ab_sel, ad_next, ab_next, sp_next, pc_next, address_next, address);
   
@@ -189,13 +185,13 @@ wire [7:0] vector_lo;
   alub_mux alub_mux(alub_sel, data_i, dbd, reg_p, reg_b, ir[6:4], bit_inv, alub_bus);
   aluc_mux aluc_mux(aluc_sel, reg_p[`kPF_C], alu_carry_out_last, aluc_bus);
     
-  clocked_reg8 dbd_reg(clk, ready_i, data_i, dbd);
-  clocked_reg8 a_reg(clk, load_reg_decode[`kLR_A] && ready_i, alu_out, reg_a);
-  clocked_reg8 x_reg(clk, load_reg_decode[`kLR_X] && ready_i, alu_out, reg_x);
-  clocked_reg8 y_reg(clk, load_reg_decode[`kLR_Y] && ready_i, alu_out, reg_y);
-  clocked_reset_reg8 z_reg(clk, reset, load_reg_decode[`kLR_Z] && ready_i, alu_out, reg_z);
-  clocked_reset_reg8 b_reg(clk, reset, load_reg_decode[`kLR_B] && ready_i, alu_out, reg_b);
-  clocked_reg8 do_reg(clk, ready_i, data_o_next, dor);
+  clocked_reg8 dbd_reg(clk, ready, data_i, dbd);
+  clocked_reg8 a_reg(clk, load_reg_decode[`kLR_A] && ready, alu_out, reg_a);
+  clocked_reg8 x_reg(clk, load_reg_decode[`kLR_X] && ready, alu_out, reg_x);
+  clocked_reg8 y_reg(clk, load_reg_decode[`kLR_Y] && ready, alu_out, reg_y);
+  clocked_reset_reg8 z_reg(clk, reset, load_reg_decode[`kLR_Z] && ready, alu_out, reg_z);
+  clocked_reset_reg8 b_reg(clk, reset, load_reg_decode[`kLR_B] && ready, alu_out, reg_b);
+  clocked_reg8 do_reg(clk, ready, data_o_next, dor);
   
   assign a_out = reg_a;
   assign x_out = reg_x;
@@ -217,11 +213,11 @@ wire [7:0] vector_lo;
 
   assign sb_n = alu_out[7];
 
-  p_reg p_reg(clk, reset, ready_i, intg, load_flags_decode, sync & ready_i, data_i, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], ir[0], reg_p);
+  p_reg p_reg(clk, reset, ready, intg, load_flags_decode, sync & ready, data_i, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], ir[0], reg_p);
 
   always @(posedge clk)
   begin
-    if(ready_i)
+    if(ready)
       alu_carry_out_last <= alu_carry_out;
   end
 
@@ -230,7 +226,7 @@ wire [7:0] vector_lo;
   reg [15:0] last_fetch_addr;
   always @(posedge clk)
   begin
-    if(sync & ready_i)
+    if(sync & ready)
     begin
       if(last_fetch_addr == address)
       begin

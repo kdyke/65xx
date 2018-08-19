@@ -81,7 +81,7 @@ assign nmi = io_port[1];
   always @(*)
   begin
     if(cpu_address != 16'hbffc)
-      memory_write = cpu_write;
+      memory_write = cpu_write & ready;
     else
       memory_write = 0;
   end
@@ -104,8 +104,8 @@ assign nmi = io_port[1];
   // Start driving memory and CPU clocks.
   always begin
 `ifdef NOTDEF
-    $monitor($time,,"%m. clk = %b cnt: %d rdy: %d addr: %x mem: %02x do: %02x w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x SP: %04x",
-      clk,clock_count[31:0],ready,cpu_address,cpu_data_in,cpu_data_out_reg,cpu_write_reg,cpu_clock_enable,irq,nmi,reset,
+    $monitor($time,,"%m. clk = %b cnt: %d rdy: %d addr: %x addrn: %x mem: %02x do: %02x wn: %d w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x SP: %04x",
+      clk,clock_count[31:0],ready,cpu_address,cpu_address_next,cpu_data_in,cpu_data_out_reg,cpu_write,cpu_write_reg,cpu_clock_enable,irq,nmi,reset,
         a_out,x_out,y_out,z_out,sp_out);
 //    if(cpu_clock_enable)
 `endif
@@ -125,7 +125,7 @@ assign nmi = io_port[1];
     //$display("clock: %d reset: %d",clock_count[31:0],clock_reset);
       
     // Stress test for ready signal.
-    if((clock_count & 1) == 0)
+    if((clock_count & 7) == 0)
       ready <= 1;
     else
       ready <= 1;
@@ -142,7 +142,7 @@ assign nmi = io_port[1];
   always @(posedge clk)
   begin
     //$display("io_port ? %04x %08b w: %d",cpu_address,cpu_data_out,cpu_write);
-    if(cpu_address_next == 16'hbffc && cpu_write)
+    if(cpu_address_next == 16'hbffc && (cpu_write & ready))
     begin
       io_port = cpu_data_out;
       $display("io_port <= %08b",cpu_data_out);
