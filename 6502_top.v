@@ -171,9 +171,14 @@ wire [7:0] vector_lo;
 
   addrbus_mux addrbus_mux(clk, ready, ab_sel, ad_next, ab_next, sp_next, pc_next, address_next, address);
   
+  wire [7:0] pcl_alu_out;
+  wire pcl_alu_carry;
+  
+  pcl_alu pcl_alu(areg == `kAREG_PCL ? pc[7:0] : 8'h00, data_i, aluc_sel[0], pcl_alu_out, pcl_alu_carry);
+  
   ab_reg reg_ab(clk, ready, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, ab_next, ab);
   ad_reg reg_ad(clk, ready, adh_sel, adl_sel, alu_ea, ad_next, ad);
-  pc_reg reg_pc(clk, ready, pc_inc & ~pc_hold, cond_met, pch_sel, pcl_sel, ad[7:0], alu_ea, alu_ea_c, data_i[7], pc_next, pc);
+  pc_reg reg_pc(clk, ready, pc_inc & ~pc_hold, cond_met, pch_sel, pcl_sel, ad[7:0], alu_ea, alu_ea_c, data_i[7], pcl_alu_out, pcl_alu_carry, pc_next, pc);
   sp_reg reg_sp(clk, reset, ready, reg_p[`kPF_E], sp_incdec, sph_sel, spl_sel, alu_ea, sp_next, sp);
   
   wire [7:0] ir_dec;

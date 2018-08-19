@@ -85,8 +85,14 @@ end
 
 endmodule
 
+`SCHEM_KEEP_HIER module pcl_alu(input [7:0] pcl, input [7:0] db, input carry_in, output wire [7:0] pcl_out, output carry_out);
+wire [8:0] pcl_add = pcl + db + carry_in;
+assign pcl_out = pcl_add[7:0];
+assign carry_out = pcl_add[8];
+endmodule
+
 `SCHEM_KEEP_HIER module pc_reg(input clk, input ready, input pc_inc, input cond_met, input [1:0] pch_sel, input [1:0] pcl_sel,
-                               input [7:0] adl, input [7:0] alu_ea, input aluc, input alub7,
+                               input [7:0] adl, input [7:0] alu_ea, input aluc, input alub7, input [7:0] pcl_alu, input pcl_alu_carry,
                                output reg [15:0] pc_next, output reg[15:0] pc);
 
 reg [7:0] pch_adj_factor;
@@ -101,7 +107,7 @@ begin
   pch_adj_carry_in = pcl_incremented[8];
   if(cond_met && pch_sel == `kPCH_ADJ) begin
     pch_adj_factor = {8{alub7}};
-    pch_adj_carry_in = aluc;
+    pch_adj_carry_in = pcl_alu_carry;
   end
 end
     
@@ -115,7 +121,7 @@ begin
     if(pcl_sel == `kPCL_ADL)
       pc_next[7:0] = adl;
     else if(pcl_sel == `kPCL_ALU)
-      pc_next[7:0] = alu_ea;
+      pc_next[7:0] = pcl_alu;
   end    
   
 end
