@@ -71,8 +71,14 @@ module alu_adder(add_in1, add_in2, add_cin, dec_add, dec_sub, add_out, carry_out
 
 endmodule
 
+module ea_adder(input [7:0] a, input [7:0] b, input carry_in, output wire [7:0] add_out, output carry_out);
+wire [8:0] ea_add = a + b + carry_in;
+assign add_out = ea_add[7:0];
+assign carry_out = ea_add[8];
+endmodule
+
 // Input muxing is done outside of the core ALU unit.
-`SCHEM_KEEP_HIER module alu_unit(a,b,alu_out,c_in,dec_add,dec_sub,op,carry_out,overflow_out,ea_add_out,ea_carry_out);
+`SCHEM_KEEP_HIER module alu_unit(a,b,alu_out,c_in,dec_add,dec_sub,op,carry_out,overflow_out);
   input [7:0] a;
   input [7:0] b;
 	input [2:0] op;
@@ -81,8 +87,6 @@ endmodule
 	input dec_sub;
 
   output [7:0] alu_out;
-  output [7:0] ea_add_out;
-  output ea_carry_out;
   
   output carry_out;
   output overflow_out;
@@ -90,60 +94,54 @@ endmodule
 	reg c;
   
 	wire [7:0] add_out;
-  wire [8:0] ea_add;
+  //wire [8:0] ea_add;
 	reg [7:0] tmp;
  	reg [7:0] alu_out;
 
   wire adder_carry_out;
   
-  wire overflow_out;
-  
-  // Dedicated ALU adder path for EA calculations.
-  assign ea_add = a+b+c_in;
-  assign ea_add_out = ea_add[7:0];
-  assign ea_carry_out = ea_add[8];
-  
+  wire overflow_out;  
   reg carry_out;
   
 	alu_adder add_u(a, b, c_in, dec_add, dec_sub, add_out, adder_carry_out);
 	  
   assign overflow_out = a[7] == b[7] && a[7] != add_out[7];
   
-always @(*) begin
-	case(op) // synthesis full_case
-		`kALU_ORA: 
-      begin
-			tmp = a | b;
-      c = adder_carry_out;
-			end
-		`kALU_AND: 
-      begin
-			tmp = a & b;
-      c = adder_carry_out;
-			end
-		`kALU_EOR: 
-      begin
-			tmp = a ^ b;
-      c = adder_carry_out;
-			end
-		`kALU_ADC: 
-      begin
-      c = adder_carry_out;
-      tmp = add_out;
-			end
-		`kALU_SHR: 
-      begin
-			{tmp,c} = {c_in,a};
-      end
-		`kALU_ASR: 
-      begin
-			{tmp,c} = {a[7],a[7:0]};
-      end
-		`kALU_SHL: 
-      begin
-			{c,tmp} = {a,c_in};
-      end
-	endcase
+  always @(*) begin
+    c = adder_carry_out; // default case
+	  casez(op)
+  		`kALU_ORA , `kALU_ORA2:
+        begin
+  			tmp = a | b;
+  			end
+  		`kALU_AND: 
+        begin
+  			tmp = a & b;
+        //c = adder_carry_out; // default case
+  			end
+  		`kALU_EOR: 
+        begin
+  			tmp = a ^ b;
+        //c = adder_carry_out; // default case
+  			end
+  		`kALU_ADC: 
+        begin
+        tmp = add_out;
+        //c = adder_carry_out; // default case
+  			end
+  		`kALU_SHR: 
+        begin
+  			{tmp,c} = {c_in,a[7:0]};
+        end
+  		`kALU_ASR: 
+        begin
+  			{tmp,c} = {a[7],a[7:0]};
+        end
+  		`kALU_SHL: 
+        begin
+  			{c,tmp} = {a[7:0],c_in};
+        end
+    endcase
 
   //$display("ALU op: %x a: %02x b: %02x c_in: %d -> %02x daa: %d dsa: %d flags vc: %d%d add: %02x",op,a,b,c_in,tmp,dec_add,dec_sub,overflow_out,c,add_out);
 

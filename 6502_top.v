@@ -115,9 +115,6 @@ assign cpu_int = intg;
 
 wire [7:0] vector_lo;
 
-  // Instantiate ALU
-  alu_unit alu_inst(alua_bus, alub_bus, alu_out, aluc_bus, dec_add, dec_sub, alu_sel, alu_carry_out, alu_overflow_out, alu_ea, alu_ea_c);
-    
   // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
   microcode mc_inst(.clk(clk), .ready(ready), .ir(ir_next), .t(t_next), .mc_sync(mc_sync), .alua_sel(alua_sel), .alub_sel(alub_sel),
                   .aluc_sel(aluc_sel), .bit_inv(bit_inv),
@@ -174,7 +171,12 @@ wire [7:0] vector_lo;
   wire [7:0] pcl_alu_out;
   wire pcl_alu_carry;
   
-  pcl_alu pcl_alu(areg == `kAREG_PCL ? pc[7:0] : 8'h00, data_i, aluc_sel[0], pcl_alu_out, pcl_alu_carry);
+  // Instantiate ALU
+  alu_unit alu_inst(alua_bus, alub_bus, alu_out, aluc_bus, dec_add, dec_sub, alu_sel, alu_carry_out, alu_overflow_out);
+
+  // A couple of dedicated adders for effective address calculations.
+  ea_adder pcl_adder(areg[1] == 1 /* areg ==`kAREG_PCL */ ? pc[7:0] : 8'h00, data_i, aluc_sel[0], pcl_alu_out, pcl_alu_carry);  
+  ea_adder ea_adder(alua_bus,alub_bus,aluc_bus,alu_ea,alu_ea_c);
   
   ab_reg reg_ab(clk, ready, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, ab_next, ab);
   ad_reg reg_ad(clk, ready, adh_sel, adl_sel, alu_ea, ad_next, ad);

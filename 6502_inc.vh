@@ -77,12 +77,16 @@
 `define DREG_DO_Z        |(`kDREG_Z      << `FIELD_SHIFT(`DREG_DO_BITS))
 
 // ALU A reg select
+
+// Note: We don't really need both AREG and DREG fields since the ASEL mux can only source from one or the other,
+// and so we could share the two select bits between the AREG and DREG muxes if we ever get really desperate for
+// more microcode bits and would like to potentially save routing resources.
 `define AREG_BITS     9:8
 
-`define kAREG_SPL     0
-`define kAREG_SPH     1
-`define kAREG_PCL     2
-`define kAREG_PCH     3
+`define kAREG_SPL     2'b00
+`define kAREG_SPH     2'b01
+`define kAREG_PCL     2'b10
+`define kAREG_PCH     2'b11
 
 `define AREG_SPL      |(`kAREG_SPL    << `FIELD_SHIFT(`AREG_BITS))
 `define AREG_SPH      |(`kAREG_SPH    << `FIELD_SHIFT(`AREG_BITS))
@@ -142,6 +146,7 @@
 // ALU op
 `define ALU_BITS      20:18
 `define kALU_ORA      3'b000   // Default
+`define kALU_ORA2     3'b001   // Default
 `define kALU_AND      3'b010
 `define kALU_EOR      3'b011
 

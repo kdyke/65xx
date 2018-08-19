@@ -211,7 +211,7 @@ endmodule
 // so if we ever went back to predecoded flags we could save 3 bits there.
 `SCHEM_KEEP_HIER module flags_decode(input [3:0] load_flags, output reg [15:0] load_flags_decode);
 always @(*)
-case (load_flags)   // synthesis full_case parallel_case
+case (load_flags)
   `kFLAGS_DB   : load_flags_decode = (`LM_C_DB0 | `LM_Z_DB1 | `LM_I_DB2 | `LM_D_DB3 | `LM_V_DB6 | `LM_N_DB7);
   `kFLAGS_SBZN : load_flags_decode = (`LM_Z_SBZ | `LM_N_SBN);
   `kFLAGS_D    : load_flags_decode = (`LM_D_IR5);
@@ -233,7 +233,7 @@ endmodule
 
 always @(*)
 begin
-case (load_reg) // synthesis full_case parallel_case
+case (load_reg)
   `kLOAD_A    : load_reg_decode = `LR_A;
   `kLOAD_X    : load_reg_decode = `LR_X;
   `kLOAD_Y    : load_reg_decode = `LR_Y;
