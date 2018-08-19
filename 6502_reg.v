@@ -89,42 +89,43 @@ endmodule
                                input [7:0] adl, input [7:0] alu_ea, input aluc, input alub7,
                                output reg [15:0] pc_next, output reg[15:0] pc);
 
-reg [8:0] pcl_next;
-reg [7:0] pch_next;
 reg [7:0] pch_adj_factor;
-reg [7:0] pch_base;
+reg pch_adj_carry_in;
 
 wire [8:0] pcl_incremented;
-wire [7:0] pch_incremented;
-
 assign pcl_incremented = pc[7:0] + pc_inc;
-assign pch_incremented = pc[15:8] + pcl_incremented[8];
 
+always @(*)
+begin
+  pch_adj_factor = 8'h00;
+  pch_adj_carry_in = pcl_incremented[8];
+  if(cond_met && pch_sel == `kPCH_ADJ) begin
+    pch_adj_factor = {8{alub7}};
+    pch_adj_carry_in = aluc;
+  end
+end
+    
 always @(*)
 begin
   // Default is pc_next is pc_incremented
   pc_next[7:0] = pcl_incremented;
-  pc_next[15:8] = pch_incremented;
   
-  // This could probably be reworked a bit to use fewer resources to eliminate the duplicated adder between
-  // the incrementer and kPCH_ADJ case, mostly for the PCH side of things.   For now I just want to get this
-  // all working again.
+  if(cond_met)
   begin
-    if(cond_met)
-    begin
-      if(pch_sel == `kPCH_ADJ)
-        pc_next[15:8] = pc[15:8] + {8{alub7}} + aluc;
-      else if(pch_sel == `kPCH_ALU)
-        pc_next[15:8] = alu_ea;
-      if(pcl_sel == `kPCL_ADL)
-        pc_next[7:0] = adl;
-      else if(pcl_sel == `kPCL_ALU)
-        pc_next[7:0] = alu_ea;
-    end    
-  end
+    if(pcl_sel == `kPCL_ADL)
+      pc_next[7:0] = adl;
+    else if(pcl_sel == `kPCL_ALU)
+      pc_next[7:0] = alu_ea;
+  end    
   
-  //$display("pc: %04x pc_next: %04x inc: %d pch: %d pcl: %d cond: %d adl: %02x pc_inc: %02x%02x alu_ea: %02x alub7: %d aluc: %d",
-  //  pc,pc_next,pc_inc,pch_sel,pcl_sel,cond_met,adl,pch_incremented,pcl_incremented[7:0],alu_ea,alub7,aluc);
+end
+
+always @(*)
+begin
+  if(cond_met && pch_sel == `kPCH_ALU)
+      pc_next[15:8] = alu_ea;
+  else
+      pc_next[15:8] = pc[15:8] + pch_adj_factor + pch_adj_carry_in;
 end
 
 always @(posedge clk)
@@ -144,10 +145,10 @@ wire [15:0] sp_add_out;
 
 always @(*)
 begin
-  case(sp_inc) // May need to qualify this with ready signal eventually...
+  case(sp_inc)
     `kSP_DEC:    sp_add_in = 16'hFFFF;
     `kSP_INC:    sp_add_in = 16'h0001;
-    default:    sp_add_in = 16'h0000;
+    default:     sp_add_in = 16'h0000;
   endcase
 end
 
@@ -160,18 +161,15 @@ begin
     sp_next[15:8] = 8'h01;
   else
   begin  
-    sp_next = sp;
-    begin    
-      if(sph_sel)
-        sp_next[15:8] = alu_ea;
-      else if(spl_sel)
-        sp_next[7:0] = alu_ea;
-      else if(sp_inc != 0)
-      begin
-        sp_next[7:0] = sp_add_out[7:0];
-        if(e_bit == 0)
-          sp_next[15:8] = sp_add_out[15:8];
-      end
+    if(sph_sel)
+      sp_next[15:8] = alu_ea;
+    else if(spl_sel)
+      sp_next[7:0] = alu_ea;
+    else if(sp_inc != 0)
+    begin
+      sp_next[7:0] = sp_add_out[7:0];
+      if(e_bit == 0)
+        sp_next[15:8] = sp_add_out[15:8];
     end
   end
 end
