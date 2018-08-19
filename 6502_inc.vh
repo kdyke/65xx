@@ -12,11 +12,7 @@
 // Magic macro to extract field shift from field definition macro using ternary operator
 `define FIELD_SHIFT(_x) (0?_x)
 
-// Note: Try not to have any signals span 8 bit boundaries, which gives the synthesis more options
-// in choosing which signals go with which block rams.  Still to do: Figure out if there are better
-// groupings for signals that are likely to go to similar places.
-
-// Also... block RAMs are really 36 bits wide, so it's also useful to make sure those last 4 bits
+// Block RAMs are either 18 or 36 bits wide, so it's also useful to make sure those last 4 bits
 // are grouped together.  Although for Artix-7 the synthesis tools really wind up generating 3
 // 2K x 18bit block RAMs.  So the bit groupings really wind up being 3 groups of 18 bits.
 
@@ -656,8 +652,6 @@
 `define ADDR_zp_ind_z(_insbyte)           `ADDR_zp_ind_z_(_insbyte, |0)
 `define ADDR_zp_ind_z_w(_insbyte, _args)  `ADDR_zp_ind_z_(_insbyte, _args `WRITE)
 
-// Cycle 2 - Fetching/Driving Zp address
-// Cycle 3 - Reading ZP Byte, Driving PCn to fetch branch offset
 // BBx
 `define BBR(_insbyte) \
 `MICROCODE( _insbyte,  2, `PC_INC `AB_ABn `ABH_B `ABL_ALU `BSEL_DB) \
@@ -690,50 +684,5 @@
 `MICROCODE( _insbyte, 3, `AB_ABn `ALU_ORA `ASEL_DB `BSEL_BIT `WRITE) \
 `MICROCODE( _insbyte, 4, `SYNC) \
 `MICROCODE( _insbyte, 1, `PC_INC)
-
-//                                                                                                                                      Register Loads
-//                 INS  T  Tn   Ab      Abh         Ab       Sp      PC  PCL PCH Alu_op  Alu_a       Asel       Alu_b       Alu_c     Load       Flags   Word  Test   T  Write
-//                                                  Cnt      Cnt     Inc ADL ADJ                                Alu_b       Alu_c     Load       Flags      Z  Flag   B  Cycle
-`ifdef NOTYET
-
-`define NOP1_1(_insbyte) \
-`MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0)
-
-`define NOP1_2(_insbyte) \
-`MICROCODE( _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0)
-
-`define NOP2_2(_insbyte) \
-`MICROCODE( _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0)
-
-`define NOP2_3(_insbyte) \
-`MICROCODE( _insbyte,  2, `T0 , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0)
-
-`define NOP2_4(_insbyte) \
-`MICROCODE( _insbyte,  2, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  3, `T0 , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0)
-
-`define NOP3_4(_insbyte) \
-`MICROCODE( _insbyte,  2, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  3, `T0 , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0)
-
-`define NOP3_8(_insbyte) \
-`MICROCODE( _insbyte,  2, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  3, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  4, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  5, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  6, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  7, `T0 , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  0, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  0, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0) \
-`MICROCODE( _insbyte,  1, `Tn , `ADH_PCHS, `ADL_PCLS,  1,  1, `PCHPCL,  1, `DB_DI, `SB_FF,  `none,    `none,      `none,     `none,    `none,   `none,       0)
-
-`endif
 
 `endif //_6502_inc_vh_
