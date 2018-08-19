@@ -142,8 +142,8 @@
 // ALU op
 `define ALU_BITS      20:18
 `define kALU_ORA      3'b000   // Default
-`define kALU_AND      3'b001
-`define kALU_EOR      3'b010
+`define kALU_AND      3'b010
+`define kALU_EOR      3'b011
 
 `define kALU_ADC      3'b100
 `define kALU_SHL      3'b101   // Shift left (w/carry)

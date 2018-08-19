@@ -110,21 +110,21 @@ endmodule
   assign overflow_out = a[7] == b[7] && a[7] != add_out[7];
   
 always @(*) begin
-	case(op) // synthesis full_case parallel_case
+	case(op) // synthesis full_case
 		`kALU_ORA: 
       begin
-      c = 0;
 			tmp = a | b;
+      c = adder_carry_out;
 			end
 		`kALU_AND: 
       begin
 			tmp = a & b;
-      c = | tmp;      // This is a bit of a hack, used for 65C02 branch bit tests.
+      c = adder_carry_out;
 			end
 		`kALU_EOR: 
       begin
-      c = 0;
 			tmp = a ^ b;
+      c = adder_carry_out;
 			end
 		`kALU_ADC: 
       begin

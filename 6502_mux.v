@@ -5,7 +5,7 @@
 
 always @(*)
 begin
-  case(dbo_sel)  // synthesis full_case parallel_case
+  case(dbo_sel)
     `kDBO_ALU   : data_o_next = alu_out;
     `kDBO_DREG  : data_o_next = dreg_bus;
     `kDBO_DI    : data_o_next = data_i;
@@ -24,7 +24,7 @@ reg [15:0] tmp;
 
 always @(*)
 begin
-  case(ab_sel)  // synthesis full_case parallel_case
+  case(ab_sel)
     `kAB_PCn  : tmp = pc;
     `kAB_ABn  : tmp = ab;
     `kAB_ADn  : tmp = ad;
@@ -55,7 +55,7 @@ endmodule
 
 always @(*)
 begin
-  case(dreg)  // synthesis full_case parallel_case
+  case(dreg)
     `kDREG_A   : dreg_bus = reg_a;
     `kDREG_X   : dreg_bus = reg_x;
     `kDREG_Y   : dreg_bus = reg_y;
@@ -70,7 +70,7 @@ endmodule
 
 always @(*)
 begin
-  case(areg)  // synthesis full_case parallel_case
+  case(areg)
     `kAREG_PCH   : areg_bus = pch;
     `kAREG_SPH   : areg_bus = sph;
     `kAREG_PCL   : areg_bus = pcl;
@@ -91,7 +91,7 @@ endmodule
 // ALU A input select
 always @(*)
 begin
-  case(alua_sel)  // synthesis full_case parallel_case
+  case(alua_sel)
     `kASEL_0      : alua = 8'h00;
     `kASEL_AREG   : alua = areg_bus;
     `kASEL_DREG   : alua = dreg_bus;
@@ -151,7 +151,7 @@ endmodule
 // ALU B input select
 always @(*)
 begin
-  case(alub_sel)  // synthesis full_case parallel_case
+  case(alub_sel)
     `kBSEL_0    : alub = 8'h00;
     `kBSEL_DB   : alub = db;
     `kBSEL_BIT  : alub = bit;
@@ -174,7 +174,7 @@ endmodule
 // ALU C (carry) input select
 always @(*)
 begin
-  case(aluc_sel)  // synthesis full_case parallel_case
+  case(aluc_sel)
     `kCSEL_0 : aluc = 0;
     `kCSEL_1 : aluc = 1;
     `kCSEL_P : aluc = carry;
