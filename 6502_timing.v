@@ -93,12 +93,12 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module interrupt_control(clk, reset, irq, nmi, t, reg_p, load_i, intg, nmig, resp, vector_lo);
+`SCHEM_KEEP_HIER module interrupt_control(clk, reset, irq, nmi, sync, reg_p, load_i, intg, nmig, resp, vector_lo);
 input clk;
 input reset;
 input irq;
 input nmi;
-input [2:0] t;
+input sync;
 input [7:0] reg_p;
 
 input load_i;
@@ -140,7 +140,7 @@ begin
     nmig <= 1;
   nmil <= nmi;    // remember current state
   
-  if(reset || (t == 2))
+  if(reset || sync)
   begin
     if((intp & ~reg_p[`kPF_I]) | nmig | reset)
       intg <= 1;

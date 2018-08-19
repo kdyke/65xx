@@ -158,7 +158,7 @@ wire [7:0] vector_lo;
   
   predecode predecode(data_i, sync & ~intg, onecycle);
 
-  interrupt_control interrupt_control(clk, reset, irq, nmi, t, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp, vector_lo);
+  interrupt_control interrupt_control(clk, reset, irq, nmi, mc_sync, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp, vector_lo);
 
   // Timing control state machine
   timing_ctrl timing(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
