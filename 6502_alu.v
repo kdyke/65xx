@@ -126,7 +126,7 @@ always @(*) begin
       c = 0;
 			tmp = a ^ b;
 			end
-		`kALU_ADC, `kALU_SBC: 
+		`kALU_ADC: 
       begin
       c = adder_carry_out;
       tmp = add_out;

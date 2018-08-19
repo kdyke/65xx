@@ -70,7 +70,7 @@
 `define DREG_Y        |(`kDREG_Y      << `FIELD_SHIFT(`DREG_BITS))
 `define DREG_Z        |(`kDREG_Z      << `FIELD_SHIFT(`DREG_BITS))
 
-`define DREG_DO_BITS  52:51
+`define DREG_DO_BITS  32:31
 `define DREG_DO_A        |(`kDREG_A      << `FIELD_SHIFT(`DREG_DO_BITS))
 `define DREG_DO_X        |(`kDREG_X      << `FIELD_SHIFT(`DREG_DO_BITS))
 `define DREG_DO_Y        |(`kDREG_Y      << `FIELD_SHIFT(`DREG_DO_BITS))
@@ -142,19 +142,18 @@
 // ALU op
 `define ALU_BITS      20:18
 `define kALU_ORA      3'b000   // Default
-`define kALU_ADC      3'b001
-`define kALU_AND      3'b010
-`define kALU_EOR      3'b011
-`define kALU_SBC      3'b100  // Currently used to know when to enable dec sub correction
-`define kALU_SHR      3'b101  // Shift right (w/carry)
-`define kALU_ASR      3'b110  // Arithmetic shift right
-`define kALU_SHL      3'b111  // Shift left (w/carry)
+`define kALU_AND      3'b001
+`define kALU_EOR      3'b010
+
+`define kALU_ADC      3'b100
+`define kALU_SHL      3'b101   // Shift left (w/carry)
+`define kALU_SHR      3'b110   // Shift right (w/carry)
+`define kALU_ASR      3'b111   // Arithmetic shift right
 
 `define ALU_ORA       |(`kALU_ORA     << `FIELD_SHIFT(`ALU_BITS))
 `define ALU_ADC       |(`kALU_ADC     << `FIELD_SHIFT(`ALU_BITS))
 `define ALU_AND       |(`kALU_AND     << `FIELD_SHIFT(`ALU_BITS))
 `define ALU_EOR       |(`kALU_EOR     << `FIELD_SHIFT(`ALU_BITS))
-`define ALU_SBC       |(`kALU_SBC     << `FIELD_SHIFT(`ALU_BITS))
 `define ALU_SHR       |(`kALU_SHR     << `FIELD_SHIFT(`ALU_BITS))
 `define ALU_ASR       |(`kALU_ASR     << `FIELD_SHIFT(`ALU_BITS))
 `define ALU_SHL       |(`kALU_SHL     << `FIELD_SHIFT(`ALU_BITS))
@@ -215,7 +214,7 @@
 `define AB_INC        |(`kAB_INC      << `FIELD_SHIFT(`AB_INC_BITS))
 
 // ABHn source select
-`define ABH_SEL_BITS  32:31
+`define ABH_SEL_BITS  52:51
 `define kABH_ABH      0
 `define kABH_B        1
 `define kABH_ALU      2
@@ -508,7 +507,7 @@
 `MICROCODE( _insbyte,  1, `PC_INC)
 
 `define SBC(_insbyte, _t, _inc) \
-`MICROCODE( _insbyte, _t, `ALU_SBC `ASEL_DREG `DREG_A `BSEL_NDB `CSEL_P `FLAGS_ALU `LOAD_A _inc `SYNC) \
+`MICROCODE( _insbyte, _t, `ALU_ADC `ASEL_DREG `DREG_A `BSEL_NDB `CSEL_P `FLAGS_ALU `LOAD_A _inc `SYNC) \
 `MICROCODE( _insbyte,  1, `PC_INC)
 
 `define ORA(_insbyte, _t, _inc) \
