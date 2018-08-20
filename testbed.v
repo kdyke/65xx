@@ -39,7 +39,7 @@ assign nmi = io_port[1];
 
 	memory memory_inst(.clk(clk), .we(memory_write), .addr(cpu_address_next), .di(memory_in), .do(memory_out));
 
-  cpu6502 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .ready(ready), .write_next(cpu_write), .write(cpu_write_reg),
+  cpu65CE02 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .ready(ready), .write_next(cpu_write), .write(cpu_write_reg),
             .address(cpu_address), .address_next(cpu_address_next), .data_i(cpu_data_in), .data_o_next(cpu_data_out), .data_o(cpu_data_out_reg),
             .a_out(a_out), .x_out(x_out), .y_out(y_out), .z_out(z_out), .sp_out(sp_out));
 

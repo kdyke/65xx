@@ -1,6 +1,6 @@
 `include "6502_inc.vh"
 
-`SCHEM_KEEP_HIER module cpu6502(clk, reset, nmi, irq, ready, write, write_next, sync, address, address_next, data_i, data_o, data_o_next, cpu_state, t, cpu_int,
+`SCHEM_KEEP_HIER module cpu65CE02(clk, reset, nmi, irq, ready, write, write_next, sync, address, address_next, data_i, data_o, data_o_next, cpu_state, t, cpu_int,
                                 a_out, x_out, y_out, z_out, sp_out);
 
 initial begin
@@ -226,7 +226,7 @@ wire [7:0] vector_lo;
 
   always @(posedge clk)
   begin
-    if(ready)
+    if(ready && alu_sel[2] != 0)    // Only update delayed carry for add/shift ops
       alu_carry_out_last <= alu_carry_out;
   end
 

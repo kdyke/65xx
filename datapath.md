@@ -163,7 +163,7 @@ Cycle 3:  PCH -> ABHn, SP++, AddrN = SPn
 Cycle 4:	Din + 0 + 1 -> PCLn, SP++, AddrN = SPn
 Cycle 5:	Din + 0 + DLc -> PCHn, AddrN = AB
 Cycle 6:	Din + SPL -> SPLn, AddrN = AB
-Cycle 7:	SPH + Cy -> SPHn, AddrN = PCn
+Cycle 7:	SPH + DLc -> SPHn, AddrN = PCn
 ```
 
 ##### Push reg
@@ -200,11 +200,21 @@ Cycle 6:	Dout = Din (dALU), AddrN = SPn
 Cycle 7:	AddrN = PCn, SP--
 ```
 
-##### Inc/Dec/Shift word
+##### Inc/Dec word zp
 ```
 Cycle 1:	Din -> IR, PC++, AddrN = PCn
-Cycle 2:	Din + 0 -> ADL, PC++, AddrN = PCn
-Cycle 3:	Din + 0 -> ABHn, ADL -> ABL, AddrN = ABn
+Cycle 2:	B -> ABHn, Din + 0 -> ABL, PC++, AddrN = ABn
+Cycle 3:	Dout = Din+1, AddrN = ABn
+Cycle 4:	AddrN = ABn, AB++
+Cycle 5:	Dout = Din + DLc, WordZ = 1, AddrN = ABn
+Cycle 6:  AddrN = PCn
+```
+
+##### Shift word
+```
+Cycle 1:	Din -> IR, PC++, AddrN = PCn
+Cycle 2:	Din + 0 -> ABL, PC++, AddrN = PCn
+Cycle 3:	Din + 0 -> ABHn, PC++, AddrN = ABn
 Cycle 4:	Dout = Din+1, AddrN = ABn
 Cycle 5:	AddrN = ABn, AB++
 Cycle 6:	Dout = Din+Cy, WordZ = 1, AddrN = ABn

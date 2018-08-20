@@ -1,11 +1,11 @@
 `include "6502_inc.vh"
 
 (* keep_hierarchy = "yes" *) module microcode(
-                input clk, 
-                input ready, 
-                input [7:0] ir, 
-                input [2:0] t, 
-                output mc_sync, 
+                input clk,
+                input ready,
+                input [7:0] ir,
+                input [2:0] t,
+                output mc_sync,
                 output [2:0] alua_sel,
                 output [2:0] alub_sel,
                 output bit_inv,
@@ -16,7 +16,7 @@
                 output [2:0] alu_sel,
                 output [1:0] dbo_sel,
                 output [1:0] ab_sel,
-                output pc_inc, 
+                output pc_inc,
                 output [1:0] pch_sel,
                 output [1:0] pcl_sel,
                 output [1:0] sp_incdec,
@@ -45,7 +45,7 @@ initial begin
 
 // synthesis translate off
 // Init all microcode slots we haven't implemented with a state that halts
-for( i = 0; i < 2048; i = i + 1 ) 
+for( i = 0; i < 2048; i = i + 1 )
 begin
    mc[i][`LOAD_REG_BITS] = `kLOAD_KILL;
    //$display("init %d",i);
@@ -150,7 +150,7 @@ end
 `ADDR_abs_y(8'hD9)                  `CMP(8'hD9,4,|0)          // CMP abs,y
 `ADDR_abs_x(8'hDD)                  `CMP(8'hDD,4,|0)          // CMP abs,x
                                     `CPX(8'hE0,2,`PC_INC)     // CPX #
-`ADDR_zp(8'hE4)                     `CPX(8'hE4,3,|0)          // CPY zp
+`ADDR_zp(8'hE4)                     `CPX(8'hE4,3,|0)          // CPX zp
 `ADDR_abs(8'hEC)                    `CPX(8'hEC,4,|0)          // CPX abs
 
 `ADDR_zp_x_ind(8'hE1)               `SBC(8'hE1,5,|0)          // SBC (zp,x)
@@ -164,7 +164,7 @@ end
 
 `ADDR_zp(8'h24)                     `BIT(8'h24,3,`FLAGS_BIT)  // BIT zp
 `ADDR_abs(8'h2C)                    `BIT(8'h2C,4,`FLAGS_BIT)  // BIT abs
-                                  
+
                                     `BPL(8'h10) // BPL
                                     `BMI(8'h30) // BMI
                                     `BVC(8'h50) // BVC
@@ -174,61 +174,61 @@ end
                                     `BCS(8'hB0) // BCS
                                     `BNE(8'hD0) // BNE
                                     `BEQ(8'hF0) // BEQ
-                                  
+
                                     `DEC_REG(8'h88, `ASEL_DREG `DREG_Y `LOAD_Y) // DEY
                                     `DEC_REG(8'hCA, `ASEL_DREG `DREG_X `LOAD_X) // DEX
-                                  
+
                                     `INC_REG(8'hC8, `ASEL_DREG `DREG_Y `LOAD_Y) // INY
-                                    `INC_REG(8'hE8, `ASEL_DREG `DREG_X `LOAD_X) // INX                                  
-                                  
+                                    `INC_REG(8'hE8, `ASEL_DREG `DREG_X `LOAD_X) // INX
+
                                     `NOP(8'hEA)         // NOP/ENDM
-                                    
+
                                     `PUSH(8'h08, `BSEL_P)           // PHP
                                     `PUSH(8'h48, `ASEL_DREG `DREG_A)           // PHA
                                     `PUSH(8'hDA, `ASEL_DREG `DREG_X)           // PHX
                                     `PUSH(8'h5A, `ASEL_DREG `DREG_Y)           // PHY
-                                    
+
                                     `PULL(8'h28, `FLAGS_DB)                     // PLP
                                     `PULL(8'h68, `BSEL_DB `LOAD_A `FLAGS_SBZN)  // PLA
                                     `PULL(8'hFA, `BSEL_DB `LOAD_X `FLAGS_SBZN)  // PLX
                                     `PULL(8'h7A, `BSEL_DB `LOAD_Y `FLAGS_SBZN)  // PLY
-                                    
+
                                     `JMP(8'h4C)         // JMP abs
                                     `JMPIND(8'h6C)      // JMP (abs)
-                                    
+
                                     `JSR(8'h20)       // JSR
                                     `RTS(8'h60)       // RTS
                                     `RTI(8'h40)       // RTI
-                                    
+
 `ADDR_zp(8'h06)                     `ASL_MEM(8'h06, 3, `AB_ABn)     // ASL zp
                                     `ASL_A(8'h0A)                   // ASL a
 `ADDR_abs(8'h0E)                    `ASL_MEM(8'h0E, 4, `AB_ABn)     // ASL abs
 `ADDR_zp_x(8'h16)                   `ASL_MEM(8'h16, 3, `AB_ABn)     // ASL zp,x
 `ADDR_abs_x(8'h1E)                  `ASL_MEM(8'h1E, 4, `AB_ABn)     // ASL abs,x
-                                    
+
 `ADDR_zp(8'h26)                     `ROL_MEM(8'h26, 3, `AB_ABn)     // ROL zp
                                     `ROL_A(8'h2A)                   // ROL a
 `ADDR_abs(8'h2E)                    `ROL_MEM(8'h2E, 4, `AB_ABn)     // ROL abs
 `ADDR_zp_x(8'h36)                   `ROL_MEM(8'h36, 3, `AB_ABn)     // ROL zp,x
 `ADDR_abs_x(8'h3E)                  `ROL_MEM(8'h3E, 4, `AB_ABn)     // ROL abs,x
-                                    
+
 `ADDR_zp(8'h46)                     `LSR_MEM(8'h46, 3, `AB_ABn)     // LSR zp
                                     `LSR_A(8'h4A)                   // LSR a
 `ADDR_abs(8'h4E)                    `LSR_MEM(8'h4E, 4, `AB_ABn)     // LSR abs
 `ADDR_zp_x(8'h56)                   `LSR_MEM(8'h56, 3, `AB_ABn)     // LSR zp,x
 `ADDR_abs_x(8'h5E)                  `LSR_MEM(8'h5E, 4, `AB_ABn)     // LSR abs,x
-                                    
+
 `ADDR_zp(8'h66)                     `ROR_MEM(8'h66, 3, `AB_ABn)     // ROR zp
                                     `ROR_A(8'h6A)                   // ROR a
 `ADDR_abs(8'h6E)                    `ROR_MEM(8'h6E, 4, `AB_ABn)     // ROR abs
 `ADDR_zp_x(8'h76)                   `ROR_MEM(8'h76, 3, `AB_ABn)     // ROR zp,x
 `ADDR_abs_x(8'h7E)                  `ROR_MEM(8'h7E, 4, `AB_ABn)     // ROR abs,x
-                                    
+
 `ADDR_zp(8'hC6)                     `DEC_MEM(8'hC6, 3, `AB_ABn)     // DEC zp
 `ADDR_abs(8'hCE)                    `DEC_MEM(8'hCE, 4, `AB_ABn)     // DEC abs
 `ADDR_zp_x(8'hD6)                   `DEC_MEM(8'hD6, 3, `AB_ABn)     // DEC zp,x
 `ADDR_abs_x(8'hDE)                  `DEC_MEM(8'hDE, 4, `AB_ABn)     // DEC abs,x
-                                    
+
 `ADDR_zp(8'hE6)                     `INC_MEM(8'hE6, 3, `AB_ABn)     // INC zp
 `ADDR_abs(8'hEE)                    `INC_MEM(8'hEE, 4, `AB_ABn)     // INC abs
 `ADDR_zp_x(8'hF6)                   `INC_MEM(8'hF6, 3, `AB_ABn)     // INC zp,x
@@ -238,7 +238,7 @@ end
                                     `JMPINDX(8'h7C)    // JMP (abs,x)
 
                                     `DEC_REG(8'h3A, `ASEL_DREG `DREG_A `LOAD_A) // DEY
-                                    `INC_REG(8'h1A, `ASEL_DREG `DREG_A `LOAD_A) // INX                                  
+                                    `INC_REG(8'h1A, `ASEL_DREG `DREG_A `LOAD_A) // INX
 
                                     // (zp),z
 `ADDR_zp_ind_z(8'h12)               `ORA(8'h12,5,|0)
@@ -279,7 +279,7 @@ end
 
 `ADDR_zp(8'h14)                     `TRB(8'h14, 3)            // TRB zp
 `ADDR_abs(8'h1C)                    `TRB(8'h1C, 4)            // TRB abs
-                                                              
+
 `ADDR_zp(8'h04)                     `TSB(8'h04, 3)            // TSB zp
 `ADDR_abs(8'h0C)                    `TSB(8'h0C, 4)            // TSB abs
 
@@ -292,7 +292,7 @@ end
 `ADDR_zp(8'h57)                     `RMB(8'h57)     // RMB5 zp
 `ADDR_zp(8'h67)                     `RMB(8'h67)     // RMB6 zp
 `ADDR_zp(8'h77)                     `RMB(8'h77)     // RMB7 zp
-                                    
+
 `ADDR_zp(8'h87)                     `SMB(8'h87)     // SMB0 zp
 `ADDR_zp(8'h97)                     `SMB(8'h97)     // SMB1 zp
 `ADDR_zp(8'hA7)                     `SMB(8'hA7)     // SMB2 zp
@@ -302,61 +302,70 @@ end
 `ADDR_zp(8'hE7)                     `SMB(8'hE7)     // SMB6 zp
 `ADDR_zp(8'hF7)                     `SMB(8'hF7)     // SMB7 zp
 
-`ifdef NOTDEFINED
-                            
-                            // Various flavors of CMOS NOPs
-                            `NOP2_2(8'h02)
-                            `NOP2_2(8'h22)
-                            `NOP2_2(8'h42)
-                            `NOP2_2(8'h62)
-                            `NOP2_2(8'h82)
-                            `NOP2_2(8'hC2)
-                            `NOP2_2(8'hE2)
+                                    // 65CE02/4510 opcodes
+                                    `FLAG_OP(8'h02, `FLAGS_E) // CLC
+                                    `FLAG_OP(8'h03, `FLAGS_E) // SEC
 
-                            `NOP2_3(8'h44)
-                            `NOP2_4(8'h54)
-                            `NOP2_4(8'hD4)
-                            `NOP2_4(8'hF4)
-                            
-                            `NOP1_1(8'h03)
-                            `NOP1_1(8'h13)
-                            `NOP1_1(8'h23)
-                            `NOP1_1(8'h33)
-                            `NOP1_1(8'h43)
-                            `NOP1_1(8'h53)
-                            `NOP1_1(8'h63)
-                            `NOP1_1(8'h73)
-                            `NOP1_1(8'h83)
-                            `NOP1_1(8'h93)
-                            `NOP1_1(8'hA3)
-                            `NOP1_1(8'hB3)
-                            `NOP1_1(8'hC3)
-                            `NOP1_1(8'hD3)
-                            `NOP1_1(8'hE3)
-                            `NOP1_1(8'hF3)
+                                    `Txx(8'h0B, `ASEL_AREG `AREG_SPH `LOAD_Y `FLAGS_SBZN)   // TSY
+                                    `Txx(8'h2B, `ASEL_DREG `DREG_Y `SPH_ALU)                // TYS
+                                    `Txx(8'h4B, `ASEL_DREG `DREG_A `LOAD_Z `FLAGS_SBZN)     // TAZ
+                                    `Txx(8'h6B, `ASEL_DREG `DREG_Z `LOAD_A `FLAGS_SBZN)     // TZA
+                                    `Txx(8'h5B, `ASEL_DREG `DREG_A `LOAD_B )                // TAB
+                                    `Txx(8'h7B, `BSEL_B `LOAD_A `FLAGS_SBZN)                // TBA
 
-                            `NOP1_1(8'h0B)
-                            `NOP1_1(8'h1B)
-                            `NOP1_1(8'h2B)
-                            `NOP1_1(8'h3B)
-                            `NOP1_1(8'h4B)
-                            `NOP1_1(8'h5B)
-                            `NOP1_1(8'h6B)
-                            `NOP1_1(8'h7B)
-                            `NOP1_1(8'h8B)
-                            `NOP1_1(8'h9B)
-                            `NOP1_1(8'hAB)
-                            `NOP1_1(8'hBB)
-                            `NOP1_1(8'hCB)
-                            `NOP1_1(8'hDB)
-                            `NOP1_1(8'hEB)
-                            `NOP1_1(8'hFB)
-                            
-                            `NOP3_8(8'h5C)
-                            `NOP3_4(8'hDC)
-                            `NOP3_4(8'hFC)
-                            
-`endif
+                                    `NEG(8'h42)       // NEG acc
+                                    `ASR_A(8'h43)     // ASR acc
+
+                                    `LDZ(8'hA3,2,`PC_INC)     // LDZ #
+`ADDR_abs(8'hAB)                    `LDZ(8'hAB,4,|0)          // LDZ abs
+`ADDR_abs_x(8'hBB)                  `LDZ(8'hBB,4,|0)          // LDZ abs,x
+
+                                    `CPZ(8'hC2,2,`PC_INC)     // CPZ #
+`ADDR_zp(8'hD4)                     `CPZ(8'hD4,3,|0)          // CPZ zp
+`ADDR_abs(8'hDC)                    `CPZ(8'hDC,4,|0)          // CPZ abs
+                                    
+`ADDR_zp(8'h44)                     `ASR_MEM(8'h44, 3, `AB_ABn)     // ROR zp
+`ADDR_zp_x(8'h54)                   `ASR_MEM(8'h54, 3, `AB_ABn)     // ROR zp,x
+
+`ADDR_abs_x_w(8'h8B, `DREG_DO_Y)    `STx(8'h8B,4)           // STY abs,x
+`ADDR_abs_y_w(8'h9B, `DREG_DO_X)    `STx(8'h9B,4)           // STX abs,y
+
+                                    `INC_REG(8'h1B, `ASEL_DREG `DREG_Z `LOAD_Z) // INZ
+                                    `DEC_REG(8'h3B, `ASEL_DREG `DREG_Z `LOAD_Z) // DEZ
+
+                                    `PUSH(8'hDB, `ASEL_DREG `DREG_Z)            // PHZ
+                                    `PULL(8'hFB, `BSEL_DB `LOAD_Z `FLAGS_SBZN)  // PLZ
+
+                                    `BPLW(8'h13)      // Word relative
+                                    `BMIW(8'h33)      // Word relative
+                                    `BVCW(8'h53)      // Word relative
+                                    `BVSW(8'h73)      // Word relative
+                                    `BRAW(8'h83)      // Word relative
+                                    `BCCW(8'h93)      // Word relative
+                                    `BCSW(8'hB3)      // Word relative
+                                    `BNEW(8'hD3)      // Word relative
+                                    `BEQW(8'hF3)      // Word relative
+
+                                    `BSR(8'h63)       // Word relative
+
+                                    `JSRIND(8'h22)    // JSR (abs)
+                                    `JSRINDX(8'h23)   // JSR (abs,x)
+
+                                    `RTN(8'h62)       // RTN imm
+
+`ADDR_sp_ind_y_w(8'h82,`DREG_DO_A)  `STx(8'h82,6)     // STA (d,SP),Y
+`ADDR_sp_ind_y(8'hE2)               `LDA(8'hE2,6,|0)  // LDA (d,SP),Y
+
+                                    `DEW(8'hC3)       // DEW zp
+                                    `INW(8'hE3)       // INW zp
+
+                                    `ASW(8'hCB)       // ASW abs
+                                    `ROW(8'hEB)       // ROW abs
+
+                                    `PHWIMM(8'hF4)    // PHW imm
+                                    `PHWABS(8'hFC)    // PHW abs
+
+                                    `MAP(8'h5C)       // 65CE02 AUG, 4510 MAP
 
 end
 
