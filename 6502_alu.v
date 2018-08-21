@@ -66,7 +66,7 @@ module alu_adder(add_in1, add_in2, add_cin, dec_add, dec_sub, add_out, carry_out
   
   // We could insert a pre-decimal correction Z test here for 6502 compatibility.
   
-  decadj_half_adder  decadj_low(tmp[3:0],add_out[3:0], half_carry_in, dec_add, dec_sub);
+  decadj_half_adder  decadj_low(tmp[3:0],add_out[3:0], half_carry,    dec_add, dec_sub);
   decadj_half_adder decadj_high(tmp[7:4],add_out[7:4], carry_out,     dec_add, dec_sub);
 
 endmodule
