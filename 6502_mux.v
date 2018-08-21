@@ -141,9 +141,8 @@ endmodule
                                  input [7:0] reg_b,
                                  input [2:0] bit_index, 
                                  input bit_inv,
-                                 output [7:0] alub);
+                                 output reg [7:0] alub);
 
-  reg [7:0] alub;
   wire [7:0] bit;
 
   decoder3to8 dec3to8(bit_index, bit_inv, bit);
