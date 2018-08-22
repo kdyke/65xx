@@ -218,7 +218,7 @@ wire [7:0] vector_lo;
   //  $display("dec_op: %d dec_add: %d dec_sub: %d ir: %02x",dec_op,dec_add,dec_sub,ir);
   //end
   
-  z_unit z_unit(clk, alu_sel, alu_out, sb_z, dld_z, word_z);
+  z_unit z_unit(clk, ready, alu_sel, alu_out, sb_z, dld_z, word_z);
 
   assign sb_n = alu_out[7];
 

@@ -152,7 +152,7 @@ endmodule
 
 endmodule
 
-`SCHEM_KEEP_HIER module z_unit(input clk,input [2:0] op, input [7:0] aluy, output wire z_out, output reg dld_z, input word_z);
+`SCHEM_KEEP_HIER module z_unit(input clk, input ready, input [2:0] op, input [7:0] aluy, output wire z_out, output reg dld_z, input word_z);
 
 wire alu_z;
 
@@ -160,7 +160,7 @@ assign alu_z = ~|aluy;
 
 always @(posedge clk)
 begin
-  if(op != `ALU_ORA)
+  if(op != `ALU_ORA && ready)
     dld_z <= alu_z;
 end
 
