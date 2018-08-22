@@ -399,8 +399,8 @@
 `MICROCODE( _insbyte, 3, `AB_SPn          `SP_DEC `AREG_PCL `ASEL_AREG `WRITE   ) \
 `MICROCODE( _insbyte, 4, `AB_SPn          `SP_DEC `BSEL_P              `WRITE   ) \
 `MICROCODE( _insbyte, 5, `AB_ABn `ABH_VEC `ABL_ALU `SP_DEC           `ASEL_VEC           ) \
-`MICROCODE( _insbyte, 6, `AB_ABn `AB_INC  `BSEL_DB `PCL_ALU `FLAGS_SETI         ) \
-`MICROCODE( _insbyte, 7, `AB_PCn          `BSEL_DB `PCH_ALU              `SYNC  ) \
+`MICROCODE( _insbyte, 6, `AB_ABn `AB_INC  `ADL_ALU `BSEL_DB `FLAGS_SETI         ) \
+`MICROCODE( _insbyte, 7, `AB_PCn          `BSEL_DB `PCH_ALU `PCL_ADL `SYNC      ) \
 `MICROCODE( _insbyte, 1, `AB_PCn `PC_INC                                        )
 
 `define FLAG_OP(_insbyte, _flag) \
@@ -587,8 +587,8 @@
 `define RTI(_insbyte) \
 `MICROCODE( _insbyte,  2, `AB_SPn `SP_INC) \
 `MICROCODE( _insbyte,  3, `AB_SPn `SP_INC `FLAGS_DB) \
-`MICROCODE( _insbyte,  4, `AB_SPn `SP_INC `ALU_ADC `BSEL_DB `CSEL_0 `PCL_ALU) \
-`MICROCODE( _insbyte,  5, `ALU_ADC `BSEL_DB `CSEL_D `PCH_ALU `SYNC) \
+`MICROCODE( _insbyte,  4, `AB_SPn `SP_INC `ADL_ALU `BSEL_DB) \
+`MICROCODE( _insbyte,  5, `ALU_ADC `BSEL_DB `CSEL_0 `PCH_ALU `PCL_ADL `SYNC) \
 `MICROCODE( _insbyte,  1, `PC_INC)
 
 `define NEG(_insbyte) \
@@ -611,8 +611,8 @@
 `MICROCODE( _insbyte,  3, `AB_SPn `SP_DEC `ASEL_AREG `AREG_PCL `WRITE) \
 `MICROCODE( _insbyte,  4, `AB_PCn `SP_DEC) \
 `MICROCODE( _insbyte,  5, `AB_ABn `ABH_ALU `BSEL_DB) \
-`MICROCODE( _insbyte,  6, `AB_ABn `AB_INC `PCL_ALU `BSEL_DB) \
-`MICROCODE( _insbyte,  7, `AB_PCn `PCH_ALU `BSEL_DB `SYNC) \
+`MICROCODE( _insbyte,  6, `AB_ABn `AB_INC `ADL_ALU `BSEL_DB) \
+`MICROCODE( _insbyte,  7, `AB_PCn `PCH_ALU `BSEL_DB `PCL_ADL `SYNC) \
 `MICROCODE( _insbyte,  1, `PC_INC)
 
 `define JSRINDX(_insbyte) \
@@ -620,8 +620,8 @@
 `MICROCODE( _insbyte,  3, `AB_SPn `SP_DEC `ASEL_AREG `AREG_PCL `WRITE) \
 `MICROCODE( _insbyte,  4, `AB_PCn `SP_DEC) \
 `MICROCODE( _insbyte,  5, `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DB `CSEL_D ) \
-`MICROCODE( _insbyte,  6, `AB_ABn `AB_INC `PCL_ALU `BSEL_DB) \
-`MICROCODE( _insbyte,  7, `AB_PCn `PCH_ALU `BSEL_DB `SYNC) \
+`MICROCODE( _insbyte,  6, `AB_ABn `AB_INC `ADL_ALU `BSEL_DB) \
+`MICROCODE( _insbyte,  7, `AB_PCn `PCH_ALU `BSEL_DB `PCL_ADL `SYNC) \
 `MICROCODE( _insbyte,  1, `PC_INC)
 
 `define RTN(_insbyte) \

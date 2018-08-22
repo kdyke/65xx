@@ -220,3 +220,13 @@ Cycle 5:	AddrN = ABn, AB++
 Cycle 6:	Dout = Din+Cy, WordZ = 1, AddrN = ABn
 Cycle 7:  AddrN = PCn
 ```
+
+
+PC Unit Needed operations
+
+Nop
+PC INC
+PC Load from DB/ADL 				(0+DB,0+ADL,0)
+PC Load from DB/ADL+1				(0+DB,0+ADL,1)
+PC 8-bit branch		(or inc)		(PCH+DB7,PCL+ADL)
+PC 16-bit branch    (or inc)		(PCH+DB, PCL+ADL)
