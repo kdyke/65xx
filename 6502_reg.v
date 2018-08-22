@@ -89,22 +89,9 @@ endmodule
                                input [7:0] adl, input [7:0] alu_ea, input aluc, input alub7, input [7:0] pcl_alu, input pcl_alu_carry,
                                output reg [15:0] pc_next, output reg[15:0] pc);
 
-reg [7:0] pch_adj_factor;
-reg pch_adj_carry_in;
-
 wire [8:0] pcl_incremented;
 assign pcl_incremented = pc[7:0] + pc_inc;
 
-always @(*)
-begin
-  pch_adj_factor = 8'h00;
-  pch_adj_carry_in = pcl_incremented[8];
-  if(cond_met && pch_sel == `kPCH_ADJ) begin
-    pch_adj_factor = {8{alub7}};
-    pch_adj_carry_in = pcl_alu_carry;
-  end
-end
-    
 always @(*)
 begin
   // Default is pc_next is pc_incremented
@@ -124,8 +111,11 @@ always @(*)
 begin
   if(cond_met && pch_sel == `kPCH_ALU)
       pc_next[15:8] = alu_ea;
+  else if(cond_met && pch_sel == `kPCH_ADJ)
+      pc_next[15:8] = pc[15:8] + {8{alub7}} + pcl_alu_carry;
   else
-      pc_next[15:8] = pc[15:8] + pch_adj_factor + pch_adj_carry_in;
+      pc_next[15:8] = pc[15:8] + pcl_incremented[8];
+      
 end
 
 always @(posedge clk)
