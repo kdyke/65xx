@@ -359,7 +359,7 @@
 `define kF_V        3
 `define kF_B        4
 
-// Flag test bit masks
+// Flag test bit masks - could be done as a 3-bit bitfield + decoder to save two more microcode bits.
 `define kTF_C       (1 << `kF_C)
 `define kTF_Z       (1 << `kF_Z)
 `define kTF_N       (1 << `kF_N)

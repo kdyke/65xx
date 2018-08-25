@@ -5,52 +5,79 @@
 
 parameter MAP_IDLE = 0, MAP_READ_A = 1, MAP_READ_X = 2, MAP_READ_Y = 3, MAP_READ_Z = 4;
 
-reg [2:0] map_state; 
+reg [2:0] map_state, map_state_next; 
 
 reg [19:8] map_offset[0:1];
 reg [7:0] map_enable;
+reg load_a, load_x, load_y, load_z, set_i, clear_i;
 
+always @(posedge clk or posedge reset)
+  if(reset) map_state = MAP_IDLE;
+  else map_state <= map_state_next;
+  
 // Look for either MAP or EOM (NOP) being fetched.
-always @(posedge clk) begin
-  if(reset) begin
-    map_offset[0] <= 12'h000;
-    map_offset[1] <= 12'h000;
-    map_enable[7:0] <= 8'h00;
-    map_state = MAP_IDLE;
-  end else begin
-      case(map_state) // synthesis full_case parallel_case
-        MAP_IDLE:
-          if(data_i == 8'h5C && ready && sync) begin
-            int_enable <= 1;
-            map_state <= MAP_READ_A;
-          end else if(data_i == 8'hEA && ready && sync) begin
-            map_state <= MAP_IDLE;
-            int_enable <= 1;
-          end
-        MAP_READ_A:
-          if(ready) begin
-            map_offset[0][15:8] <= data_o;
-            map_state <= MAP_READ_X;
-          end
-        MAP_READ_X:
-          if(ready) begin
-            map_offset[0][19:16] <= data_o[3:0];
-            map_enable[3:0] <= data_o[7:4];
-            map_state <= MAP_READ_Y;
-          end
-        MAP_READ_Y:
-          if(ready) begin
-            map_offset[1][15:8] <= data_o;
-            map_state <= MAP_READ_Z;
-          end
-        MAP_READ_Z:
-          if(ready) begin
-            map_offset[1][19:16] <= data_o[3:0];
-            map_enable[7:4] <= data_o[7:4];
-            map_state <= MAP_IDLE;
-          end
-      endcase    
-  end
+always @* begin
+  map_state_next = 'bx;
+  load_a = 0;
+  load_x = 0;
+  load_y = 0;
+  load_z = 0;
+  clear_i = 0;
+  
+  if(data_i == 8'hEA && ready )
+    clear_i = 1;
+  
+  case(map_state) // synthesis full_case parallel_case
+    MAP_IDLE:
+          if(data_i == 8'h5C && ready && sync)
+              map_state_next = MAP_READ_A;
+    MAP_READ_A: begin
+          load_a = 1;
+          if(ready)
+              map_state_next = MAP_READ_X;
+          else
+              map_state_next = MAP_READ_A;
+      end
+    MAP_READ_X: begin
+          load_x = 1;
+          if(ready)
+              map_state_next = MAP_READ_Y;
+          else
+              map_state_next = MAP_READ_X;
+      end
+    MAP_READ_Y: begin
+          load_y = 1;
+          if(ready)
+              map_state_next = MAP_READ_Z;
+          else
+              map_state_next = MAP_READ_Y;
+      end
+    MAP_READ_Z: begin
+          load_z = 1;
+          if(ready)
+              map_state_next = MAP_IDLE;
+          else
+              map_state_next = MAP_READ_Z;
+      end
+  endcase
+end
+
+always @(posedge clk or posedge reset) begin
+  if(reset) map_offset[0] <= 12'h000;
+  else if(load_a) map_offset[0][15:8] <= data_o;
+  else if(load_x) map_offset[0][19:16] <= data_o[3:0];
+
+  if(reset) map_enable <= 8'h00;
+  else if(load_x) map_enable[3:0] <= data_o[7:4];
+  else if(load_z) map_enable[7:4] <= data_o[7:4];
+  
+  if(reset) map_offset[1] <= 12'h000;
+  else if(load_y) map_offset[1][15:8] <= data_o;
+  else if(load_z) map_offset[1][19:16] <= data_o[3:0];
+  
+  if(reset) int_enable <= 1;
+  else if(load_a) int_enable <= 0;
+  else if(clear_i) int_enable <= 1;
 end
 
 reg [2:0] map_enable_index;
