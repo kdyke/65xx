@@ -10,8 +10,8 @@ reg clk, reset;
 
 reg memory_write;
 reg [15:0] memory_address;
-wire [15:0] cpu_address;
-wire [15:0] cpu_address_next;
+wire [19:0] cpu_address;
+wire [19:0] cpu_address_next;
 reg [7:0] cpu_data_in;
 wire [7:0] cpu_data_out;
 wire cpu_write;
@@ -28,6 +28,7 @@ wire [7:0] y_out;
 wire [7:0] z_out;
 wire [15:0] sp_out;
 wire [7:0] cpu_data_out_reg;
+wire sync;
 
 wire irq, nmi;
 
@@ -37,10 +38,10 @@ reg clock_reset;
 assign irq = io_port[0];
 assign nmi = io_port[1];
 
-	memory memory_inst(.clk(clk), .we(memory_write), .addr(cpu_address_next), .di(memory_in), .do(memory_out));
+	memory memory_inst(.clk(clk), .we(memory_write), .addr(cpu_address_next[15:0]), .di(memory_in), .do(memory_out));
 
-  cpu65CE02 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .ready(ready), .write_next(cpu_write), .write(cpu_write_reg),
-            .address(cpu_address), .address_next(cpu_address_next), .data_i(cpu_data_in), .data_o_next(cpu_data_out), .data_o(cpu_data_out_reg),
+  cpu4510 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .ready(ready), .write_next(cpu_write), .write(cpu_write_reg),
+            .address(cpu_address), .address_next(cpu_address_next), .sync(sync), .data_i(cpu_data_in), .data_o_next(cpu_data_out), .data_o(cpu_data_out_reg),
             .a_out(a_out), .x_out(x_out), .y_out(y_out), .z_out(z_out), .sp_out(sp_out));
 
 	initial begin
@@ -101,17 +102,17 @@ assign nmi = io_port[1];
   always @(*)
   begin
     if(cpu_clock_enable)
-      memory_address = cpu_address;
+      memory_address = cpu_address[15:0];
   end
   
   // Start driving memory and CPU clocks.
   always begin
-`ifdef NOTDEF
-    $monitor($time,,"%m. clk = %b cnt: %d rdy: %d addr: %x addrn: %x mem: %02x do: %02x wn: %d w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x SP: %04x",
-      clk,clock_count[31:0],ready,cpu_address,cpu_address_next,cpu_data_in,cpu_data_out_reg,cpu_write,cpu_write_reg,cpu_clock_enable,irq,nmi,reset,
+//`ifdef NOTDEF
+    $monitor($time,,"%m. clk = %b cnt: %d rdy: %d sync: %d addr: %x addrn: %x mem: %02x do: %02x wn: %d w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x SP: %04x",
+      clk,clock_count[31:0],ready,sync,cpu_address,cpu_address_next,cpu_data_in,cpu_data_out_reg,cpu_write,cpu_write_reg,cpu_clock_enable,irq,nmi,reset,
         a_out,x_out,y_out,z_out,sp_out);
 //    if(cpu_clock_enable)
-`endif
+//`endif
      #1 clk = ~clk;
   end
 
@@ -128,7 +129,7 @@ assign nmi = io_port[1];
     //$display("clock: %d reset: %d",clock_count[31:0],clock_reset);
       
     // Stress test for ready signal.
-    if((clock_count & 7) == 0)
+    if((clock_count & 3) == 0)
       ready <= 1;
     else
       ready <= 1;

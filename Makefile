@@ -1,4 +1,4 @@
-CORE_SRCS = 6502_top.v 6502_ucode.v 6502_alu.v 6502_timing.v 6502_mux.v 6502_reg.v
+CORE_SRCS = 6502_top.v 6502_ucode.v 6502_alu.v 6502_timing.v 6502_mux.v 6502_reg.v 4510_top.v 4510_mapper.v
 CORE_HDRS = 6502_inc.vh
 
 functest : testbed.v func_test.v $(CORE_SRCS) $(CORE_HDRS)
