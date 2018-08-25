@@ -74,7 +74,10 @@ assign nmi = io_port[1];
     else
     begin
       io_port_cs = 0;
-      cpu_data_in = memory_out;
+      if(ready)
+        cpu_data_in = memory_out;
+      else
+        cpu_data_in = 8'hzz;
     end
   end
   
