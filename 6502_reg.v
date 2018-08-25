@@ -94,28 +94,21 @@ assign pcl_incremented = pc[7:0] + pc_inc;
 
 always @(*)
 begin
-  // Default is pc_next is pc_incremented
-  pc_next[7:0] = pcl_incremented;
-  
-  if(cond_met)
-  begin
-    if(pcl_sel == `kPCL_ADL)
-      pc_next[7:0] = adl;
-    else if(pcl_sel == `kPCL_ALU)
-      pc_next[7:0] = pcl_alu;
-  end    
-  
-end
 
-always @(*)
-begin
-  if(cond_met && pch_sel == `kPCH_ALU)
-      pc_next[15:8] = alu_ea;
-  else if(cond_met && pch_sel == `kPCH_ADJ)
-      pc_next[15:8] = pc[15:8] + {8{alub7}} + pcl_alu_carry;
+  if(cond_met && pcl_sel == `kPCL_ALU)
+    pc_next[7:0] = pcl_alu;
+  else if(cond_met && pcl_sel == `kPCL_ADL)
+    pc_next[7:0] = adl;
   else
-      pc_next[15:8] = pc[15:8] + pcl_incremented[8];
-      
+    pc_next[7:0] = pcl_incremented;
+
+  if(cond_met && pch_sel == `kPCH_ALU)
+    pc_next[15:8] = alu_ea;
+  else if(cond_met && pch_sel == `kPCH_ADJ)
+    pc_next[15:8] = pc[15:8] + {8{alub7}} + pcl_alu_carry;
+  else
+    pc_next[15:8] = pc[15:8] + pcl_incremented[8];
+
 end
 
 always @(posedge clk)
