@@ -303,8 +303,8 @@ end
 `ADDR_zp(8'hF7)                     `SMB(8'hF7)     // SMB7 zp
 
                                     // 65CE02/4510 opcodes
-                                    `FLAG_OP(8'h02, `FLAGS_E) // CLC
-                                    `FLAG_OP(8'h03, `FLAGS_E) // SEC
+                                    `FLAG_OP2(8'h02, `FLAGS_E) // CLE
+                                    `FLAG_OP2(8'h03, `FLAGS_E) // SEE
 
                                     `Txx(8'h0B, `ASEL_AREG `AREG_SPH `LOAD_Y `FLAGS_SBZN)   // TSY
                                     `Txx(8'h2B, `ASEL_DREG `DREG_Y `SPH_ALU)                // TYS
