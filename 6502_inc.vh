@@ -625,7 +625,7 @@
 `MICROCODE( _insbyte,  1, `PC_INC)
 
 `define RTN(_insbyte) \
-`MICROCODE( _insbyte,  2, `SP_INC `ABL_ALU `ASEL_AREG `AREG_PCL) \
+`MICROCODE( _insbyte,  2, `ABL_ALU `ASEL_AREG `AREG_PCL) \
 `MICROCODE( _insbyte,  3, `AB_SPn `SP_INC `ABH_ALU `ASEL_AREG `AREG_PCH) \
 `MICROCODE( _insbyte,  4, `AB_SPn `SP_INC `PCL_ALU `ALU_ADC `BSEL_DB `CSEL_1) \
 `MICROCODE( _insbyte,  5, `AB_ABn `PCH_ALU `ALU_ADC `BSEL_DB `CSEL_D) \
