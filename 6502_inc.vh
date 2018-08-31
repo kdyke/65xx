@@ -651,19 +651,19 @@
 
 `define ASW(_insbyte) \
 `MICROCODE( _insbyte,  2, `AB_PCn `PC_INC `ABL_ALU `BSEL_DB) \
-`MICROCODE( _insbyte,  2, `AB_ABn `PC_INC `ABH_ALU `BSEL_DB) \
-`MICROCODE( _insbyte,  4, `AB_ABn `ALU_SHL `BSEL_DB `CSEL_0 `WRITE `FLAGS_CNZ) \
+`MICROCODE( _insbyte,  3, `AB_ABn `PC_INC `ABH_ALU `BSEL_DB) \
+`MICROCODE( _insbyte,  4, `AB_ABn `ALU_SHL `ASEL_DB `CSEL_0 `WRITE `FLAGS_CNZ) \
 `MICROCODE( _insbyte,  5, `AB_ABn `AB_INC) \
-`MICROCODE( _insbyte,  6, `AB_ABn `ALU_SHL `BSEL_DB `CSEL_P `WRITE `FLAGS_CNZ `WORD_Z) \
+`MICROCODE( _insbyte,  6, `AB_ABn `ALU_SHL `ASEL_DB `CSEL_P `WRITE `FLAGS_CNZ `WORD_Z) \
 `MICROCODE( _insbyte,  7, `SYNC) \
 `MICROCODE( _insbyte,  1, `PC_INC)
 
 `define ROW(_insbyte) \
 `MICROCODE( _insbyte,  2, `AB_PCn `PC_INC `ABL_ALU `BSEL_DB) \
-`MICROCODE( _insbyte,  2, `AB_ABn `PC_INC `ABH_ALU `BSEL_DB) \
-`MICROCODE( _insbyte,  4, `AB_ABn `ALU_SHL `BSEL_DB `CSEL_P `WRITE `FLAGS_CNZ) \
+`MICROCODE( _insbyte,  3, `AB_ABn `PC_INC `ABH_ALU `BSEL_DB) \
+`MICROCODE( _insbyte,  4, `AB_ABn `ALU_SHL `ASEL_DB `CSEL_P `WRITE `FLAGS_CNZ) \
 `MICROCODE( _insbyte,  5, `AB_ABn `AB_INC) \
-`MICROCODE( _insbyte,  6, `AB_ABn `ALU_SHL `BSEL_DB `CSEL_P `WRITE `FLAGS_CNZ `WORD_Z) \
+`MICROCODE( _insbyte,  6, `AB_ABn `ALU_SHL `ASEL_DB `CSEL_P `WRITE `FLAGS_CNZ `WORD_Z) \
 `MICROCODE( _insbyte,  7, `SYNC) \
 `MICROCODE( _insbyte,  1, `PC_INC)
 
