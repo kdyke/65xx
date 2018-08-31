@@ -676,10 +676,10 @@
 
 `define PHWABS(_insbyte) \
 `MICROCODE( _insbyte,  2, `PC_INC `ABL_ALU `BSEL_DB) \
-`MICROCODE( _insbyte,  3, `AB_ABn `ABH_ALU `BSEL_DB) \
-`MICROCODE( _insbyte,  4, `AB_SPn `AB_INC `DBO_DI) \
+`MICROCODE( _insbyte,  3, `PC_INC `AB_ABn `ABH_ALU `BSEL_DB) \
+`MICROCODE( _insbyte,  4, `AB_SPn `AB_INC `DBO_DI `WRITE) \
 `MICROCODE( _insbyte,  5, `AB_ABn `SP_DEC) \
-`MICROCODE( _insbyte,  6, `AB_SPn `DBO_DI) \
+`MICROCODE( _insbyte,  6, `AB_SPn `DBO_DI `WRITE) \
 `MICROCODE( _insbyte,  7, `AB_PCn `SP_DEC `SYNC) \
 `MICROCODE( _insbyte,  1, `PC_INC)
 
