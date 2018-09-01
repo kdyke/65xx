@@ -3,7 +3,11 @@
 `SCHEM_KEEP_HIER module mapper4510(input clk, input reset, output reg int_enable, input [7:0] data_i, input [7:0] data_o, input ready, input sync,
                   output reg [19:0] address, output reg [19:0] address_next, input [15:0] core_address_next, output reg map);
 
-parameter MAP_IDLE = 0, MAP_READ_A = 1, MAP_READ_X = 2, MAP_READ_Y = 3, MAP_READ_Z = 4;
+parameter MAP_IDLE = 0, 
+          MAP_READ_A = 1, 
+          MAP_READ_X = 2, 
+          MAP_READ_Y = 3, 
+          MAP_READ_Z = 4;
 
 reg [2:0] map_state, map_state_next; 
 
@@ -11,8 +15,8 @@ reg [19:8] map_offset[0:1];
 reg [7:0] map_enable;
 reg load_a, load_x, load_y, load_z, set_i, clear_i;
 
-always @(posedge clk or posedge reset)
-  if(reset) map_state = MAP_IDLE;
+always @(posedge clk)
+  if(reset) map_state <= MAP_IDLE;
   else map_state <= map_state_next;
   
 // Look for either MAP or EOM (NOP) being fetched.
@@ -24,13 +28,16 @@ always @* begin
   load_z = 0;
   clear_i = 0;
   
-  if(data_i == 8'hEA && ready )
+  // This doesn't need to be dependent on the state machine.
+  if(data_i == 8'hEA && ready && sync)
     clear_i = 1;
   
   case(map_state) // synthesis full_case parallel_case
     MAP_IDLE:
           if(data_i == 8'h5C && ready && sync)
               map_state_next = MAP_READ_A;
+          else
+              map_state_next = MAP_IDLE;
     MAP_READ_A: begin
           load_a = 1;
           if(ready)
