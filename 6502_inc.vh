@@ -746,7 +746,7 @@
 `MICROCODE( _insbyte,  2, `PC_INC `AB_ABn `ABH_B `ABL_ALU `ALU_ADC `ASEL_AREG `AREG_SPL `BSEL_DB) \
 `MICROCODE( _insbyte,  3, `AB_ABn `ABH_ALU `ALU_ADC `ASEL_AREG `AREG_SPH `CSEL_D) \
 `MICROCODE( _insbyte,  4, `AB_ABn `AB_INC `ADL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB) \
-`MICROCODE( _insbyte,  5, `AB_ADn `ADH_ALU `ALU_ADC `BSEL_DB `CSEL_D _args) \
+`MICROCODE( _insbyte,  5, `AB_ADn `ADH_ALU `ALU_ADC `BSEL_DB `CSEL_D `DBO_DREG _args) \
 
 `define ADDR_abs(_insbyte)                `ADDR_abs_(_insbyte, |0)
 `define ADDR_abs_w(_insbyte, _args)       `ADDR_abs_(_insbyte, _args `WRITE)
