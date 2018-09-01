@@ -67,24 +67,24 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module predecode(ir_next, active, onecycle);
-input [7:0] ir_next;
-input active;
+`SCHEM_KEEP_HIER module predecode(data_i, sync, onecycle);
+input [7:0] data_i;
+input sync;
 output onecycle;
 
 // This detects single-cycle instructions - doing this the cheesy way for now.
 reg onecycle;
 always @(*)
 begin
-  casez(ir_next)
-  8'b0001_1000: onecycle = active; // 0x18 - CLC
-  8'b0011_1000: onecycle = active; // 0x38 - SEC
-  8'b0101_1000: onecycle = active; // 0x58 - CLI
-  8'b1zzz_1000: onecycle = active; // 0x[8,9,A,B,C,D,E,F]8
+  casez(data_i)
+  8'b0001_1000: onecycle = sync; // 0x18 - CLC
+  8'b0011_1000: onecycle = sync; // 0x38 - SEC
+  8'b0101_1000: onecycle = sync; // 0x58 - CLI
+  8'b1zzz_1000: onecycle = sync; // 0x[8,9,A,B,C,D,E,F]8
   
-  8'bz0zz_1010: onecycle = active; // 0x[0,1,2,3,8,9,A,B][A]
-  8'bz1z0_1010: onecycle = active; // 0x[4,6,C,E]A
-  8'b0zzz_1011: onecycle = active; // 0x[0-7]B
+  8'bz0zz_1010: onecycle = sync; // 0x[0,1,2,3,8,9,A,B][A]
+  8'bz1z0_1010: onecycle = sync; // 0x[4,6,C,E]A
+  8'b0zzz_1011: onecycle = sync; // 0x[0-7]B
 
   default:      onecycle = 0;
   endcase
