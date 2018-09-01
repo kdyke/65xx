@@ -151,7 +151,7 @@ wire [7:0] vector_lo;
       w_reg <= write_next;
   end
   
-  assign cpu_state = ir; //{ dec_add, dec_sub, decimal_extra_cycle, decimal_cycle};
+  assign cpu_state = reg_p; //{ dec_add, dec_sub, decimal_extra_cycle, decimal_cycle};
   
   predecode predecode(data_i, sync & ~intg, onecycle);
 

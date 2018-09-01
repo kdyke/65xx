@@ -16,6 +16,18 @@ cmostest : testbed.v cmos_test.v $(CORE_SRCS) $(CORE_HDRS)
 cinttest : testbed.v cint_test.v $(CORE_SRCS) $(CORE_HDRS)
 	iverilog -o cinttest -s main -D CMOS=1 testbed.v cint_test.v $(CORE_SRCS)
 
+etest : testbed.v efunc_test.v $(CORE_SRCS) $(CORE_HDRS)
+	iverilog -o etest -s main -D CMOS=1 testbed.v efunc_test.v $(CORE_SRCS)
+
+efunc_test.v : 65CE02_opcodes_test.hex hex2v
+	hex2v  65CE02_opcodes_test.hex efunc_test.v memory 65536
+
+hex2v : hex2v.c
+	cc -o hex2v hex2v.c
+
+65CE02_opcodes_test.hex : 65CE02_opcodes_test.t64
+	64tass  --m4510  --intel-hex -o 65CE02_opcodes_test.hex --list=65CE02_opcodes_test.lst --verbose-list 65CE02_opcodes_test.t64
+
 copy :
 	cp func_test.v $(CORE_SRCS) $(CORE_HDRS) /Volumes/Projects/6502_sync
 
@@ -33,3 +45,6 @@ cmos : cmostest
 
 cint : cinttest
 	cinttest
+
+e : etest
+	etest
