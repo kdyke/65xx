@@ -1,6 +1,7 @@
 `include "6502_inc.vh"
 
-`SCHEM_KEEP_HIER module mapper4510(input clk, input reset, output reg int_enable, input [7:0] data_i, input [7:0] data_o, input ready, input sync,
+`SCHEM_KEEP_HIER module mapper4510(input clk, input reset, input [7:0] data_i, input [7:0] data_o, input ready, input sync,
+                  input ext_irq, input ext_nmi, output cpu_irq, output cpu_nmi,
                   output reg [19:0] address, output reg [19:0] address_next, input [15:0] core_address_next, output reg map);
 
 parameter MAP_IDLE = 0, 
@@ -14,6 +15,11 @@ reg [2:0] map_state, map_state_next;
 reg [19:8] map_offset[0:1];
 reg [7:0] map_enable;
 reg load_a, load_x, load_y, load_z, set_i, clear_i;
+reg int_enable;
+
+// It's not clear whether NMI should be done this way or not. The C65 docs aren't clear on if the MAP instruction masks off NMIs.
+assign cpu_irq = ext_irq & int_enable;
+assign cpu_nmi = ext_nmi & int_enable;
 
 always @(posedge clk)
   if(reset) map_state <= MAP_IDLE;
