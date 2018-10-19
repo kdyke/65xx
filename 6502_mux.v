@@ -43,7 +43,6 @@ end
 
 always @(posedge clk)
 begin
-  if(ready)
   begin
     abus <= abus_next;
   end
