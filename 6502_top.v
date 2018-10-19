@@ -209,7 +209,7 @@ wire [7:0] vector_lo;
   // FIXME - This is kinda hacky right now.  Really should have a pair of dedicated microcode bits for this but
   // I'm currently out of spare microcode bits.   This probably only requires a couple of LUTs though.
   wire dec_op;
-  assign dec_op = reg_p[`kPF_D] & load_flags_decode[`kLF_V_AVR] & (alu_sel == `kALU_ADC);
+  assign dec_op = reg_p[`kPF_D] & load_flags_decode[`kLF_V_AVR] /* & (alu_sel == `kALU_ADC) */;
   assign dec_add = dec_op & (ir[7] == 0);
   assign dec_sub = dec_op & (ir[7] == 1);
 
