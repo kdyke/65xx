@@ -1902,7 +1902,9 @@ jxp_ok
         ldz #$00
         map
         eom
-        
+
+        next_test
+
 ; 16-bit inrement/decrement INW/DEW zp
 inwdewtest
         ldx #$00
