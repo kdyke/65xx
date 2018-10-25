@@ -1,16 +1,13 @@
 `include "6502_inc.vh"
 
 `SCHEM_KEEP_HIER module mapper4510(input clk, input reset, input [7:0] data_i, input [7:0] data_o, input ready, input sync,
-                  input ext_irq, input ext_nmi, output cpu_irq, output cpu_nmi,
+                  input ext_irq, input ext_nmi, output cpu_irq, output cpu_nmi, input enable_i, input disable_i,
+                  input load_a, input load_x, input load_y, input load_z,
                   output reg [19:0] address, output reg [19:0] address_next, input [15:0] core_address_next, output reg map);
 
 reg [19:8] map_offset[0:1];
 reg [7:0] map_enable;
 reg int_enable;
-
-wire load_a, load_x, load_y, load_z, clear_i;
-
-mapper_fsm mapper_fsm(clk, reset, data_i, ready, sync, load_a, load_x, load_y, load_z, clear_i);
 
 // It's not clear whether NMI should be done this way or not. The C65 docs aren't clear on if the MAP instruction masks off NMIs.
 assign cpu_irq = ext_irq & int_enable;
@@ -36,8 +33,8 @@ always @(posedge clk) begin
   else if(load_z) map_offset[1][19:16] <= data_o[3:0];
   
   if(reset) int_enable <= 1;
-  else if(load_a) int_enable <= 0;
-  else if(clear_i) int_enable <= 1;
+  else if(disable_i) int_enable <= 0;
+  else if(enable_i) int_enable <= 1;
 end
 
 // Mapper combinatorial path
@@ -76,7 +73,7 @@ end
 endmodule
 
 module mapper_fsm(input clk, input reset, input [7:0] data_i, input ready, input sync,
-                  output reg load_a, output reg load_x, output reg load_y, output reg load_z, output reg clear_i);
+                  output reg load_a, output reg load_x, output reg load_y, output reg load_z, output reg enable_i, output reg disable_i);
 
 parameter MAP_IDLE = 0, 
           MAP_READ_A = 1, 
@@ -97,11 +94,12 @@ always @* begin
   load_x = 0;
   load_y = 0;
   load_z = 0;
-  clear_i = 0;
+  enable_i = 0;
+  disable_i = 0;
   
   // This doesn't need to be dependent on the state machine.
   if(data_i == 8'hEA && ready && sync)
-    clear_i = 1;
+    enable_i = 1;
     
   case(map_state) // synthesis full_case parallel_case
     MAP_IDLE:
@@ -111,6 +109,8 @@ always @* begin
               map_state_next = MAP_IDLE;
     MAP_READ_A: begin
           load_a = 1;
+          disable_i = 1;
+          
           if(ready)
               map_state_next = MAP_READ_X;
           else

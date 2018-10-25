@@ -11,9 +11,16 @@ wire [15:0] core_address_next;
 
 wire cpu_irq;
 wire cpu_nmi;
+wire load_a, load_x, load_y, load_z, map_enable_i, map_disable_i;
 
+// This is the state machine that actually watches for MAP/EOM instructions and tells the mapper what to do.
+mapper_fsm mapper_fsm(clk, reset, data_i, ready, sync, load_a, load_x, load_y, load_z, map_enable_i, map_disable_i);
+
+// The mapper handles the mapping address calculations but not the state machine part of it.
 mapper4510 mapper(.clk(clk), .reset(reset), .data_i(data_i), .data_o(data_o_next), .ready(ready), .sync(sync),
-                  .ext_irq(irq), .ext_nmi(nmi), .cpu_irq(cpu_irq), .cpu_nmi(cpu_nmi),
+                  .ext_irq(irq), .ext_nmi(nmi), .cpu_irq(cpu_irq), .cpu_nmi(cpu_nmi), 
+                  .enable_i(map_enable_i), .disable_i(map_disable_i),
+                  .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_z(load_z),
                   .address(address), .address_next(address_next), .core_address_next(core_address_next), .map(map));
                   
 cpu65CE02 cpu_core(.clk(clk), .reset(reset), .nmi(cpu_nmi), .irq(cpu_irq), .ready(ready), .sync(sync),
