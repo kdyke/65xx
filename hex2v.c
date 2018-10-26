@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 		"begin\n"
 		"    if(we)\n"
 		"        ram[addr] = di;\n"
-		"    if(we && addr == 16'h0400)\n"
+		"    if(we && addr == 16'h0402)\n"
           	"        $display(\"last test: %%d\",di);\n"
 		"    do = ram[addr];\n"
 		"end\n"

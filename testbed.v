@@ -32,6 +32,8 @@ wire [7:0] cpu_state;
 
 wire sync;
 
+reg hyper_cs;
+
 wire irq, nmi;
 
 reg [63:0] clock_count;
@@ -44,6 +46,7 @@ assign nmi = io_port[1];
 
   cpu4510 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .ready(ready), .write_next(cpu_write), .write(cpu_write_reg), .cpu_state(cpu_state),
             .address(cpu_address), .address_next(cpu_address_next), .sync(sync), .data_i(cpu_data_in), .data_o_next(cpu_data_out), .data_o(cpu_data_out_reg),
+            .hyper_cs(hyper_cs),
             .a_out(a_out), .x_out(x_out), .y_out(y_out), .z_out(z_out), .sp_out(sp_out));
 
 	initial begin
@@ -82,6 +85,10 @@ assign nmi = io_port[1];
       else
         cpu_data_in = 8'hzz;
     end
+    if(cpu_address[19:8] == 12'h0D6)
+      hyper_cs = 1;
+    else
+      hyper_cs = 0;
   end
   
   always @(*)
@@ -109,12 +116,12 @@ assign nmi = io_port[1];
   
   // Start driving memory and CPU clocks.
   always begin
-`ifdef NOTDEF
+//`ifdef NOTDEF
     $monitor($time,,"%m. clk = %b cnt: %d rdy: %d sync: %d addr: %x addrn: %x mem: %02x do: %02x wn: %d w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x P: %02x SP: %04x",
       clk,clock_count[31:0],ready,sync,cpu_address,cpu_address_next,cpu_data_in,cpu_data_out_reg,cpu_write,cpu_write_reg,cpu_clock_enable,irq,nmi,reset,
         a_out,x_out,y_out,z_out,cpu_state,sp_out);
 //    if(cpu_clock_enable)
-`endif
+//`endif
      #1 clk = ~clk;
   end
 

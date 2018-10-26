@@ -1905,6 +1905,13 @@ jxp_ok
 
         next_test
 
+; Hypervisor enter/exit test
+	sta $d640	; Attempt hypervisor entry
+
+        trap            ; We shoulnd't get here...
+	
+	next_test
+	
 ; 16-bit inrement/decrement INW/DEW zp
 inwdewtest
         ldx #$00
@@ -2203,6 +2210,10 @@ ji_px   nop             ;low address byte matched with ji_ret
         trap            ;jmp indirect page cross bug
     .endif
     
+*=	$8000
+
+	jmp $8000
+
 *=      $fffa ; vectors
     
     .if (load_data_direct = 1) & (ROM_vectors = 1)  
