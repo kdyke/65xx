@@ -120,9 +120,14 @@ begin
     hyper_mode <= 0;
   end
   
-  if(load_hyper_pc)
+  if(load_hyper_pc) begin
+      $display("Hyper enter, return PC will be %04x",cpu_addr);
       hyper_pc <= cpu_addr;
-      
+  end else if(load_hyper_pcl)
+      hyper_pc[7:0] <= hyper_io_data_i;
+  else if(load_hyper_pch)
+      hyper_pc[15:8] <= hyper_io_data_i;
+  
   if(load_hyper_p)
     hyper_p <= cpu_data_o;
     
@@ -155,13 +160,20 @@ begin
   hyper_enter_req = 0;
   hyper_exit_req = 0;
   hypervisor_trap_port = 0;
+  load_hyper_pcl = 0;
+  load_hyper_pch = 0;
   
   if(hyper_cs & ready) begin
     $display("HyperCS!");
     if(hyper_addr[7:6] == 2'b01) begin
       if(cpu_write) begin
         if(hyper_mode) begin
-          hyper_exit_req = 1;
+          case(hyper_addr)
+            8'h48: load_hyper_pcl = 1;
+            8'h49: load_hyper_pch = 1;
+            8'h7F: hyper_exit_req = 1;
+            default: ;
+          endcase
         end else begin
           hyper_enter_req = 1;
           hypervisor_trap_port <= {1'b0,cpu_addr[5:0]};
@@ -221,9 +233,8 @@ begin
       
     HYPER_ENTER_PHP_DEC: begin
       $display("hyper_state = HYPER_ENTER_PHP_DEC ready: %d",ready);
-      hyper_mux_sel = HYPER_MUX_PHP_PLP;
+      hyper_mux_sel = HYPER_MUX_JMP;
       if(ready) begin  // CPU is now pushing SP and P onto its "next" output, but we'll grab it on the next cycle.
-        hyper_mux_sel = HYPER_MUX_JMP;
         hyper_state_next = HYPER_ENTER_PHP_EX;
         save_hyper_regs = 1;
         mapper_reg_sel = MAP_X;
@@ -232,7 +243,7 @@ begin
     end
     
     HYPER_ENTER_PHP_EX: begin
-      hyper_mux_sel = HYPER_MUX_PHP_PLP;
+      hyper_mux_sel = HYPER_MUX_JMP;
       if(ready) begin  // CPU now has P on the clocked data output so snag it and move on to next state.
         load_hyper_p = 1;
         hyper_state_next = HYPER_ENTER_JMP_FETCH;
@@ -264,6 +275,76 @@ begin
       end
     end
   
+    HYPER_EXIT_CLE_SEE_FETCH : begin
+      $display("hyper_state = HYPER_EXIT_CLE_SEE_FETCH");
+      if(ready & cpu_sync) begin  // CPU is now fetching next instruction
+        hyper_exit_gate = 1;      // Allow mapper to be re-enabled.
+        hyper_mux_sel = HYPER_MUX_CLE_SEE;
+        hyper_state_next = HYPER_EXIT_CLE_SEE_EX;
+        $display("hyper_state_next = HYPER_EXIT_CLE_SEE_EX");
+      end
+    end
+    
+    HYPER_EXIT_CLE_SEE_EX : begin
+      $display("hyper_state = HYPER_EXIT_CLE_SEE_EX");
+      hyper_mux_sel = HYPER_MUX_PHP_PLP;
+      if(ready) begin
+        hyper_state_next = HYPER_EXIT_PLP_FETCH;
+        $display("hyper_state_next = HYPER_EXIT_PLP_FETCH");
+      end
+    end
+
+    HYPER_EXIT_PLP_FETCH : begin
+      $display("hyper_state = HYPER_EXIT_PLP_FETCH");
+      hyper_mux_sel = HYPER_MUX_PHP_PLP;
+      if(ready & cpu_sync) begin  // CPU is now fetching next instruction
+        hyper_state_next = HYPER_EXIT_PLP_DEC;
+        $display("hyper_state_next = HYPER_EXIT_PLP_DEC");
+      end
+    end
+
+    HYPER_EXIT_PLP_DEC : begin
+      $display("hyper_state = HYPER_EXIT_PLP_DEC");
+      hyper_mux_sel = HYPER_MUX_P;
+      if(ready) begin
+        hyper_state_next = HYPER_EXIT_PLP_EX;
+        $display("hyper_state_next = HYPER_EXIT_PLP_EX");
+      end
+    end
+
+    HYPER_EXIT_PLP_EX : begin
+      $display("hyper_state = HYPER_EXIT_PLP_DEC");
+      hyper_mux_sel = HYPER_MUX_P;
+      if(ready) begin
+        hyper_state_next = HYPER_EXIT_JMP_FETCH;
+        $display("hyper_state_next = HYPER_EXIT_PLP_EX");
+      end
+    end
+
+    HYPER_EXIT_JMP_FETCH: begin
+      hyper_mux_sel = HYPER_MUX_JMP;
+      if(ready & cpu_sync) begin
+        hyper_state_next = HYPER_EXIT_JMP_PCL;
+      end
+    end
+
+    HYPER_EXIT_JMP_PCL: begin
+      hyper_mux_sel = HYPER_MUX_EXIT_PCL;
+      if(ready) begin
+        hyper_state_next = HYPER_EXIT_JMP_PCH;
+      end
+    end
+
+    HYPER_EXIT_JMP_PCH: begin
+      $display("hyper_state = HYPER_EXIT_JMP_PCH");
+      hyper_mux_sel = HYPER_MUX_EXIT_PCH;
+      if(ready) begin
+        map_enable = 1;
+        hyper_state_next = HYPER_IDLE;
+        $display("hyper_state_next = HYPER_IDLE");
+      end
+    end
+    
   default:
     hyper_state_next <= 4'hx;
   endcase

@@ -1908,7 +1908,9 @@ jxp_ok
 ; Hypervisor enter/exit test
 	sta $d640	; Attempt hypervisor entry
 
-        trap            ; We shoulnd't get here...
+        trap            ; We shouldn't get here...
+
+hyper_exit:
 	
 	next_test
 	
@@ -2209,11 +2211,19 @@ ji_px   nop             ;low address byte matched with ji_ret
         nop
         trap            ;jmp indirect page cross bug
     .endif
-    
+
+; Hypervisor test entry point. We try to set up hyper_pc to exit back to after
+; hypervisor trap.   We should also test we can modify P register values.    
 *=	$8000
 
-	jmp $8000
-
+	lda #<hyper_exit
+	sta $d648
+	lda #>hyper_exit
+	sta $d649
+	sta $d67f		; Exit from hypervisor
+	
+	trap			; We shouldn't reach here.
+	
 *=      $fffa ; vectors
     
     .if (load_data_direct = 1) & (ROM_vectors = 1)  
