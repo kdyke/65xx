@@ -1907,7 +1907,9 @@ jxp_ok
 
 ; Hypervisor enter/exit test
 	sta $d640	; Attempt hypervisor entry
-
+	lda $d640	; Attempt hypervisor entry
+	nop
+	nop
         trap            ; We shouldn't get here...
 
 hyper_exit:
@@ -2221,7 +2223,9 @@ ji_px   nop             ;low address byte matched with ji_ret
 	lda #>hyper_exit
 	sta $d649
 	sta $d67f		; Exit from hypervisor
-	
+	lda $d67f		; Exit from hypervisor
+	nop
+	nop
 	trap			; We shouldn't reach here.
 	
 *=      $fffa ; vectors

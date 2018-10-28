@@ -367,6 +367,8 @@ end
 
                                     `MAP(8'h5C)       // 65CE02 AUG, 4510 MAP
 
+                                    `HYPER_ENTER(8'h02) // SEE
+                                    `HYPER_EXIT(8'h03)  // CLE
 end
 
 // microcode outputs wired to specific bits

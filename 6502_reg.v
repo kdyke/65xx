@@ -28,7 +28,7 @@ end
 endmodule
 
 `SCHEM_KEEP_HIER module ab_reg(input clk, input ready, input ab_inc, input [1:0] abh_sel, input abl_sel,
-                               input [7:0] b, input[7:0] alu_ea, output reg [15:0] ab_next, output reg [15:0] ab);
+                               input [7:0] b, input[7:0] alu_ea, input [7:0] vector_hi, output reg [15:0] ab_next, output reg [15:0] ab);
 
 reg [15:0] ab_add;
 
@@ -44,7 +44,7 @@ begin
       `kABH_ABH:   ab_next[15:8] = ab_add[15:8];
       `kABH_B:     ab_next[15:8] = b;
       `kABH_ALU:   ab_next[15:8] = alu_ea;
-      `kABH_VEC:   ab_next[15:8] = 8'hff;
+      `kABH_VEC:   ab_next[15:8] = vector_hi;
     endcase
     if(abl_sel)
       ab_next[7:0] = alu_ea;
@@ -165,7 +165,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module p_reg(input clk, input reset, input ready, input intg, 
+`SCHEM_KEEP_HIER module p_reg(input clk, input reset, input ready, input intg, input hyper_exit,
                               input [15:0] load_flag_decode, input load_b, 
                               input [7:0] db_in, input sb_z, input sb_n, input carry, input overflow, input ir5, input ir0, output reg [7:0] reg_p);
 
@@ -182,26 +182,27 @@ begin
   begin
     if(load_flag_decode[`kLF_C_ACR])       reg_p[`kPF_C] = carry;
     else if(load_flag_decode[`kLF_C_IR5])  reg_p[`kPF_C] = ir5;
-    else if(load_flag_decode[`kLF_C_DB0])  reg_p[`kPF_C] = db_in[0];
+    else if(load_flag_decode[`kLF_C_DB0])  reg_p[`kPF_C] = db_in[`kPF_C];
 
     if(load_flag_decode[`kLF_Z_SBZ])       reg_p[`kPF_Z] = sb_z;
-    else if(load_flag_decode[`kLF_Z_DB1])  reg_p[`kPF_Z] = db_in[1];
+    else if(load_flag_decode[`kLF_Z_DB1])  reg_p[`kPF_Z] = db_in[`kPF_Z];
     
-    if(load_flag_decode[`kLF_I_DB2])       reg_p[`kPF_I] = db_in[2];
+    if(load_flag_decode[`kLF_I_DB2])       reg_p[`kPF_I] = db_in[`kPF_I];
     else if(load_flag_decode[`kLF_I_IR5])  reg_p[`kPF_I] = ir5;
     else if(load_flag_decode[`kLF_I_1])    reg_p[`kPF_I] = 1;
 
-    if(load_flag_decode[`kLF_D_DB3])       reg_p[`kPF_D] = db_in[3];
+    if(load_flag_decode[`kLF_D_DB3])       reg_p[`kPF_D] = db_in[`kPF_D];
     else if(load_flag_decode[`kLF_D_IR5])  reg_p[`kPF_D] = ir5;
     
     if(load_flag_decode[`kLF_V_AVR])       reg_p[`kPF_V] = overflow;
-    else if(load_flag_decode[`kLF_V_DB6])  reg_p[`kPF_V] = db_in[6];
+    else if(load_flag_decode[`kLF_V_DB6])  reg_p[`kPF_V] = db_in[`kPF_V];
     else if(load_flag_decode[`kLF_V_0])    reg_p[`kPF_V] = 0;
       
     if(load_flag_decode[`kLF_N_SBN])       reg_p[`kPF_N] = sb_n;
-    else if(load_flag_decode[`kLF_N_DB7])  reg_p[`kPF_N] = db_in[7];
+    else if(load_flag_decode[`kLF_N_DB7])  reg_p[`kPF_N] = db_in[`kPF_N];
     
     if(load_flag_decode[`kLF_E_IR0])       reg_p[`kPF_E] = ir0;
+    else if(load_flag_decode[`kLF_I_DB2] & hyper_exit)  reg_p[`kPF_E] = db_in[`kPF_E];
   end
 end
 

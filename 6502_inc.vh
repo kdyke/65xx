@@ -802,4 +802,18 @@
 `MICROCODE( _insbyte, 4, `SYNC) \
 `MICROCODE( _insbyte, 1, `PC_INC)
 
+// Hypervisor enter writes P, PCL and then PCH to 3 successive registers in Hypervisor controller, then performs indirect jump
+// via the final two register reads (which will contain the landing point for the selected trap)
+`define HYPER_ENTER(_insbyte) \
+`MICROCODE( _insbyte, 3, `AB_ABn `ABH_VEC `ABL_ALU `ASEL_VEC `FLAGS_SETI `DBO_PCHn `WRITE) \
+`MICROCODE( _insbyte, 4, `AB_ABn `AB_INC `ASEL_AREG `AREG_PCL `WRITE) \
+`MICROCODE( _insbyte, 5, `AB_ABn `AB_INC `BSEL_P `WRITE `FLAGS_SETI) \
+`MICROCODE( _insbyte, 6, `AB_ABn `AB_INC `BSEL_DB `ADL_ALU) \
+`MICROCODE( _insbyte, 7, `PC_INC `PCH_ALU `PCL_ADL `SYNC)
+
+`define HYPER_EXIT(_insbyte) \
+`MICROCODE( _insbyte, 3, `AB_ABn `ABH_VEC `ABL_ALU `ASEL_VEC `FLAGS_DB) \
+`MICROCODE( _insbyte, 4, `AB_ABn `AB_INC `BSEL_DB `ADL_ALU) \
+`MICROCODE( _insbyte, 5, `AB_ABn `AB_INC `BSEL_DB `PCH_ALU `PCL_ADL `SYNC)
+
 `endif //_6502_inc_vh_

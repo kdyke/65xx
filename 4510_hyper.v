@@ -1,56 +1,96 @@
 `include "6502_inc.vh"
 
-module hyper_ctrl(input clk, input reset, input hyper_cs, input [7:0] hyper_addr, input [7:0] hyper_io_data_i, output reg [7:0] hyper_io_data_o,
-                  input [15:0] cpu_addr, input [7:0] cpu_ext_data_i, input [7:0] cpu_data_o, input cpu_sync, input cpu_write, input ready,
-                  output reg [7:0] cpu_data_i, output reg hyper_mode, /* output mapper_int_en, */ output reg map_enable,
+`SCHEM_KEEP_HIER module hyper_ctrl(input clk, input reset, input hyper_cs, input [7:0] hyper_addr, input [7:0] hyper_io_data_i, output reg [7:0] hyper_io_data_o,
+                  input cpu_write, input ready,
+                  output reg [7:0] cpu_data_i, output reg hyper_mode, output reg hyper_enter, output reg hyper_exit, output reg map_enable_ext,
                   output reg [1:0] mapper_reg_sel, input [7:0] mapper_reg);
-
-parameter HYPER_IDLE                = 0,
-          HYPER_ENTER_PHP_FETCH     = 1,
-          HYPER_ENTER_PHP_DEC       = 2,
-          HYPER_ENTER_PHP_EX        = 3,
-          HYPER_ENTER_JMP_FETCH     = 4,
-          HYPER_ENTER_JMP_PCL       = 5,
-          HYPER_ENTER_JMP_PCH       = 6,
-          HYPER_EXIT_CLE_SEE_FETCH  = 7,
-          HYPER_EXIT_CLE_SEE_EX     = 8,
-          HYPER_EXIT_PLP_FETCH      = 9,
-          HYPER_EXIT_PLP_DEC        = 10,
-          HYPER_EXIT_PLP_EX         = 11,
-          HYPER_EXIT_JMP_FETCH      = 12,
-          HYPER_EXIT_JMP_PCL        = 13,
-          HYPER_EXIT_JMP_PCH        = 14;
-
-parameter HYPER_MUX_PHP_PLP         = 0,
-          HYPER_MUX_P               = 1,
-          HYPER_MUX_CLE_SEE         = 2,
-          HYPER_MUX_JMP             = 3,
-          HYPER_MUX_ENTER_PCL       = 4,
-          HYPER_MUX_ENTER_PCH       = 5,
-          HYPER_MUX_EXIT_PCL        = 6,
-          HYPER_MUX_EXIT_PCH        = 7;
 
 parameter MAP_A = 0,
           MAP_X = 1,
           MAP_Y = 2,
           MAP_Z = 3;
 
-reg [15:0] hyper_pc, load_hyper_pcl, load_hyper_pch, load_hyper_pc;
-reg [15:0] hyper_sp, load_hyper_spl, load_hyper_sph, load_hyper_sp;
+parameter HYPER_REG_A = 6'h00,
+          HYPER_REG_X = 6'h01,
+          HYPER_REG_Y = 6'h02,
+          HYPER_REG_Z = 6'h03,
+          HYPER_REG_B = 6'h04,
+          HYPER_REG_SPL = 6'h05,
+          HYPER_REG_SPH = 6'h06,
+          HYPER_REG_P   = 6'h07,
+          HYPER_REG_PCL = 6'h08,
+          HYPER_REG_PCH = 6'h09,
+          HYPER_REG_MAP_X = 6'h0A,
+          HYPER_REG_MAP_A = 6'h0B,
+          HYPER_REG_MAP_Z = 6'h0C,
+          HYPER_REG_MAP_Y = 6'h0D,
+          HYPER_REG_PORT_00 = 6'h10,
+          HYPER_REG_PORT_01 = 6'h10,
+          HYPER_REG_IOMODE  = 6'h12,
+          
+          HYPER_REG_ENTER_PCH = 6'h27,
+          HYPER_REG_ENTER_PCL = 6'h28,
+          HYPER_REG_ENTER_P = 6'h29,
+          HYPER_REG_TRAP_PCL = 6'h2A,
+          HYPER_REG_TRAP_PCH = 6'h2B,
+          
+          HYPER_REG_EXIT = 6'h3F;
+          
+// Hypervisor register space D6xx
+//
+// Add $40 to get memory address.
+// 00 - hyper_a
+// 01 - hyper_x
+// 02 - hyper_y
+// 03 - hyper_z
+// 04 - hyper_b
+// 05 - hyper_spl
+// 06 - hyper_sph
+// 07 - hyper_p
+// 08 - hyper_pcl
+// 09 - hyper_pch
+// 0A - hyper_map_low | hyper_map_offset_low[11:8]
+// 0B - hyper_map_offset_low[7:0]
+// 0C - hyper_map_high | hyper_map_offset_high[11:8]
+// 0D - hyper_map_offset_high[7:0]
+// 0E - Unused?
+// 0F - Unused?
+// 10 - hyper_port_00
+// 11 - hyper_port_01
+// 12 - hyper_iomode
+// 13 - Unused
+// 14 - Unused
+// 15 - Unused
+// 16 - Unused
+// 17 - Unused
+// 18 - virtualize_sd
+// 19 - Unused
+// 27 - hyper_p alias
+// 28 - hyper_pcl alias
+// 29 - hyper_pch alias
+// 2A - hyper_enter_pcl
+// 2B - hyper_enter_pch
+// 32 - Protected Hardware 
+// 3F - Hyper Exit trigger
+
+reg [15:0] hyper_pc, load_hyper_pcl, load_hyper_pch;
+reg [15:0] hyper_sp, load_hyper_spl, load_hyper_sph;
 reg [7:0] hyper_p, load_hyper_p;
 
 reg [7:0] hyper_map_enable;
 reg [11:0] hyper_map_offset[0:1];
+
+reg load_hyper_a, load_hyper_x, load_hyper_y, load_hyper_z, load_hyper_b;
+reg [7:0] hyper_a, hyper_x, hyper_y, hyper_z, hyper_b;
 
 reg cpu_data_src;
 
 reg cpu_data_mux_sel;
 reg [2:0] hyper_mux_sel;
 
-reg hyper_enter, hyper_exit;
+// Combinatorial signals used to begin enter/exit sequence.
 reg hyper_enter_req, hyper_exit_req;
-
-reg [3:0] hyper_state, hyper_state_next;
+reg hyper_enter_reg, hyper_exit_reg;
 
 reg [15:0] hyper_enter_pc;
 
@@ -58,44 +98,21 @@ reg [6:0] hypervisor_trap_port;
 
 reg [7:0] hyper_cpu_data_i;
 
+reg hyper_enter_ack;
+reg hyper_exit_ack;
+
 reg hyper_map_gate;
-reg hyper_exit_gate;
 reg save_hyper_regs;
 
-// Top level CPU data in mux
 always @(*)
 begin
-  if(cpu_data_mux_sel) begin
-    cpu_data_i <= hyper_cpu_data_i;
-    $display("cpu_data hyp %02x",hyper_cpu_data_i);  
-  end else begin
-    cpu_data_i <= cpu_ext_data_i;
-    $display("cpu_data mem %02x",cpu_ext_data_i);
-  end
+  map_enable_ext = hyper_map_gate;
 end
 
-// Secondary mux
 always @(*)
 begin
-  case (hyper_mux_sel)
-    HYPER_MUX_PHP_PLP : hyper_cpu_data_i = hyper_exit ? 8'h28 : 8'h08; // PHP
-    HYPER_MUX_P : hyper_cpu_data_i = hyper_p;
-    HYPER_MUX_CLE_SEE : hyper_cpu_data_i = {7'b0000001,hyper_p[5]}; // CLE or SEE based on saved E bit
-    HYPER_MUX_JMP : hyper_cpu_data_i = 8'h4C; // JMP
-    HYPER_MUX_ENTER_PCL : hyper_cpu_data_i = hyper_enter_pc[7:0];
-    HYPER_MUX_ENTER_PCH : hyper_cpu_data_i = hyper_enter_pc[15:8];
-    HYPER_MUX_EXIT_PCL : hyper_cpu_data_i = hyper_pc[7:0];
-    HYPER_MUX_EXIT_PCH : hyper_cpu_data_i = hyper_pc[15:8];
-  endcase
-end
-
-always @(posedge clk)
-begin
-  if(reset)
-    hyper_state <= HYPER_IDLE;
-  else
-    hyper_state <= hyper_state_next;
-    $display("hyper state -> %d",hyper_state_next);
+  hyper_enter = hyper_enter_req | hyper_enter_reg;
+  hyper_exit  = hyper_exit_req | hyper_exit_reg;
 end
 
 always @(posedge clk)
@@ -106,31 +123,41 @@ begin
   // exit.
   if(reset) begin
     hyper_mode <= 0;
+    hyper_enter_reg <= 0;
+    hyper_exit_reg <= 0;
     hyper_map_gate <= 1;
   end else if(hyper_enter_req) begin
     hyper_mode <= 1;
+    hyper_enter_reg <= 1;
     hyper_map_gate <= 0;
-    hyper_enter_pc <= {7'b1000000,hypervisor_trap_port,2'b00};
     $display("hyper_enter_pc: %016x",{7'b1000000,hypervisor_trap_port,2'b00});
-    hyper_exit <= 0;
+    hyper_enter_pc <= {7'b1000000,hypervisor_trap_port,2'b00};
+    hyper_exit_reg <= 0;
+  end else if(hyper_enter_ack) begin
+    hyper_enter_reg <= 0;
   end else if(hyper_exit_req) begin
-    hyper_exit <= 1;    
-  end else if(hyper_exit_gate) begin
+    hyper_exit_reg <= 1;    
+  end else if(hyper_exit_ack) begin
+    hyper_exit_reg <= 0;    
     hyper_map_gate <= 1;
     hyper_mode <= 0;
   end
   
-  if(load_hyper_pc) begin
-      $display("Hyper enter, return PC will be %04x",cpu_addr);
-      hyper_pc <= cpu_addr;
-  end else if(load_hyper_pcl)
-      hyper_pc[7:0] <= hyper_io_data_i;
-  else if(load_hyper_pch)
-      hyper_pc[15:8] <= hyper_io_data_i;
+  if(load_hyper_pcl) begin
+    $display("hyper pcl: %02x",hyper_io_data_i);
+    hyper_pc[7:0] <= hyper_io_data_i;
+  end
   
-  if(load_hyper_p)
-    hyper_p <= cpu_data_o;
-    
+  if(load_hyper_pch) begin
+    $display("hyper pch: %02x",hyper_io_data_i);
+    hyper_pc[15:8] <= hyper_io_data_i;
+  end
+  
+  if(load_hyper_p) begin
+    $display("hyper p: %02x",hyper_io_data_i);
+    hyper_p <= hyper_io_data_i;
+  end
+  
   if(save_hyper_regs) begin
     case (mapper_reg_sel)
       MAP_A: begin
@@ -158,7 +185,9 @@ end
 always @(*)
 begin
   hyper_enter_req = 0;
+  hyper_enter_ack = 0;
   hyper_exit_req = 0;
+  hyper_exit_ack = 0;
   hypervisor_trap_port = 0;
   load_hyper_pcl = 0;
   load_hyper_pch = 0;
@@ -166,17 +195,27 @@ begin
   if(hyper_cs & ready) begin
     $display("HyperCS!");
     if(hyper_addr[7:6] == 2'b01) begin
+      $display("Hyper01!");
       if(cpu_write) begin
+        $display("HyperWrite");
         if(hyper_mode) begin
-          case(hyper_addr)
-            8'h48: load_hyper_pcl = 1;
-            8'h49: load_hyper_pch = 1;
-            8'h7F: hyper_exit_req = 1;
+          case(hyper_addr[5:0])
+            HYPER_REG_A:                        load_hyper_a = 1;
+            HYPER_REG_X:                        load_hyper_x = 1;
+            HYPER_REG_Y:                        load_hyper_y = 1;
+            HYPER_REG_Z:                        load_hyper_z = 1;
+            HYPER_REG_B:                        load_hyper_b = 1;
+            HYPER_REG_SPL:                      load_hyper_spl = 1;
+            HYPER_REG_SPH:                      load_hyper_sph = 1;
+            HYPER_REG_P, HYPER_REG_ENTER_P:     load_hyper_p = 1;
+            HYPER_REG_PCL, HYPER_REG_ENTER_PCL: load_hyper_pcl = 1;
+            HYPER_REG_PCH, HYPER_REG_ENTER_PCH: load_hyper_pch = 1;
+            HYPER_REG_EXIT:                     hyper_exit_req = 1;
             default: ;
           endcase
         end else begin
           hyper_enter_req = 1;
-          hypervisor_trap_port <= {1'b0,cpu_addr[5:0]};
+          hypervisor_trap_port <= {1'b0,hyper_addr[5:0]};          
           $display("hyper_enter_req.  Trap port %d",hypervisor_trap_port);
         end
       end
@@ -184,171 +223,67 @@ begin
   end
 end
 
-// FSM next-state generation logic
+// Read decode.
 always @(*)
 begin
-  // Default output states
-  cpu_data_mux_sel = 1; // Default to our mux source if not idle.
-  map_enable = 0;    // Mapping is pretty much disabled any time we're not in the idle state.
-  hyper_mux_sel = HYPER_MUX_JMP;
   save_hyper_regs = 0;
-  load_hyper_pc = 0;
-  load_hyper_p = 0;
-  hyper_exit_gate = 0;
-  
-  $display("hyper_state_next def: %d",hyper_state);
-  hyper_state_next = hyper_state;
-  
-  case(hyper_state)
-    // Wait here until we get a request to enter or exit hypervisor mode.
-    HYPER_IDLE: begin
-      $display("hyper_state = HYPER_IDLE hyper_enter_req %d",hyper_enter_req);
-      if(hyper_enter_req) begin
-        $display("hyper_state_next = HYPER_ENTER_PHP_FETCH");
-        hyper_state_next = HYPER_ENTER_PHP_FETCH;
-      end else if(hyper_exit_req)
-        hyper_state_next = HYPER_EXIT_CLE_SEE_FETCH;
-      else begin
-        map_enable = hyper_map_gate;
-        cpu_data_mux_sel = 0;
+  mapper_reg_sel = 0;
+  hyper_io_data_o = 8'hFF;
+  if(hyper_mode & hyper_cs & hyper_addr[7:6] == 2'b01) begin
+    case(hyper_addr[5:0])
+      HYPER_REG_A:                        hyper_io_data_o = hyper_a;
+      HYPER_REG_X:                        hyper_io_data_o = hyper_x;
+      HYPER_REG_Y:                        hyper_io_data_o = hyper_y;
+      HYPER_REG_Z:                        hyper_io_data_o = hyper_z;
+      HYPER_REG_B:                        hyper_io_data_o = hyper_b;
+      HYPER_REG_SPL:                      hyper_io_data_o = hyper_sp[7:0];
+      HYPER_REG_SPH:                      hyper_io_data_o = hyper_sp[15:8];
+      HYPER_REG_P:                        hyper_io_data_o = hyper_p;
+      HYPER_REG_PCL:                      hyper_io_data_o = hyper_pc[7:0];
+      HYPER_REG_PCH:                      hyper_io_data_o = hyper_pc[15:8];
+      HYPER_REG_ENTER_P: begin
+        hyper_io_data_o = hyper_p;
+        if(hyper_enter) begin
+          save_hyper_regs = 1;
+          mapper_reg_sel = MAP_A;
+          hyper_enter_ack = 1;
+        end
       end
-    end
-    
-    // Wait here until CPU begins fetch of next instruction.   Once it's sourcing
-    // from the data bus we'll begin the process of interposing the instruction stream
-    // and capturing the processor state.  We also begin the process of capturing the
-    // current mapper state.   That runs in parallel with the process of performing
-    // the trap.
-    HYPER_ENTER_PHP_FETCH: begin
-      $display("hyper_state = HYPER_ENTER_PHP_FETCH ready: %d sync: %d",ready,cpu_sync);
-      if(ready & cpu_sync) begin  // CPU is now fetching next instruction
-        hyper_mux_sel = HYPER_MUX_PHP_PLP;
-        load_hyper_pc = 1;
-        hyper_state_next = HYPER_ENTER_PHP_DEC;
-        save_hyper_regs = 1;
-        mapper_reg_sel = MAP_A;
-        $display("hyper_state_next = HYPER_ENTER_PHP_DEC");
+      HYPER_REG_ENTER_PCL: begin
+        hyper_io_data_o = hyper_pc[7:0];
+        if(hyper_enter) begin
+          save_hyper_regs = 1;
+          mapper_reg_sel = MAP_X;
+        end
       end
-    end
-      
-    HYPER_ENTER_PHP_DEC: begin
-      $display("hyper_state = HYPER_ENTER_PHP_DEC ready: %d",ready);
-      hyper_mux_sel = HYPER_MUX_JMP;
-      if(ready) begin  // CPU is now pushing SP and P onto its "next" output, but we'll grab it on the next cycle.
-        hyper_state_next = HYPER_ENTER_PHP_EX;
-        save_hyper_regs = 1;
-        mapper_reg_sel = MAP_X;
-        $display("hyper_state_next = HYPER_ENTER_PHP_EX");
+      HYPER_REG_ENTER_PCH: begin
+        hyper_io_data_o = hyper_pc[15:8];
+        if(hyper_enter) begin
+          save_hyper_regs = 1;
+          mapper_reg_sel = MAP_Y;
+        end
       end
-    end
-    
-    HYPER_ENTER_PHP_EX: begin
-      hyper_mux_sel = HYPER_MUX_JMP;
-      if(ready) begin  // CPU now has P on the clocked data output so snag it and move on to next state.
-        load_hyper_p = 1;
-        hyper_state_next = HYPER_ENTER_JMP_FETCH;
-        save_hyper_regs = 1;
-        mapper_reg_sel = MAP_Y;
+      HYPER_REG_TRAP_PCL: begin
+        hyper_io_data_o = hyper_enter_pc[7:0];
+        $display("HYPER_REG_TRAP_PCL: %02x",hyper_enter_pc[7:0]);
+        if(hyper_enter) begin
+          save_hyper_regs = 1;
+          mapper_reg_sel = MAP_Z;
+        end
       end
-    end
-    
-    HYPER_ENTER_JMP_FETCH: begin
-      hyper_mux_sel = HYPER_MUX_JMP;
-      if(ready & cpu_sync) begin  // Strictly speaking, the check for cpu_sync isn't needed, but it'd be a good assertion
-        hyper_state_next = HYPER_ENTER_JMP_PCL;
-        save_hyper_regs = 1;
-        mapper_reg_sel = MAP_Z;
-      end
-    end
+      HYPER_REG_TRAP_PCH:                  hyper_io_data_o = hyper_enter_pc[15:8];
+      default:;
+    endcase
+    $display("hyper read sel %02x %02x",hyper_addr[5:0],hyper_io_data_o);
+  end
+end
 
-    HYPER_ENTER_JMP_PCL: begin
-      hyper_mux_sel = HYPER_MUX_ENTER_PCL;
-      if(ready) begin
-        hyper_state_next = HYPER_ENTER_JMP_PCH;
-      end
-    end
-
-    HYPER_ENTER_JMP_PCH: begin
-      hyper_mux_sel = HYPER_MUX_ENTER_PCH;
-      if(ready) begin
-        hyper_state_next = HYPER_IDLE;
-      end
-    end
-  
-    HYPER_EXIT_CLE_SEE_FETCH : begin
-      $display("hyper_state = HYPER_EXIT_CLE_SEE_FETCH");
-      if(ready & cpu_sync) begin  // CPU is now fetching next instruction
-        hyper_exit_gate = 1;      // Allow mapper to be re-enabled.
-        hyper_mux_sel = HYPER_MUX_CLE_SEE;
-        hyper_state_next = HYPER_EXIT_CLE_SEE_EX;
-        $display("hyper_state_next = HYPER_EXIT_CLE_SEE_EX");
-      end
-    end
-    
-    HYPER_EXIT_CLE_SEE_EX : begin
-      $display("hyper_state = HYPER_EXIT_CLE_SEE_EX");
-      hyper_mux_sel = HYPER_MUX_PHP_PLP;
-      if(ready) begin
-        hyper_state_next = HYPER_EXIT_PLP_FETCH;
-        $display("hyper_state_next = HYPER_EXIT_PLP_FETCH");
-      end
-    end
-
-    HYPER_EXIT_PLP_FETCH : begin
-      $display("hyper_state = HYPER_EXIT_PLP_FETCH");
-      hyper_mux_sel = HYPER_MUX_PHP_PLP;
-      if(ready & cpu_sync) begin  // CPU is now fetching next instruction
-        hyper_state_next = HYPER_EXIT_PLP_DEC;
-        $display("hyper_state_next = HYPER_EXIT_PLP_DEC");
-      end
-    end
-
-    HYPER_EXIT_PLP_DEC : begin
-      $display("hyper_state = HYPER_EXIT_PLP_DEC");
-      hyper_mux_sel = HYPER_MUX_P;
-      if(ready) begin
-        hyper_state_next = HYPER_EXIT_PLP_EX;
-        $display("hyper_state_next = HYPER_EXIT_PLP_EX");
-      end
-    end
-
-    HYPER_EXIT_PLP_EX : begin
-      $display("hyper_state = HYPER_EXIT_PLP_DEC");
-      hyper_mux_sel = HYPER_MUX_P;
-      if(ready) begin
-        hyper_state_next = HYPER_EXIT_JMP_FETCH;
-        $display("hyper_state_next = HYPER_EXIT_PLP_EX");
-      end
-    end
-
-    HYPER_EXIT_JMP_FETCH: begin
-      hyper_mux_sel = HYPER_MUX_JMP;
-      if(ready & cpu_sync) begin
-        hyper_state_next = HYPER_EXIT_JMP_PCL;
-      end
-    end
-
-    HYPER_EXIT_JMP_PCL: begin
-      hyper_mux_sel = HYPER_MUX_EXIT_PCL;
-      if(ready) begin
-        hyper_state_next = HYPER_EXIT_JMP_PCH;
-      end
-    end
-
-    HYPER_EXIT_JMP_PCH: begin
-      $display("hyper_state = HYPER_EXIT_JMP_PCH");
-      hyper_mux_sel = HYPER_MUX_EXIT_PCH;
-      if(ready) begin
-        map_enable = 1;
-        hyper_state_next = HYPER_IDLE;
-        $display("hyper_state_next = HYPER_IDLE");
-      end
-    end
-    
-  default:
-    hyper_state_next <= 4'hx;
-  endcase
-  
+always @(*)
+begin
+  hyper_exit_ack = 0;
+  if(hyper_mode & hyper_cs & hyper_addr[7:6] == 2'b01)
+    if(hyper_addr[5:0] == HYPER_REG_P)
+      hyper_exit_ack = 1;
 end
 
 endmodule

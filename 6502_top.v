@@ -1,12 +1,13 @@
 `include "6502_inc.vh"
 
 `SCHEM_KEEP_HIER module cpu65CE02(clk, reset, nmi, irq, ready, write, write_next, sync, address, address_next, data_i, data_o, data_o_next, cpu_state, t, cpu_int,
-                                a_out, x_out, y_out, z_out, sp_out);
+                                a_out, x_out, y_out, z_out, sp_out, hyper_mode, hyper_enter, hyper_exit);
 
 initial begin
 end
 
 input clk, reset, irq, nmi, ready;
+input hyper_mode, hyper_enter, hyper_exit;
 input [7:0] data_i;
 output [7:0] data_o;
 output wire [7:0] data_o_next;
@@ -115,6 +116,9 @@ assign cpu_int = intg;
 
 wire [7:0] vector_lo;
 
+wire hyperg;
+wire [7:0] vector_hi;
+
   // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
   microcode mc_inst(.clk(clk), .ready(ready), .ir(ir_next), .t(t_next), .mc_sync(mc_sync), .alua_sel(alua_sel), .alub_sel(alub_sel),
                   .aluc_sel(aluc_sel), .bit_inv(bit_inv),
@@ -136,7 +140,7 @@ wire [7:0] vector_lo;
 
   cond_control cond_control(reg_p, dld_z, test_flags, test_flag0, cond_met);
   
-  ir_next_mux ir_next_mux(sync, intg, data_i, ir, ir_next);
+  ir_next_mux ir_next_mux(sync, intg, onecycle, mc_sync & hyper_enter, mc_sync & hyper_exit, data_i, ir, ir_next);
 
   assign write_next = write_cycle & ~resp;
   assign write = w_reg; 
@@ -155,16 +159,26 @@ wire [7:0] vector_lo;
   
   predecode predecode(data_i, sync & ~intg, onecycle);
 
-  interrupt_control interrupt_control(clk, reset, irq, nmi, mc_sync, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp, vector_lo);
+  interrupt_control interrupt_control(clk, reset, irq, nmi, mc_sync, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp, 
+    hyper_mode, hyper_enter, hyper_exit, hyperg, vector_hi, vector_lo);
 
   // Timing control state machine
-  timing_ctrl timing(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
+  timing_ctrl timing(clk, reset, ready, t, t_next, mc_sync, sync, onecycle, mc_sync & (hyper_enter | hyper_exit));
 
   // Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform the extra decimal correction cycle
-  wire pc_hold;
-  assign pc_hold = intg;
+  reg pc_hold;
+  always @(intg or hyperg)
+  begin
+    pc_hold = intg | hyperg;
+    $display("pc_hold %d",pc_hold);
+  end
+  
+  clocked_reset_reg8 ir_reg(clk, reset, (sync & ready) | mc_sync & (hyper_enter | hyper_exit), ir_next, ir);
 
-  clocked_reset_reg8 ir_reg(clk, reset, sync & ready, ir_next, ir);
+  always @(ir)
+  begin
+    $display("SET IR %02x",ir);
+  end
 
   addrbus_mux addrbus_mux(clk, ready, ab_sel, ad_next, ab_next, sp_next, pc_next, address_next, address);
   
@@ -178,7 +192,7 @@ wire [7:0] vector_lo;
   ea_adder pcl_adder(areg[1] == 1 /* areg ==`kAREG_PCL */ ? pc[7:0] : 8'h00, data_i, aluc_sel[0], pcl_alu_out, pcl_alu_carry);  
   ea_adder ea_adder(alua_bus,alub_bus,aluc_bus,alu_ea,alu_ea_c);
   
-  ab_reg reg_ab(clk, ready, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, ab_next, ab);
+  ab_reg reg_ab(clk, ready, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, vector_hi, ab_next, ab);
   ad_reg reg_ad(clk, ready, adh_sel, adl_sel, alu_ea, ad_next, ad);
   pc_reg reg_pc(clk, ready, pc_inc & ~pc_hold, cond_met, pch_sel, pcl_sel, ad[7:0], alu_ea, alu_ea_c, data_i[7], pcl_alu_out, pcl_alu_carry, pc_next, pc);
   sp_reg reg_sp(clk, reset, ready, reg_p[`kPF_E], sp_incdec, sph_sel, spl_sel, alu_ea, sp_next, sp);
@@ -222,7 +236,7 @@ wire [7:0] vector_lo;
 
   assign sb_n = alu_out[7];
 
-  p_reg p_reg(clk, reset, ready, intg, load_flags_decode, sync & ready, data_i, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], ir[0], reg_p);
+  p_reg p_reg(clk, reset, ready, intg, hyper_exit, load_flags_decode, sync & ready, data_i, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], ir[0], reg_p);
 
   always @(posedge clk)
   begin

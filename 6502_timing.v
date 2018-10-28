@@ -6,7 +6,7 @@
 `endif
 `define NMI_BUG_FIX 1
 
-`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
+`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, mc_sync, sync, onecycle, hyper_enter_or_exit);
 input clk;
 input reset;
 input ready;
@@ -15,6 +15,8 @@ output sync;
 input onecycle;
 output [2:0] t;
 output [2:0] t_next;
+
+input hyper_enter_or_exit;
 
 wire sync;
 reg [2:0] t;
@@ -44,12 +46,14 @@ end
 always @(*)
 begin
   t_next = t+1;
-  if(onecycle)
+  if(onecycle | mc_sync) begin
     t_next = T1;
-  if(mc_sync)
-    t_next = T1;
-
-  //$display("Tn: %d t_next: %d mc_sync: %d onecycle: %d",t,t_next,mc_sync,onecycle);
+    if(hyper_enter_or_exit) begin
+      $display("hyper T3: o: %d mc: %d",onecycle,mc_sync);
+      t_next = T3;
+    end
+  end
+  $display("Tn: %d t_next: %d mc_sync: %d onecycle: %d",t,t_next,mc_sync,onecycle);
   
   // synthesis translate_off
   //if(t == 7 && !mc_sync)
@@ -60,7 +64,7 @@ begin
   if(t == 0)
   begin
     $display("Jumped to T0!");
-    $finish;
+    //$finish;
   end
   // synthesis translate_on
 end
@@ -93,19 +97,22 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module interrupt_control(clk, reset, irq, nmi, sync, reg_p, load_i, intg, nmig, resp, vector_lo);
+`SCHEM_KEEP_HIER module interrupt_control(clk, reset, irq, nmi, mc_sync, reg_p, load_i, intg, nmig, resp, hyper_mode, hyper_enter, hyper_exit, hyperg, vector_hi, vector_lo);
 input clk;
 input reset;
 input irq;
 input nmi;
-input sync;
+input mc_sync;
 input [7:0] reg_p;
+input hyper_mode, hyper_enter, hyper_exit;
 
 input load_i;
 output intg;
 output nmig;
 output resp;
-output [7:0] vector_lo;
+output reg hyperg;
+output reg [7:0] vector_hi;
+output reg [7:0] vector_lo;
 
 // reset flip flop
 reg resp;
@@ -140,26 +147,47 @@ begin
     nmig <= 1;
   nmil <= nmi;    // remember current state
   
-  if(reset || sync)
+  if(reset || mc_sync)
   begin
-    if((intp & ~reg_p[`kPF_I]) | nmig | reset)
+    // Hypervisor interrupts take precedence over NMI and IRQ.
+    if(hyper_enter | hyper_exit)
+      hyperg <= 1;
+    else if((((intp & ~reg_p[`kPF_I]) | nmig ) & ~hyper_mode) | reset) begin
       intg <= 1;
+      hyperg <= 0;
+    end
   end
   // internal pending interrupt is always cleared at the same time we set interrupt mask.
   else if(load_i)
   begin
-      intg <= 0;
-      if(intg)
-        nmig <= 0;
+      if(hyperg) begin
+        hyperg <= 0;      // Only clear hyperg.  Leave intg and nmig alone.
+      end else begin        
+        intg <= 0;
+        if(intg)
+          nmig <= 0;
+      end
   end
 end
 
-reg [7:0] vector_lo;
+always @(*)
+begin
+  if(resp == 1)
+    vector_hi = 8'hFF;
+  else if(hyperg)
+    vector_hi = 8'hD6;
+  else
+    vector_hi = 8'hFF;
+end
 
 always @(*)
 begin
   if(resp == 1)
     vector_lo = 8'hFC;
+  else if(hyperg & hyper_enter)
+    vector_lo = 8'h67;
+  else if(hyperg & hyper_exit)
+    vector_lo = 8'h47;
   else if(nmig & intg)
     vector_lo = 8'hFA;
   else

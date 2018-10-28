@@ -184,6 +184,9 @@ endmodule
 
 `SCHEM_KEEP_HIER module ir_next_mux(input sync, 
                                     input intg,
+                                    input onecycle,
+                                    input hyper_enter,
+                                    input hyper_exit,
                                     input [7:0] data_i,
                                     input [7:0] ir,
                                     output reg [7:0] ir_next);
@@ -191,7 +194,11 @@ endmodule
 // IR input
 always @(*)
 begin
-  if(sync)
+  if(hyper_enter)
+    ir_next = 8'h02;
+  else if(hyper_exit)
+    ir_next = 8'h03;
+  else if(sync)
   begin
     if(intg)
       ir_next = 8'h00;
@@ -200,7 +207,7 @@ begin
   end
   else
     ir_next = ir;
-  //$display("ir_next: %02x sync: %d",ir_next,sync);
+  $display("ir_next: %02x sync: %d o: %d hee: %d%d",ir_next,sync,onecycle,hyper_enter,hyper_exit);
 end
 
 endmodule
