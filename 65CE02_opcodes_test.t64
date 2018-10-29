@@ -1869,13 +1869,22 @@ jxp_px
 jxp_ok
         next_test
 
+; Hypervisor enter/exit test
+	sta $d640	; Attempt hypervisor entry
+
+        trap            ; We shouldn't get here...
+
+hyper_exit:
+	
+	next_test
+	
 ; 4510 MAP test
         
         ; Map $2000 to $4000, map $8000 to $C000
         lda #$20      ; Offset of $02000 
         ldx #$20      ; Enable mapper for bank 1
         ldy #$40      ; Offset of $04000
-        ldz #$10      ; Enable mapper for bank 0
+        ldz #$10      ; Enable mapper for bank 4
         map
                       ; in theory we should verify that interrupts don't work here.
         eom
@@ -1895,6 +1904,17 @@ jxp_ok
         cmp $c000
         trap_ne
         
+	; Enable mapper for code segment (with no offset for now)
+	lda #$00	; Offset of $0000
+	ldx #$10	; Enable mapper for bank 0
+	ldy #$00	; Offset of $0000
+	ldz #$00	; No mapper for banks 4-7
+	map
+	eom
+	
+	; Attempt hypervisor trap and return
+	sta $d641	; Attempt hypervisor entry (Trap #1)
+	
         ; Disable mapper
         lda #$00
         ldx #$00
@@ -1904,15 +1924,6 @@ jxp_ok
         eom
 
         next_test
-
-; Hypervisor enter/exit test
-	sta $d640	; Attempt hypervisor entry
-
-        trap            ; We shouldn't get here...
-
-hyper_exit:
-	
-	next_test
 	
 ; 16-bit inrement/decrement INW/DEW zp
 inwdewtest
@@ -2215,7 +2226,12 @@ ji_px   nop             ;low address byte matched with ji_ret
 ; Hypervisor test entry point. We try to set up hyper_pc to exit back to after
 ; hypervisor trap.   We should also test we can modify P register values.    
 *=	$8000
+	jmp hyper_entry1
+	nop
+	jmp hyper_entry2
+	nop
 
+hyper_entry1:	
 	lda #<hyper_exit
 	sta $d648
 	lda #>hyper_exit
@@ -2224,6 +2240,10 @@ ji_px   nop             ;low address byte matched with ji_ret
 	
 	trap			; We shouldn't reach here.
 	
+hyper_entry2:
+	sta $d67f		; Exit from hypervisor	
+	trap			; We shouldn't reach here.
+
 *=      $fffa ; vectors
     
     .if (load_data_direct = 1) & (ROM_vectors = 1)  

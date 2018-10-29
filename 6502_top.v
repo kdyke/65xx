@@ -8,7 +8,7 @@ end
 
 input clk, reset, irq, nmi, ready;
 input [7:0] data_i;
-output [7:0] data_o;
+output wire [7:0] data_o;
 output wire [7:0] data_o_next;
 output [15:0] address;
 output [15:0] address_next;
@@ -140,7 +140,6 @@ wire [7:0] vector_lo;
 
   assign write_next = write_cycle & ~resp;
   assign write = w_reg; 
-  assign data_o = dor;
   
   dreg_mux dreg_do_mux(dreg_do, reg_a, reg_x, reg_y, reg_z, dreg_do_bus);
   dbo_mux dbo_mux(dbo_sel, data_i, dreg_do_bus, alu_out, pc_next[15:8], data_o_next);
@@ -198,7 +197,7 @@ wire [7:0] vector_lo;
   clocked_reg8 y_reg(clk, load_reg_decode[`kLR_Y] && ready, alu_out, reg_y);
   clocked_reset_reg8 z_reg(clk, reset, load_reg_decode[`kLR_Z] && ready, alu_out, reg_z);
   clocked_reset_reg8 b_reg(clk, reset, load_reg_decode[`kLR_B] && ready, alu_out, reg_b);
-  clocked_reg8 do_reg(clk, ready, data_o_next, dor);
+  clocked_reg8 do_reg(clk, ready, data_o_next, data_o);
   
   assign a_out = reg_a;
   assign x_out = reg_x;

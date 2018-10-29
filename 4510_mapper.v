@@ -4,7 +4,8 @@
                   input ext_irq, input ext_nmi, output cpu_irq, output cpu_nmi, input enable_i, input disable_i,
                   input load_a, input load_x, input load_y, input load_z, input map_enable_ext,
                   input [1:0] map_reg_sel, output reg [7:0] map_reg,
-                  output reg [19:0] address, output reg [19:0] address_next, input [15:0] core_address_next, output reg map);
+                  output reg [19:0] address, output reg [19:0] address_next, input [15:0] core_address_next, 
+                  output reg map_next, output reg map);
 
 reg [19:8] map_offset[0:1];
 reg [7:0] map_enable;
@@ -43,6 +44,7 @@ reg [2:0] map_enable_index;
 reg map_offset_index;
 reg [19:8] current_offset;
 reg [19:0] mapper_address;
+reg map_en;
 
 always @(*) begin
   map_enable_index = core_address_next[15:13];
@@ -51,25 +53,29 @@ always @(*) begin
   // Mapper can be disabled by external (hypervisor) logic when needed.
   if(map_enable[map_enable_index] & map_enable_ext) begin
     current_offset = map_offset[map_offset_index];
-    map = 1;
+    map_en = 1;
   end else begin
     current_offset = 0;
-    map = 0;
+    map_en = 0;
   end
   
   mapper_address[19:8] = current_offset[19:8] + core_address_next[15:8];
   mapper_address[7:0] = core_address_next[7:0];
   
-  if(ready)
+  if(ready) begin
     address_next = mapper_address;
-  else
+    map_next = map_en;
+  end else begin
     address_next = address;
+    map_next = map;
+  end
 end
 
 // Registered output address
 always @(posedge clk) begin
   if(ready) begin
     address <= address_next;
+    map <= map_next;
   end
 end
 
