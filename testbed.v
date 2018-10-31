@@ -47,18 +47,20 @@ wire [7:0] map_reg;
 wire hyper_mode;
 wire [7:0] hyper_data_o;
 wire hyper_force_cs;
+wire [7:0] map_reg_hyper;
+wire load_map_hyper;
 
 	memory memory_inst(.clk(clk), .we(memory_write), .addr(cpu_address_next[15:0]), .di(memory_in), .do(memory_out));
 
   cpu4510 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .ready(ready), .write_next(cpu_write), .write(cpu_write_reg), .cpu_state(cpu_state),
             .address(cpu_address), .address_next(cpu_address_next), .sync(sync), .data_i(cpu_data_in), .data_o_next(cpu_data_out), .data_o(cpu_data_out_reg),
-            .map_reg_sel(map_reg_sel), .map_reg(map_reg), .map_enable_ext(map_enable_ext),
+            .map_reg_sel(map_reg_sel), .map_reg(map_reg), .map_enable_ext(map_enable_ext), .map_reg_hyper(map_reg_hyper), .load_map_hyper(load_map_hyper),
             .a_out(a_out), .x_out(x_out), .y_out(y_out), .z_out(z_out), .sp_out(sp_out));
 
   hyper_ctrl hyper_ctrl0(.clk(clk), .reset(reset), .hyper_cs(hyper_cs), .hyper_addr(cpu_address[7:0]), .hyper_io_data_i(cpu_data_out_reg), 
                     .hyper_data_o(hyper_data_o), .cpu_write(cpu_write_reg), .cpu_sync(sync), .ready(ready), .hyper_force_cs(hyper_force_cs), .cpu_addr(cpu_address[15:0]),
                     .hyper_mode(hyper_mode), .map_enable_ext(map_enable_ext),
-                    .mapper_reg_sel(map_reg_sel), .mapper_reg(map_reg));
+                    .mapper_reg_sel(map_reg_sel), .mapper_reg(map_reg), .mapper_reg_out(map_reg_hyper), .swap_mapper_regs(load_map_hyper));
 
 
 	initial begin

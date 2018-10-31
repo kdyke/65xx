@@ -3,7 +3,7 @@
 `SCHEM_KEEP_HIER module mapper4510(input clk, input reset, input [7:0] data_i, input [7:0] data_o, input ready, input sync,
                   input ext_irq, input ext_nmi, output cpu_irq, output cpu_nmi, input enable_i, input disable_i,
                   input load_a, input load_x, input load_y, input load_z, input map_enable_ext,
-                  input [1:0] map_reg_sel, output reg [7:0] map_reg,
+                  input [1:0] map_reg_sel, output reg [7:0] map_reg, input [7:0] map_reg_hyper, input load_map_hyper,
                   output reg [19:0] address, output reg [19:0] address_next, input [15:0] core_address_next, 
                   output reg map_next, output reg map);
 
@@ -18,21 +18,27 @@ assign cpu_nmi = ext_nmi & int_enable;
 always @(posedge clk) begin
   if(reset) map_offset[0][15:8] <= 8'h00;
   else if(load_a) map_offset[0][15:8] <= data_o;
+  else if(load_a_hyper) map_offset[0][15:8] <= map_reg_hyper;
   
   if(reset) map_offset[0][19:16] <= 4'h0;
   else if(load_x) map_offset[0][19:16] <= data_o[3:0];
+  else if(load_x_hyper) map_offset[0][19:16] <= map_reg_hyper[3:0];
   
   if(reset) map_enable[3:0] <= 4'h0;
   else if(load_x) map_enable[3:0] <= data_o[7:4];
+  else if(load_x_hyper) map_enable[3:0] <= map_reg_hyper[7:4];
   
   if(reset) map_enable[7:4] <= 4'h0;
   else if(load_z) map_enable[7:4] <= data_o[7:4];
+  else if(load_z_hyper) map_enable[7:4] <= map_reg_hyper[7:4];
   
   if(reset) map_offset[1][15:8] <= 8'h00;
   else if(load_y) map_offset[1][15:8] <= data_o;
+  else if(load_y_hyper) map_offset[1][15:8] <= map_reg_hyper;
   
   if(reset)  map_offset[1][19:16] <= 4'h0;
   else if(load_z) map_offset[1][19:16] <= data_o[3:0];
+  else if(load_z_hyper) map_offset[1][19:16] <= map_reg_hyper[3:0];
   
   if(reset) int_enable <= 1;
   else if(disable_i) int_enable <= 0;
@@ -45,6 +51,22 @@ reg map_offset_index;
 reg [19:8] current_offset;
 reg [19:0] mapper_address;
 reg map_en;
+
+reg load_x_hyper, load_y_hyper, load_z_hyper, load_a_hyper;
+always @(*) begin
+  load_a_hyper = 0;
+  load_x_hyper = 0;
+  load_y_hyper = 0;
+  load_z_hyper = 0;
+  if(load_map_hyper) begin
+    case(map_reg_sel)
+      0: load_a_hyper = 1;
+      1: load_x_hyper = 1;
+      2: load_y_hyper = 1;
+      3: load_z_hyper = 1;
+    endcase
+  end
+end
 
 always @(*) begin
   map_enable_index = core_address_next[15:13];

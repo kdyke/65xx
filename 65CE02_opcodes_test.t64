@@ -125,6 +125,29 @@ ram_top = -1
 
         ;noopt       ;do not take shortcuts
         
+; Hypervisor registers 
+hyper_a		= $d640
+hyper_x		= $d641
+hyper_y 	= $d642
+hyper_z 	= $d643
+hyper_b 	= $d644
+hyper_spl 	= $d645
+hyper_sph 	= $d646
+hyper_p		= $d647
+hyper_pcl 	= $d648
+hyper_pch 	= $d649
+hyper_map_x	= $d64a
+hyper_map_a	= $d64b
+hyper_map_z	= $d64c
+hyper_map_y	= $d64d
+hyper_trap_pcl  = $d64e
+hyper_trap_pch  = $d64f
+hyper_port_00	= $d650
+hyper_port_01	= $d651
+hyper_iomode	= $d652
+hyper_vector_pcl  = $d660
+hyper_vector_pch  = $d661
+
 ;macros for error & success traps to allow user modification
 ;example:
 ;trap    .macro
@@ -1874,7 +1897,7 @@ jxp_ok
 
         trap            ; We shouldn't get here...
 
-hyper_exit:
+hyper_exit_target:
 	
 	next_test
 	
@@ -1913,7 +1936,9 @@ hyper_exit:
 	eom
 	
 	; Attempt hypervisor trap and return
-	sta $d641	; Attempt hypervisor entry (Trap #1)
+	lda #1
+	sta $d641	; Attempt hypervisor entry (Trap #1)	
+	trap_ne		; Trap #1 should clear Z flag
 	
         ; Disable mapper
         lda #$00
@@ -2232,18 +2257,72 @@ ji_px   nop             ;low address byte matched with ji_ret
 	nop
 
 hyper_entry1:	
-	lda #<hyper_exit
+	lda #<hyper_exit_target
 	sta $d648
-	lda #>hyper_exit
+	lda #>hyper_exit_target
 	sta $d649
-	sta $d67f		; Exit from hypervisor
-	
-	trap			; We shouldn't reach here.
+	jmp hyper_exit		; Exit from hypervisor
 	
 hyper_entry2:
-	sta $d67f		; Exit from hypervisor	
-	trap			; We shouldn't reach here.
+	lda hyper_p
+	ora #$02		; set Z flag
+	sta hyper_p
+	jmp hyper_exit		; Exit from hypervisor
 
+; Raw hypervisor trap. Save all registers and important machine state, branch indirect to trap vector.
+*=	$8200
+	sta hyper_a
+	stx hyper_x
+	sty hyper_y
+	stz hyper_z
+	tba
+	tsx
+	tsy
+	sta hyper_b
+	stx hyper_spl
+	sty hyper_sph
+	lda $00
+	ldx $01
+	sta hyper_port_00
+	stx hyper_port_01
+	
+	; TODO - save iomode; need way to easily save/restore it
+	
+	; Set up hypervisor machine state, stack and zero page
+	cld			; Disable decimal mode
+	lda #$bf
+	tab
+	lda #$be
+	ldx #$ff
+	txs
+	tys
+	lda #$3f
+	sta $00
+	lda #$35
+	sta $01
+	
+	jmp ($d64e)		; Branch to trap entry point
+
+; Hypervisor exit
+hyper_exit:
+	lda hyper_port_00
+	ldx hyper_port_01
+	sta $00
+	stx $01	
+	lda hyper_b
+	ldy hyper_sph
+	ldx hyper_spl
+	tab
+	tys
+	txs
+	lda hyper_a
+	ldx hyper_x
+	ldy hyper_y
+	ldz hyper_z	
+	
+	sta $d67f		; Trigger final exit from hypervisor	
+	trap			; We shouldn't reach here.
+	
 *=      $fffa ; vectors
     
     .if (load_data_direct = 1) & (ROM_vectors = 1)  
