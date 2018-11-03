@@ -93,19 +93,25 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module interrupt_control(clk, reset, irq, nmi, sync, reg_p, load_i, intg, nmig, resp, vector_lo);
+`SCHEM_KEEP_HIER module interrupt_control(clk, reset, irq, nmi, mc_sync, reg_p, load_i, intg, nmig, resp, hyp, hyperg, hyper_mode, hyper_rti, pc_hold, vector_hi, vector_lo);
 input clk;
 input reset;
 input irq;
 input nmi;
-input sync;
+input hyp;
+input mc_sync;
+input hyper_rti;
 input [7:0] reg_p;
+output reg hyper_mode;
 
 input load_i;
 output intg;
 output nmig;
 output resp;
-output [7:0] vector_lo;
+output wire pc_hold;
+output reg hyperg;
+output reg [7:0] vector_hi;
+output reg [7:0] vector_lo;
 
 // reset flip flop
 reg resp;
@@ -140,26 +146,53 @@ begin
     nmig <= 1;
   nmil <= nmi;    // remember current state
   
-  if(reset || sync)
+  if(reset | mc_sync)
   begin
-    if((intp & ~reg_p[`kPF_I]) | nmig | reset)
+    // Hypervisor interrupts take precedence over NMI and IRQ.
+    if(hyp) begin
+      hyperg <= 1;
+      hyper_mode <= 1;
+    end else if((((intp & ~reg_p[`kPF_I]) | nmig ) & ~hyper_mode) | reset) begin
       intg <= 1;
+      hyperg <= 0;
+      if(reset)
+        hyper_mode <= 0;      
+    end else if(hyper_rti) begin
+      hyper_mode <= 0;
+    end
   end
   // internal pending interrupt is always cleared at the same time we set interrupt mask.
   else if(load_i)
   begin
-      intg <= 0;
-      if(intg)
-        nmig <= 0;
+      if(hyperg) begin
+        hyperg <= 0;      // Only clear hyperg.  Leave intg and nmig alone.
+      end else begin        
+        intg <= 0;
+        if(intg)
+          nmig <= 0;
+      end
   end
 end
 
-reg [7:0] vector_lo;
+// Disable PC increment when processing a BRK with recognized IRQ/NMI or upon hypervisor entry
+assign pc_hold = intg|hyperg;
+
+always @(*)
+begin
+  if(resp == 1)
+    vector_hi = 8'hFF;
+  else if(hyperg)
+    vector_hi = 8'hD6;
+  else
+    vector_hi = 8'hFF;
+end
 
 always @(*)
 begin
   if(resp == 1)
     vector_lo = 8'hFC;
+  else if(hyperg)
+    vector_lo = 8'h60;
   else if(nmig & intg)
     vector_lo = 8'hFA;
   else

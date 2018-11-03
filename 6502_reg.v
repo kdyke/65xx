@@ -28,7 +28,7 @@ end
 endmodule
 
 `SCHEM_KEEP_HIER module ab_reg(input clk, input ready, input ab_inc, input [1:0] abh_sel, input abl_sel,
-                               input [7:0] b, input[7:0] alu_ea, output reg [15:0] ab_next, output reg [15:0] ab);
+                               input [7:0] b, input[7:0] alu_ea, input [7:0] vector_hi, output reg [15:0] ab_next, output reg [15:0] ab);
 
 reg [15:0] ab_add;
 
@@ -44,7 +44,7 @@ begin
       `kABH_ABH:   ab_next[15:8] = ab_add[15:8];
       `kABH_B:     ab_next[15:8] = b;
       `kABH_ALU:   ab_next[15:8] = alu_ea;
-      `kABH_VEC:   ab_next[15:8] = 8'hff;
+      `kABH_VEC:   ab_next[15:8] = vector_hi;
     endcase
     if(abl_sel)
       ab_next[7:0] = alu_ea;
@@ -121,7 +121,7 @@ endmodule
 
 `SCHEM_KEEP_HIER module sp_reg(input clk, input reset, input ready, input e_bit, 
                                input [1:0] sp_inc, input sph_sel, input spl_sel, input [7:0] alu_ea, 
-                               output reg [15:0] sp_next, output reg [15:0] sp);
+                               output reg [15:0] sp_next, output reg [15:0] sp, input is_ssp);
 
 reg [15:0] sp_add_in;
 wire [15:0] sp_add_out;
@@ -140,10 +140,12 @@ assign sp_add_out = sp + sp_add_in;
 always @(*)
 begin
   sp_next = sp;
-  if(reset)
-    sp_next[15:8] = 8'h01;
-  else
-  begin  
+  if(reset) begin
+    if(is_ssp)
+      sp_next = 16'hBEFF;
+    else
+      sp_next[15:8] = 8'h01;
+  end else begin  
     if(sph_sel)
       sp_next[15:8] = alu_ea;
     else if(spl_sel)
@@ -165,8 +167,8 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module p_reg(input clk, input reset, input ready, input intg, 
-                              input [15:0] load_flag_decode, input load_b, 
+`SCHEM_KEEP_HIER module p_reg(input clk, input reset, input ready, input intg, input hyperg, input hyper_mode, output reg hyper_rti, input mc_sync, 
+                              input [16:0] load_flag_decode, 
                               input [7:0] db_in, input sb_z, input sb_n, input carry, input overflow, input ir5, input ir0, output reg [7:0] reg_p);
 
 always @(*)
@@ -176,32 +178,46 @@ end
 
 always @(posedge clk)
 begin
-  if(reset)
-    reg_p[`kPF_E] <= 1;    
-  else if(ready)
-  begin
-    if(load_flag_decode[`kLF_C_ACR])       reg_p[`kPF_C] = carry;
-    else if(load_flag_decode[`kLF_C_IR5])  reg_p[`kPF_C] = ir5;
-    else if(load_flag_decode[`kLF_C_DB0])  reg_p[`kPF_C] = db_in[0];
-
-    if(load_flag_decode[`kLF_Z_SBZ])       reg_p[`kPF_Z] = sb_z;
-    else if(load_flag_decode[`kLF_Z_DB1])  reg_p[`kPF_Z] = db_in[1];
+  if(reset) begin
+    reg_p[`kPF_E] <= 1;
+    hyper_rti <= 0;
+  end else if(ready) begin
     
-    if(load_flag_decode[`kLF_I_DB2])       reg_p[`kPF_I] = db_in[2];
-    else if(load_flag_decode[`kLF_I_IR5])  reg_p[`kPF_I] = ir5;
-    else if(load_flag_decode[`kLF_I_1])    reg_p[`kPF_I] = 1;
+    if(load_flag_decode[`kLF_C_ACR])       reg_p[`kPF_C] <= carry;
+    else if(load_flag_decode[`kLF_C_IR5])  reg_p[`kPF_C] <= ir5;
+    else if(load_flag_decode[`kLF_C_DB0])  reg_p[`kPF_C] <= db_in[0];
 
-    if(load_flag_decode[`kLF_D_DB3])       reg_p[`kPF_D] = db_in[3];
-    else if(load_flag_decode[`kLF_D_IR5])  reg_p[`kPF_D] = ir5;
+    if(load_flag_decode[`kLF_Z_SBZ])       reg_p[`kPF_Z] <= sb_z;
+    else if(load_flag_decode[`kLF_Z_DB1])  reg_p[`kPF_Z] <= db_in[1];
     
-    if(load_flag_decode[`kLF_V_AVR])       reg_p[`kPF_V] = overflow;
-    else if(load_flag_decode[`kLF_V_DB6])  reg_p[`kPF_V] = db_in[6];
-    else if(load_flag_decode[`kLF_V_0])    reg_p[`kPF_V] = 0;
+    if(load_flag_decode[`kLF_I_DB2])       reg_p[`kPF_I] <= db_in[2];
+    else if(load_flag_decode[`kLF_I_IR5])  reg_p[`kPF_I] <= ir5;
+    else if(load_flag_decode[`kLF_I_1])    reg_p[`kPF_I] <= 1;
+    
+    if(load_flag_decode[`kLF_D_DB3])       reg_p[`kPF_D] <= db_in[3];
+    else if(load_flag_decode[`kLF_D_IR5])  reg_p[`kPF_D] <= ir5;
+    
+    if(load_flag_decode[`kLF_V_AVR])       reg_p[`kPF_V] <= overflow;
+    else if(load_flag_decode[`kLF_V_DB6])  reg_p[`kPF_V] <= db_in[6];
+    else if(load_flag_decode[`kLF_V_0])    reg_p[`kPF_V] <= 0;
       
-    if(load_flag_decode[`kLF_N_SBN])       reg_p[`kPF_N] = sb_n;
-    else if(load_flag_decode[`kLF_N_DB7])  reg_p[`kPF_N] = db_in[7];
+    if(load_flag_decode[`kLF_N_SBN])       reg_p[`kPF_N] <= sb_n;
+    else if(load_flag_decode[`kLF_N_DB7])  reg_p[`kPF_N] <= db_in[7];
     
-    if(load_flag_decode[`kLF_E_IR0])       reg_p[`kPF_E] = ir0;
+    if(load_flag_decode[`kLF_E_IR0])       reg_p[`kPF_E] <= ir0;
+    // Force E bit to 1 when entering hypervisor mode so we use the correct stack upon
+    // entry.   Hypervisor trap routine can then control it later.
+    else if(hyperg)                        reg_p[`kPF_E] <= 1;
+    // If we are in hypervisor mode and are updating P from an RTI then we also update
+    // E and set the hyper_rti flag to do the hypervisor exit transition when we get the next
+    // sync signal from the microcode so it's synchronized with the next instruction fetch.
+    else if(hyper_mode & load_flag_decode[`kLF_E_RTI]) begin
+      reg_p[`kPF_E] <= db_in[`kPF_E];
+      hyper_rti <= 1;
+    end else if(mc_sync) begin
+      hyper_rti <= 0;
+    end
+    
   end
 end
 

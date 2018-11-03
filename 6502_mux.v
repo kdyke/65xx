@@ -207,23 +207,26 @@ endmodule
 
 // Note: LM_C_DB0, LM_Z_DB1, LM_I_DB2 and LM_D_DB3 are currently always set together and are thus redundant,
 // so if we ever went back to predecoded flags we could save 3 bits there.
-`SCHEM_KEEP_HIER module flags_decode(input [3:0] load_flags, output reg [15:0] load_flags_decode);
+`SCHEM_KEEP_HIER module flags_decode(input [3:0] load_flags, output reg [16:0] load_flags_decode);
 always @(*)
-case (load_flags)
-  `kFLAGS_DB   : load_flags_decode = (`LM_C_DB0 | `LM_Z_DB1 | `LM_I_DB2 | `LM_D_DB3 | `LM_V_DB6 | `LM_N_DB7);
-  `kFLAGS_SBZN : load_flags_decode = (`LM_Z_SBZ | `LM_N_SBN);
-  `kFLAGS_D    : load_flags_decode = (`LM_D_IR5);
-  `kFLAGS_I    : load_flags_decode = (`LM_I_IR5);
-  `kFLAGS_C    : load_flags_decode = (`LM_C_IR5);
-  `kFLAGS_V    : load_flags_decode = (`LM_V_0);
-  `kFLAGS_Z    : load_flags_decode = (`LM_Z_SBZ);
-  `kFLAGS_CNZ  : load_flags_decode = (`LM_C_ACR | `LM_Z_SBZ | `LM_N_SBN);
-  `kFLAGS_ALU  : load_flags_decode = (`LM_C_ACR | `LM_V_AVR | `LM_Z_SBZ | `LM_N_SBN);
-  `kFLAGS_BIT  : load_flags_decode = (`LM_V_DB6 | `LM_N_DB7);
-  `kFLAGS_SETI : load_flags_decode = (`LM_I_1|`LM_D_IR5);     // Clear D flag too
-  `kFLAGS_E    : load_flags_decode = (`LM_E_IR0);
-  default      : load_flags_decode = 0;
-endcase
+begin
+  case (load_flags)
+    `kFLAGS_DB   : load_flags_decode = (`LM_C_DB0 | `LM_Z_DB1 | `LM_I_DB2 | `LM_D_DB3 | `LM_V_DB6 | `LM_N_DB7);
+    `kFLAGS_SBZN : load_flags_decode = (`LM_Z_SBZ | `LM_N_SBN);
+    `kFLAGS_D    : load_flags_decode = (`LM_D_IR5);
+    `kFLAGS_I    : load_flags_decode = (`LM_I_IR5);
+    `kFLAGS_C    : load_flags_decode = (`LM_C_IR5);
+    `kFLAGS_V    : load_flags_decode = (`LM_V_0);
+    `kFLAGS_Z    : load_flags_decode = (`LM_Z_SBZ);
+    `kFLAGS_CNZ  : load_flags_decode = (`LM_C_ACR | `LM_Z_SBZ | `LM_N_SBN);
+    `kFLAGS_ALU  : load_flags_decode = (`LM_C_ACR | `LM_V_AVR | `LM_Z_SBZ | `LM_N_SBN);
+    `kFLAGS_BIT  : load_flags_decode = (`LM_V_DB6 | `LM_N_DB7);
+    `kFLAGS_SETI : load_flags_decode = (`LM_I_1|`LM_D_IR5);     // Clear D flag too
+    `kFLAGS_E    : load_flags_decode = (`LM_E_IR0);
+    `kFLAGS_RTI  : load_flags_decode = (`LM_C_DB0 | `LM_Z_DB1 | `LM_I_DB2 | `LM_D_DB3 | `LM_V_DB6 | `LM_N_DB7 | `LM_E_RTI);
+    default      : load_flags_decode = 0;
+  endcase
+end
 
 endmodule
 
@@ -243,4 +246,14 @@ endcase
 end
 
 endmodule
-  
+
+`SCHEM_KEEP_HIER module sp_sel_mux(input hyper_mode, input [15:0] usp, input [15:0] hsp, output reg [15:0] sp);
+
+always @(*)
+begin
+  if(hyper_mode)
+    sp = hsp;
+  else
+    sp = usp;
+end
+endmodule

@@ -1,23 +1,26 @@
 `include "6502_inc.vh"
 
-`SCHEM_KEEP_HIER module cpu65CE02(clk, reset, nmi, irq, ready, write, write_next, sync, address, address_next, data_i, data_o, data_o_next, cpu_state, t, cpu_int,
+`SCHEM_KEEP_HIER module cpu65CE02(clk, reset, nmi, irq, hyp, ready, write, write_next, sync, address, address_next, data_i, data_o, data_o_next, 
+                                hyper_mode, cpu_state, t, cpu_int,
                                 a_out, x_out, y_out, z_out, sp_out);
 
 initial begin
 end
 
 input clk, reset, irq, nmi, ready;
+input hyp;
 input [7:0] data_i;
 output wire [7:0] data_o;
 output wire [7:0] data_o_next;
 output [15:0] address;
 output [15:0] address_next;
 output write_next;
-output write;
+output reg write;
 output sync;
 output [7:0] cpu_state;
 output [2:0] t;
 output cpu_int;
+output wire hyper_mode;
 
 // debugging
 output wire [7:0] a_out;
@@ -60,7 +63,6 @@ wire [3:0] load_flags;
 wire [4:0] test_flags;
 wire test_flag0;
 wire word_z;
-wire write;
 
 // Clocked internal registers
 wire [15:0] ab;
@@ -79,6 +81,10 @@ wire [7:0] reg_y;
 wire [7:0] reg_z;
 wire [7:0] reg_b;
 wire [7:0] reg_p;
+wire [15:0] usp;
+wire [15:0] usp_next;
+wire [15:0] hsp;
+wire [15:0] hsp_next;
 wire [15:0] sp;
 wire [15:0] sp_next;
 wire [15:0] pc;
@@ -105,14 +111,18 @@ wire sync;
 
 wire onecycle;
 
+wire hyperg, hyper_rti;
 wire intg;
 wire nmig;
 wire resp;
 wire alu_z, dld_z;
 wire [4:0] load_reg_decode;
-wire [15:0] load_flags_decode;
+wire [16:0] load_flags_decode;
 assign cpu_int = intg;
 
+wire stack_sel;
+
+wire [7:0] vector_hi;
 wire [7:0] vector_lo;
 
   // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
@@ -136,32 +146,25 @@ wire [7:0] vector_lo;
 
   cond_control cond_control(reg_p, dld_z, test_flags, test_flag0, cond_met);
   
-  ir_next_mux ir_next_mux(sync, intg, data_i, ir, ir_next);
+  ir_next_mux ir_next_mux(sync, intg|hyperg, data_i, ir, ir_next);
 
   assign write_next = write_cycle & ~resp;
-  assign write = w_reg; 
-  
-  dreg_mux dreg_do_mux(dreg_do, reg_a, reg_x, reg_y, reg_z, dreg_do_bus);
-  dbo_mux dbo_mux(dbo_sel, data_i, dreg_do_bus, alu_out, pc_next[15:8], data_o_next);
-
   always @(posedge clk)
   begin
     if(ready)
-      w_reg <= write_next;
+      write <= write_next;
   end
   
-  assign cpu_state = reg_p; //{ dec_add, dec_sub, decimal_extra_cycle, decimal_cycle};
-  
+  dreg_mux dreg_do_mux(dreg_do, reg_a, reg_x, reg_y, reg_z, dreg_do_bus);
+  dbo_mux dbo_mux(dbo_sel, data_i, dreg_do_bus, alu_out, pc_next[15:8], data_o_next);
+    
   predecode predecode(data_i, sync & ~intg, onecycle);
 
-  interrupt_control interrupt_control(clk, reset, irq, nmi, mc_sync, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp, vector_lo);
+  interrupt_control interrupt_control(clk, reset, irq, nmi, mc_sync, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp,
+                                      hyp, hyperg, hyper_mode, hyper_rti, pc_hold, vector_hi, vector_lo);
 
   // Timing control state machine
   timing_ctrl timing(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
-
-  // Disable PC increment when processing a BRK with recognized IRQ/NMI, or when about to perform the extra decimal correction cycle
-  wire pc_hold;
-  assign pc_hold = intg;
 
   clocked_reset_reg8 ir_reg(clk, reset, sync & ready, ir_next, ir);
 
@@ -177,10 +180,22 @@ wire [7:0] vector_lo;
   ea_adder pcl_adder(areg[1] == 1 /* areg ==`kAREG_PCL */ ? pc[7:0] : 8'h00, data_i, aluc_sel[0], pcl_alu_out, pcl_alu_carry);  
   ea_adder ea_adder(alua_bus,alub_bus,aluc_bus,alu_ea,alu_ea_c);
   
-  ab_reg reg_ab(clk, ready, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, ab_next, ab);
+  ab_reg reg_ab(clk, ready, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, vector_hi, ab_next, ab);
   ad_reg reg_ad(clk, ready, adh_sel, adl_sel, alu_ea, ad_next, ad);
   pc_reg reg_pc(clk, ready, pc_inc & ~pc_hold, cond_met, pch_sel, pcl_sel, ad[7:0], alu_ea, alu_ea_c, data_i[7], pcl_alu_out, pcl_alu_carry, pc_next, pc);
-  sp_reg reg_sp(clk, reset, ready, reg_p[`kPF_E], sp_incdec, sph_sel, spl_sel, alu_ea, sp_next, sp);
+  sp_reg reg_usp(clk, reset, ready & ~stack_sel, reg_p[`kPF_E], sp_incdec, sph_sel, spl_sel, alu_ea, usp_next, usp, 1'b0);
+
+  // For now the hypervisor stack is forced to work in 8-bit mode since I'm using the E bit in hypervisor mode to control
+  // which stack gets used.   Leaving the true hypervisor stack in 8-bit mode is probably not a big deal, but it's easy
+  // enough to change it to always run in 16-bit mode if it becomes a big limitation.  In any case it doesn't seem like it
+  // needs to be switchable on the fly.   It was only done that way on the 65CE02 for backwards compatibility reasons.
+  sp_reg reg_hsp(clk, reset, ready & stack_sel, 1'b1, sp_incdec, sph_sel, spl_sel, alu_ea, hsp_next, hsp, 1'b1);
+  
+  // In hypervisor mode, the E bit controls whether we are accessing the hypervisor (1) or user (0) stack registers.
+  assign stack_sel = hyper_mode & reg_p[`kPF_E];
+  
+  sp_sel_mux sp_next_mux(stack_sel, usp_next, hsp_next, sp_next);
+  sp_sel_mux sp_mux(stack_sel, usp, hsp, sp);
   
   wire [7:0] ir_dec;
 
@@ -199,6 +214,7 @@ wire [7:0] vector_lo;
   clocked_reset_reg8 b_reg(clk, reset, load_reg_decode[`kLR_B] && ready, alu_out, reg_b);
   clocked_reg8 do_reg(clk, ready, data_o_next, data_o);
   
+  assign cpu_state = reg_p; //{ dec_add, dec_sub, decimal_extra_cycle, decimal_cycle};
   assign a_out = reg_a;
   assign x_out = reg_x;
   assign y_out = reg_y;
@@ -212,16 +228,11 @@ wire [7:0] vector_lo;
   assign dec_add = dec_op & (ir[7] == 0);
   assign dec_sub = dec_op & (ir[7] == 1);
 
-  //always @(*)
-  //begin
-  //  $display("dec_op: %d dec_add: %d dec_sub: %d ir: %02x",dec_op,dec_add,dec_sub,ir);
-  //end
-  
   z_unit z_unit(clk, ready, alu_sel, alu_out, sb_z, dld_z, word_z);
 
   assign sb_n = alu_out[7];
 
-  p_reg p_reg(clk, reset, ready, intg, load_flags_decode, sync & ready, data_i, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], ir[0], reg_p);
+  p_reg p_reg(clk, reset, ready, intg, hyperg, hyper_mode, hyper_rti, sync & ready, load_flags_decode, data_i, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], ir[0], reg_p);
 
   always @(posedge clk)
   begin

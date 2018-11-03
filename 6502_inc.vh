@@ -267,6 +267,7 @@
 `define kLF_N_DB7     13
 `define kLF_I_1       14
 `define kLF_E_IR0     15
+`define kLF_E_RTI     16
 
 `define LM_C_DB0      (1 << `kLF_C_DB0)
 `define LM_C_IR5      (1 << `kLF_C_IR5)
@@ -284,6 +285,7 @@
 `define LM_N_DB7      (1 << `kLF_N_DB7)
 `define LM_I_1        (1 << `kLF_I_1  )
 `define LM_E_IR0      (1 << `kLF_E_IR0)
+`define LM_E_RTI      (1 << `kLF_E_RTI)
 
 // Encoded flag update field
 `define LOAD_FLAGS_BITS   39:36
@@ -299,6 +301,7 @@
 `define kFLAGS_BIT    4'ha
 `define kFLAGS_Z      4'hb
 `define kFLAGS_E      4'hc
+`define kFLAGS_RTI    4'hd
 
 `define FLAGS_DB      |(`kFLAGS_DB    << `FIELD_SHIFT(`LOAD_FLAGS_BITS))
 `define FLAGS_SBZN    |(`kFLAGS_SBZN  << `FIELD_SHIFT(`LOAD_FLAGS_BITS))
@@ -312,6 +315,7 @@
 `define FLAGS_BIT     |(`kFLAGS_BIT   << `FIELD_SHIFT(`LOAD_FLAGS_BITS))
 `define FLAGS_Z       |(`kFLAGS_Z     << `FIELD_SHIFT(`LOAD_FLAGS_BITS))
 `define FLAGS_E       |(`kFLAGS_E     << `FIELD_SHIFT(`LOAD_FLAGS_BITS))
+`define FLAGS_RTI     |(`kFLAGS_RTI   << `FIELD_SHIFT(`LOAD_FLAGS_BITS))
 
 // Flags bit definitions
 `define kPF_C        0
@@ -586,7 +590,7 @@
 
 `define RTI(_insbyte) \
 `MICROCODE( _insbyte,  2, `AB_SPn `SP_INC) \
-`MICROCODE( _insbyte,  3, `AB_SPn `SP_INC `FLAGS_DB) \
+`MICROCODE( _insbyte,  3, `AB_SPn `SP_INC `FLAGS_RTI) \
 `MICROCODE( _insbyte,  4, `AB_SPn `SP_INC `ADL_ALU `BSEL_DB) \
 `MICROCODE( _insbyte,  5, `ALU_ADC `BSEL_DB `CSEL_0 `PCH_ALU `PCL_ADL `SYNC) \
 `MICROCODE( _insbyte,  1, `PC_INC)
