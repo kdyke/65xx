@@ -1,5 +1,5 @@
-CORE_SRCS = 6502_top.v 6502_ucode.v 6502_alu.v 6502_timing.v 6502_mux.v 6502_reg.v 4510_top.v 4510_mapper.v 4510_hyper.v
-CORE_HDRS = 6502_inc.vh
+CORE_SRCS = 4510_top.v 4510_mapper.v 4510_hyper.v 65ce02_ucode.v 65ce02_alu.v 65ce02_timing.v 65ce02_mux.v 65ce02_reg.v 65ce02_core.v 
+CORE_HDRS = 65ce02_inc.vh
 
 functest : testbed.v func_test.v $(CORE_SRCS) $(CORE_HDRS)
 	iverilog -o functest -s main -D CMOS=1 testbed.v func_test.v $(CORE_SRCS)

@@ -1,5 +1,5 @@
 `ifndef _6502_inc_vh_
-`define _6052_inc_vh_
+`define _6052_inc_vh_ 1
 
 // For when I want to synthesize and keep the full internal hierarchy
 `define SCHEM_KEEP 1
@@ -8,6 +8,39 @@
 `else
 `define SCHEM_KEEP_HIER
 `endif
+
+// Macros to rename all CPU core sub modules to avoid conflicts in other projects
+`define microcode           microcode_65ce02
+`define reg_decode          reg_decode_65ce02
+`define flags_decode        flags_decode_65ce02
+`define cond_control        cond_control_65ce02
+`define ir_next_mux         ir_next_mux_65ce02
+`define dreg_mux            dreg_mux_65ce02
+`define dbo_mux             dbo_mux_65ce02  
+`define predecode           predecode_65ce02
+`define interrupt_control   interrupt_control_65ce02
+`define timing_ctrl         tming_ctrl_65ce02
+`define addrbus_mux         addrbus_mux_65ce02
+`define alu_unit            alu_unit_65ce02
+`define ea_adder            ea_adder_65ce02
+`define ab_reg              ab_reg_65ce02
+`define ad_reg              ad_reg_65ce02
+`define pc_reg              pc_reg_65ce02
+`define sp_reg              sp_reg_65ce02
+`define sp_sel_mux          sp_sel_mux_65ce02
+`define dreg_mux            dreg_mux_65ce02
+`define areg_mux            areg_mux_65ce02
+`define alua_mux            alua_mux_65ce02
+`define alub_mux            alub_mux_65ce02
+`define aluc_mux            aluc_mux_65ce02
+`define clocked_reg8        clocked_reg8_65ce02
+`define clocked_reset_reg8  clocked_reset_reg8_65ce02
+`define z_unit              z_unit_65ce02
+`define p_reg               p_reg_65ce02
+`define decoder3to8         decoder3to8_65ce02
+`define decadj_half_adder   decadj_half_adder_65ce02
+`define alu_half_adder      alu_half_adder_65ce02
+`define alu_adder           alu_adder_65ce02
 
 // Magic macro to extract field shift from field definition macro using ternary operator
 `define FIELD_SHIFT(_x) (0?_x)

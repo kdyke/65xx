@@ -1,4 +1,4 @@
-`include "6502_inc.vh"
+`include "65ce02_inc.vh"
 
 `SCHEM_KEEP_HIER module cpu65CE02(clk, reset, nmi, irq, hyp, ready, write, write_next, sync, address, address_next, data_i, data_o, data_o_next, 
                                 hyper_mode, cpu_state, t, cpu_int,
@@ -126,7 +126,7 @@ wire [7:0] vector_hi;
 wire [7:0] vector_lo;
 
   // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
-  microcode mc_inst(.clk(clk), .ready(ready), .ir(ir_next), .t(t_next), .mc_sync(mc_sync), .alua_sel(alua_sel), .alub_sel(alub_sel),
+  `microcode mc_inst(.clk(clk), .ready(ready), .ir(ir_next), .t(t_next), .mc_sync(mc_sync), .alua_sel(alua_sel), .alub_sel(alub_sel),
                   .aluc_sel(aluc_sel), .bit_inv(bit_inv),
                   .dreg(dreg), .dreg_do(dreg_do), .areg(areg), .alu_sel(alu_sel), .dbo_sel(dbo_sel), .ab_sel(ab_sel),
                   .pc_inc(pc_inc), .pch_sel(pch_sel), .pcl_sel(pcl_sel), 
@@ -141,12 +141,12 @@ wire [7:0] vector_lo;
   //  $display("MC_SYNC: %d",mc_sync);
   //end
   
-  reg_decode     reg_decode(load_reg, load_reg_decode);
-  flags_decode flags_decode(load_flags, load_flags_decode);
+  `reg_decode     reg_decode(load_reg, load_reg_decode);
+  `flags_decode flags_decode(load_flags, load_flags_decode);
 
-  cond_control cond_control(reg_p, dld_z, test_flags, test_flag0, cond_met);
+  `cond_control cond_control(reg_p, dld_z, test_flags, test_flag0, cond_met);
   
-  ir_next_mux ir_next_mux(sync, intg|hyperg, data_i, ir, ir_next);
+  `ir_next_mux ir_next_mux(sync, intg|hyperg, data_i, ir, ir_next);
 
   assign write_next = write_cycle & ~resp;
   always @(posedge clk)
@@ -155,64 +155,64 @@ wire [7:0] vector_lo;
       write <= write_next;
   end
   
-  dreg_mux dreg_do_mux(dreg_do, reg_a, reg_x, reg_y, reg_z, dreg_do_bus);
-  dbo_mux dbo_mux(dbo_sel, data_i, dreg_do_bus, alu_out, pc_next[15:8], data_o_next);
+  `dreg_mux  dreg_do_mux(dreg_do, reg_a, reg_x, reg_y, reg_z, dreg_do_bus);
+  `dbo_mux   dbo_mux(dbo_sel, data_i, dreg_do_bus, alu_out, pc_next[15:8], data_o_next);
     
-  predecode predecode(data_i, sync & ~intg, onecycle);
+  `predecode predecode(data_i, sync & ~intg, onecycle);
 
-  interrupt_control interrupt_control(clk, reset, irq, nmi, mc_sync, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp,
+  `interrupt_control interrupt_control(clk, reset, irq, nmi, mc_sync, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp,
                                       hyp, hyperg, hyper_mode, hyper_rti, pc_hold, vector_hi, vector_lo);
 
   // Timing control state machine
-  timing_ctrl timing(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
+  `timing_ctrl timing(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
 
-  clocked_reset_reg8 ir_reg(clk, reset, sync & ready, ir_next, ir);
+  `clocked_reset_reg8 ir_reg(clk, reset, sync & ready, ir_next, ir);
 
-  addrbus_mux addrbus_mux(clk, ready, ab_sel, ad_next, ab_next, sp_next, pc_next, address_next, address);
+  `addrbus_mux addrbus_mux(clk, ready, ab_sel, ad_next, ab_next, sp_next, pc_next, address_next, address);
   
   wire [7:0] pcl_alu_out;
   wire pcl_alu_carry;
   
   // Instantiate ALU
-  alu_unit alu_inst(alua_bus, alub_bus, alu_out, aluc_bus, dec_add, dec_sub, alu_sel, alu_carry_out, alu_overflow_out);
+  `alu_unit alu_inst(alua_bus, alub_bus, alu_out, aluc_bus, dec_add, dec_sub, alu_sel, alu_carry_out, alu_overflow_out);
 
   // A couple of dedicated adders for effective address calculations.
-  ea_adder pcl_adder(areg[1] == 1 /* areg ==`kAREG_PCL */ ? pc[7:0] : 8'h00, data_i, aluc_sel[0], pcl_alu_out, pcl_alu_carry);  
-  ea_adder ea_adder(alua_bus,alub_bus,aluc_bus,alu_ea,alu_ea_c);
+  `ea_adder pcl_adder(areg[1] == 1 /* areg ==`kAREG_PCL */ ? pc[7:0] : 8'h00, data_i, aluc_sel[0], pcl_alu_out, pcl_alu_carry);  
+  `ea_adder ea_adder(alua_bus,alub_bus,aluc_bus,alu_ea,alu_ea_c);
   
-  ab_reg reg_ab(clk, ready, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, vector_hi, ab_next, ab);
-  ad_reg reg_ad(clk, ready, adh_sel, adl_sel, alu_ea, ad_next, ad);
-  pc_reg reg_pc(clk, ready, pc_inc & ~pc_hold, cond_met, pch_sel, pcl_sel, ad[7:0], alu_ea, alu_ea_c, data_i[7], pcl_alu_out, pcl_alu_carry, pc_next, pc);
-  sp_reg reg_usp(clk, reset, ready & ~stack_sel, reg_p[`kPF_E], sp_incdec, sph_sel, spl_sel, alu_ea, usp_next, usp, 1'b0);
+  `ab_reg reg_ab(clk, ready, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, vector_hi, ab_next, ab);
+  `ad_reg reg_ad(clk, ready, adh_sel, adl_sel, alu_ea, ad_next, ad);
+  `pc_reg reg_pc(clk, ready, pc_inc & ~pc_hold, cond_met, pch_sel, pcl_sel, ad[7:0], alu_ea, alu_ea_c, data_i[7], pcl_alu_out, pcl_alu_carry, pc_next, pc);
+  `sp_reg reg_usp(clk, reset, ready & ~stack_sel, reg_p[`kPF_E], sp_incdec, sph_sel, spl_sel, alu_ea, usp_next, usp, 1'b0);
 
   // For now the hypervisor stack is forced to work in 8-bit mode since I'm using the E bit in hypervisor mode to control
   // which stack gets used.   Leaving the true hypervisor stack in 8-bit mode is probably not a big deal, but it's easy
   // enough to change it to always run in 16-bit mode if it becomes a big limitation.  In any case it doesn't seem like it
   // needs to be switchable on the fly.   It was only done that way on the 65CE02 for backwards compatibility reasons.
-  sp_reg reg_hsp(clk, reset, ready & stack_sel, 1'b1, sp_incdec, sph_sel, spl_sel, alu_ea, hsp_next, hsp, 1'b1);
+  `sp_reg reg_hsp(clk, reset, ready & stack_sel, 1'b1, sp_incdec, sph_sel, spl_sel, alu_ea, hsp_next, hsp, 1'b1);
   
   // In hypervisor mode, the E bit controls whether we are accessing the hypervisor (1) or user (0) stack registers.
   assign stack_sel = hyper_mode & reg_p[`kPF_E];
   
-  sp_sel_mux sp_next_mux(stack_sel, usp_next, hsp_next, sp_next);
-  sp_sel_mux sp_mux(stack_sel, usp, hsp, sp);
+  `sp_sel_mux sp_next_mux(stack_sel, usp_next, hsp_next, sp_next);
+  `sp_sel_mux sp_mux(stack_sel, usp, hsp, sp);
   
   wire [7:0] ir_dec;
 
-  dreg_mux dreg_mux(dreg, reg_a, reg_x, reg_y, reg_z, dreg_bus);
-  areg_mux areg_mux(areg, pc[15:8], sp[15:8], pc[7:0], sp[7:0], areg_bus);
+  `dreg_mux dreg_mux(dreg, reg_a, reg_x, reg_y, reg_z, dreg_bus);
+  `areg_mux areg_mux(areg, pc[15:8], sp[15:8], pc[7:0], sp[7:0], areg_bus);
   
-  alua_mux alua_mux(alua_sel, areg_bus, dreg_bus, data_i, vector_lo, alua_bus);
-  alub_mux alub_mux(alub_sel, data_i, dbd, reg_p, reg_b, ir[6:4], bit_inv, alub_bus);
-  aluc_mux aluc_mux(aluc_sel, reg_p[`kPF_C], alu_carry_out_last, aluc_bus);
+  `alua_mux alua_mux(alua_sel, areg_bus, dreg_bus, data_i, vector_lo, alua_bus);
+  `alub_mux alub_mux(alub_sel, data_i, dbd, reg_p, reg_b, ir[6:4], bit_inv, alub_bus);
+  `aluc_mux aluc_mux(aluc_sel, reg_p[`kPF_C], alu_carry_out_last, aluc_bus);
     
-  clocked_reg8 dbd_reg(clk, ready, data_i, dbd);
-  clocked_reg8 a_reg(clk, load_reg_decode[`kLR_A] && ready, alu_out, reg_a);
-  clocked_reg8 x_reg(clk, load_reg_decode[`kLR_X] && ready, alu_out, reg_x);
-  clocked_reg8 y_reg(clk, load_reg_decode[`kLR_Y] && ready, alu_out, reg_y);
-  clocked_reset_reg8 z_reg(clk, reset, load_reg_decode[`kLR_Z] && ready, alu_out, reg_z);
-  clocked_reset_reg8 b_reg(clk, reset, load_reg_decode[`kLR_B] && ready, alu_out, reg_b);
-  clocked_reg8 do_reg(clk, ready, data_o_next, data_o);
+  `clocked_reg8 dbd_reg(clk, ready, data_i, dbd);
+  `clocked_reg8 a_reg(clk, load_reg_decode[`kLR_A] && ready, alu_out, reg_a);
+  `clocked_reg8 x_reg(clk, load_reg_decode[`kLR_X] && ready, alu_out, reg_x);
+  `clocked_reg8 y_reg(clk, load_reg_decode[`kLR_Y] && ready, alu_out, reg_y);
+  `clocked_reset_reg8 z_reg(clk, reset, load_reg_decode[`kLR_Z] && ready, alu_out, reg_z);
+  `clocked_reset_reg8 b_reg(clk, reset, load_reg_decode[`kLR_B] && ready, alu_out, reg_b);
+  `clocked_reg8 do_reg(clk, ready, data_o_next, data_o);
   
   assign cpu_state = reg_p; //{ dec_add, dec_sub, decimal_extra_cycle, decimal_cycle};
   assign a_out = reg_a;
@@ -228,11 +228,11 @@ wire [7:0] vector_lo;
   assign dec_add = dec_op & (ir[7] == 0);
   assign dec_sub = dec_op & (ir[7] == 1);
 
-  z_unit z_unit(clk, ready, alu_sel, alu_out, sb_z, dld_z, word_z);
+  `z_unit z_unit(clk, ready, alu_sel, alu_out, sb_z, dld_z, word_z);
 
   assign sb_n = alu_out[7];
 
-  p_reg p_reg(clk, reset, ready, intg, hyperg, hyper_mode, hyper_rti, sync & ready, load_flags_decode, data_i, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], ir[0], reg_p);
+  `p_reg p_reg(clk, reset, ready, intg, hyperg, hyper_mode, hyper_rti, sync & ready, load_flags_decode, data_i, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], ir[0], reg_p);
 
   always @(posedge clk)
   begin

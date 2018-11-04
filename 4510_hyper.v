@@ -1,4 +1,4 @@
-`include "6502_inc.vh"
+`include "65ce02_inc.vh"
 
 `SCHEM_KEEP_HIER module hyper_ctrl(input clk, input reset, input hyper_cs, input [7:0] hyper_addr, input [7:0] hyper_io_data_i, output reg [7:0] hyper_data_o,
                   input cpu_write, input ready, input hyper_mode, output reg hyp, output reg load_user_reg, input [7:0] user_mapper_reg);

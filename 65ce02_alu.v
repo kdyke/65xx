@@ -1,8 +1,8 @@
-`include "6502_inc.vh"
+`include "65ce02_inc.vh"
 
 `timescale 10ns/10ns
 
-module decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub);
+module `decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub);
   input [3:0] dec_in;
   input carry_in;
   input dec_add;
@@ -22,7 +22,7 @@ module decadj_half_adder(dec_in, dec_out, carry_in, dec_add, dec_sub);
   end
 endmodule
 
-module alu_half_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out);
+module `alu_half_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out);
   input [3:0] add_in1;
   input [3:0] add_in2;
   input add_cin;
@@ -47,7 +47,7 @@ module alu_half_adder(add_in1, add_in2, add_cin, dec_add, add_out, carry_out);
 
 endmodule
 
-module alu_adder(add_in1, add_in2, add_cin, dec_add, dec_sub, add_out, carry_out);
+module `alu_adder(add_in1, add_in2, add_cin, dec_add, dec_sub, add_out, carry_out);
   input [7:0] add_in1;
   input [7:0] add_in2;
   input add_cin;
@@ -61,24 +61,24 @@ module alu_adder(add_in1, add_in2, add_cin, dec_add, dec_sub, add_out, carry_out
   
   wire [7:0] tmp;
     
-  alu_half_adder  low(add_in1[3:0],add_in2[3:0],add_cin,   dec_add,tmp[3:0],half_carry);
-  alu_half_adder high(add_in1[7:4],add_in2[7:4],half_carry,dec_add,tmp[7:4],carry_out);
+  `alu_half_adder  low(add_in1[3:0],add_in2[3:0],add_cin,   dec_add,tmp[3:0],half_carry);
+  `alu_half_adder high(add_in1[7:4],add_in2[7:4],half_carry,dec_add,tmp[7:4],carry_out);
   
   // We could insert a pre-decimal correction Z test here for 6502 compatibility.
   
-  decadj_half_adder  decadj_low(tmp[3:0],add_out[3:0], half_carry,    dec_add, dec_sub);
-  decadj_half_adder decadj_high(tmp[7:4],add_out[7:4], carry_out,     dec_add, dec_sub);
+  `decadj_half_adder  decadj_low(tmp[3:0],add_out[3:0], half_carry,    dec_add, dec_sub);
+  `decadj_half_adder decadj_high(tmp[7:4],add_out[7:4], carry_out,     dec_add, dec_sub);
 
 endmodule
 
-module ea_adder(input [7:0] a, input [7:0] b, input carry_in, output wire [7:0] add_out, output carry_out);
+module `ea_adder(input [7:0] a, input [7:0] b, input carry_in, output wire [7:0] add_out, output carry_out);
 wire [8:0] ea_add = a + b + carry_in;
 assign add_out = ea_add[7:0];
 assign carry_out = ea_add[8];
 endmodule
 
 // Input muxing is done outside of the core ALU unit.
-`SCHEM_KEEP_HIER module alu_unit(a,b,alu_out,c_in,dec_add,dec_sub,op,carry_out,overflow_out);
+`SCHEM_KEEP_HIER module `alu_unit(a,b,alu_out,c_in,dec_add,dec_sub,op,carry_out,overflow_out);
   input [7:0] a;
   input [7:0] b;
 	input [2:0] op;
@@ -103,7 +103,7 @@ endmodule
   wire overflow_out;  
   reg carry_out;
   
-	alu_adder add_u(a, b, c_in, dec_add, dec_sub, add_out, adder_carry_out);
+	`alu_adder add_u(a, b, c_in, dec_add, dec_sub, add_out, adder_carry_out);
 	  
   assign overflow_out = a[7] == b[7] && a[7] != add_out[7];
   
@@ -152,7 +152,7 @@ endmodule
 
 endmodule
 
-`SCHEM_KEEP_HIER module z_unit(input clk, input ready, input [2:0] op, input [7:0] aluy, output wire z_out, output reg dld_z, input word_z);
+`SCHEM_KEEP_HIER module `z_unit(input clk, input ready, input [2:0] op, input [7:0] aluy, output wire z_out, output reg dld_z, input word_z);
 
 wire alu_z;
 

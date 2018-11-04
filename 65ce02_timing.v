@@ -1,4 +1,4 @@
-`include "6502_inc.vh"
+`include "65ce02_inc.vh"
 
 // This may be also defined to "fix" the original 6502 BRK/NMI bug without enabling the full CMOS stuff
 `ifdef CMOS
@@ -6,7 +6,7 @@
 `endif
 `define NMI_BUG_FIX 1
 
-`SCHEM_KEEP_HIER module timing_ctrl(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
+`SCHEM_KEEP_HIER module `timing_ctrl(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
 input clk;
 input reset;
 input ready;
@@ -67,7 +67,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module predecode(data_i, sync, onecycle);
+`SCHEM_KEEP_HIER module `predecode(data_i, sync, onecycle);
 input [7:0] data_i;
 input sync;
 output onecycle;
@@ -93,7 +93,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module interrupt_control(clk, reset, irq, nmi, mc_sync, reg_p, load_i, intg, nmig, resp, hyp, hyperg, hyper_mode, hyper_rti, pc_hold, vector_hi, vector_lo);
+`SCHEM_KEEP_HIER module `interrupt_control(clk, reset, irq, nmi, mc_sync, reg_p, load_i, intg, nmig, resp, hyp, hyperg, hyper_mode, hyper_rti, pc_hold, vector_hi, vector_lo);
 input clk;
 input reset;
 input irq;
@@ -201,7 +201,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module cond_control(reg_p, dld_z, test_flags, test_bit, cond_met);
+`SCHEM_KEEP_HIER module `cond_control(reg_p, dld_z, test_flags, test_bit, cond_met);
 input [7:0] reg_p;
 input [4:0] test_flags;
 input test_bit;

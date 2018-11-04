@@ -1,4 +1,4 @@
-`include "6502_inc.vh"
+`include "65ce02_inc.vh"
 
 `SCHEM_KEEP_HIER module cpu4510(input clk, input reset, input nmi, input irq, input hyp, input ready, output wire write, output wire write_next, 
                                 output wire sync, output wire [19:0] address, output wire [19:0] address_next, 
@@ -24,7 +24,7 @@ wire [7:0] cpu_data_i;
 wire load_map_sel; // Which set of mapper registers is being loaded (user or supervisor)
 
 // This is the state machine that actually watches for MAP/EOM instructions and tells the mapper what to do.
-mapper_fsm mapper_fsm(.clk(clk), .reset(reset), .data_i(data_i), .ready(ready), .sync(sync), 
+mapper4510_fsm mapper_fsm(.clk(clk), .reset(reset), .data_i(data_i), .ready(ready), .sync(sync), 
                       .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_z(load_z),
                       .map_sel(hyper_mode), .map_reg_write_sel(core_address_next[1:0]), 
                       .load_map_sel(load_map_sel), .hypervisor_load_user_reg(hypervisor_load_user_reg), 

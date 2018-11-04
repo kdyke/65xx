@@ -1,4 +1,4 @@
-`include "6502_inc.vh"
+`include "65ce02_inc.vh"
 
 `SCHEM_KEEP_HIER module mapper4510(input clk, input reset, input [7:0] data_i, input [7:0] data_o, input ready, input sync,
                   input ext_irq, input ext_nmi, output cpu_irq, output cpu_nmi, input enable_i, input disable_i,
@@ -110,7 +110,7 @@ end
 
 endmodule
 
-module mapper_fsm(input clk, input reset, input [7:0] data_i, input ready, input sync, input map_sel, input [1:0] map_reg_write_sel, input hypervisor_load_user_reg,
+module mapper4510_fsm(input clk, input reset, input [7:0] data_i, input ready, input sync, input map_sel, input [1:0] map_reg_write_sel, input hypervisor_load_user_reg,
                   output reg load_a, output reg load_x, output reg load_y, output reg load_z, output reg load_map_sel, output reg enable_i, output reg disable_i);
 
 parameter MAP_IDLE = 0, 
