@@ -7,8 +7,8 @@
                   output reg [19:0] address, output reg [19:0] address_next, input [15:0] core_address_next, 
                   output reg map_next, output reg map);
 
-reg [19:8] map_offset[0:1][0:1];
-reg [7:0] map_enable[0:1];
+reg [19:8] map_offset[0:3];
+reg [3:0] map_enable[0:3];
 reg int_enable;
 
 // It's not clear whether NMI should be done this way or not. The C65 docs aren't clear on if the MAP instruction masks off NMIs.
@@ -17,41 +17,41 @@ assign cpu_nmi = ext_nmi & int_enable;
 
 always @(posedge clk) begin
   if(reset) begin
-    map_offset[0][0][15:8] <= 8'h00;
-    map_offset[1][0][15:8] <= 8'h00;
+    map_offset[0][15:8] <= 8'h00;
+    map_offset[2][15:8] <= 8'h00;
   end
-    else if(load_a) map_offset[load_map_sel][0][15:8] <= data_o;
+    else if(load_a) map_offset[{load_map_sel,1'b0}][15:8] <= data_o;
   
   if(reset) begin
-    map_offset[0][0][19:16] <= 4'h0;
-    map_offset[1][0][19:16] <= 4'h0;
+    map_offset[0][19:16] <= 4'h0;
+    map_offset[2][19:16] <= 4'h0;
   end
-    else if(load_x) map_offset[load_map_sel][0][19:16] <= data_o[3:0];
+    else if(load_x) map_offset[{load_map_sel,1'b0}][19:16] <= data_o[3:0];
   
   if(reset) begin
     map_enable[0][3:0] <= 4'h0;
+    map_enable[2][3:0] <= 4'h0;
+  end
+    else if(load_x) map_enable[{load_map_sel,1'b0}][3:0] <= data_o[7:4];
+  
+  if(reset) begin
+    map_offset[1][15:8] <= 8'h00;
+    map_offset[3][15:8] <= 8'h00;
+  end
+    else if(load_y) map_offset[{load_map_sel,1'b1}][15:8] <= data_o;
+  
+  if(reset) begin
+    map_offset[1][19:16] <= 4'h0;
+    map_offset[3][19:16] <= 4'h0;
+  end
+    else if(load_z) map_offset[{load_map_sel,1'b1}][19:16] <= data_o[3:0];
+
+  if(reset) begin
     map_enable[1][3:0] <= 4'h0;
-  end
-    else if(load_x) map_enable[load_map_sel][3:0] <= data_o[7:4];
-  
-  if(reset) begin
-    map_enable[0][7:4] <= 4'h0;
-    map_enable[1][7:4] <= 4'h0;
+    map_enable[3][3:0] <= 4'h0;
   end 
-    else if(load_z) map_enable[load_map_sel][7:4] <= data_o[7:4];
-  
-  if(reset) begin
-    map_offset[0][1][15:8] <= 8'h00;
-    map_offset[1][1][15:8] <= 8'h00;
-  end
-    else if(load_y) map_offset[load_map_sel][1][15:8] <= data_o;
-  
-  if(reset) begin
-    map_offset[0][1][19:16] <= 4'h0;
-    map_offset[1][1][19:16] <= 4'h0;
-  end
-    else if(load_z) map_offset[load_map_sel][1][19:16] <= data_o[3:0];
-  
+    else if(load_z) map_enable[{load_map_sel,1'b1}][3:0] <= data_o[7:4];
+    
   if(reset) int_enable <= 1;
   else if(disable_i) int_enable <= 0;
   else if(enable_i) int_enable <= 1;
@@ -65,12 +65,12 @@ reg [19:0] mapper_address;
 reg map_en;
 
 always @(*) begin
-  map_enable_index = core_address_next[15:13];
   map_offset_index = core_address_next[15];
+  map_enable_index = core_address_next[14:13];
   
   // Mapper can be disabled by external (hypervisor) logic when needed.
-  if(map_enable[active_map][map_enable_index]) begin
-    current_offset = map_offset[active_map][map_offset_index];
+  if(map_enable[{active_map,map_offset_index}][map_enable_index]) begin
+    current_offset = map_offset[{active_map,map_offset_index}];
     map_en = 1;
   end else begin
     current_offset = 0;
@@ -101,10 +101,10 @@ end
 // based on the bottom two CPU address bits.
 always @(*) begin
   case(core_address_next[1:0])
-    0: map_reg_data = map_offset[0][0][15:8];
-    1: map_reg_data = {map_enable[0][3:0], map_offset[0][0][19:16]};
-    2: map_reg_data = map_offset[0][1][15:8];
-    3: map_reg_data = {map_enable[0][7:4], map_offset[0][1][19:16]};
+    0: map_reg_data = map_offset[0][15:8];
+    1: map_reg_data = {map_enable[0][3:0], map_offset[0][19:16]};
+    2: map_reg_data = map_offset[1][15:8];
+    3: map_reg_data = {map_enable[1][3:0], map_offset[1][19:16]};
   endcase
 end
 
