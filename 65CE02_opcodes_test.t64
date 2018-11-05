@@ -126,25 +126,27 @@ ram_top = -1
         ;noopt       ;do not take shortcuts
         
 ; Hypervisor registers 
-hyper_a		= $d540
-hyper_x		= $d541
-hyper_y 	= $d542
-hyper_z 	= $d543
-hyper_b 	= $d544
-hyper_port_00	= $d550
-hyper_port_01	= $d551
-hyper_iomode	= $d552
+hyper_a		= $d640
+hyper_x		= $d641
+hyper_y 	= $d642
+hyper_z 	= $d643
+hyper_b 	= $d644
+hyper_spl 	= $d645
+hyper_sph 	= $d646
 
-;hyper_spl 	= $d645
-;hyper_sph 	= $d646
-hyper_map_a	= $d640
-hyper_map_x	= $d641
-hyper_map_y	= $d642
-hyper_map_z	= $d643
-hyper_trap_pcl  = $d64e
-hyper_trap_pch  = $d64f
+hyper_map_x	= $d64a
+hyper_map_a	= $d64b
+hyper_map_z	= $d64c
+hyper_map_y	= $d64d
+
+hyper_port_00	= $d650
+hyper_port_01	= $d651
+hyper_iomode	= $d652
+
 hyper_vector_pcl  = $d660
 hyper_vector_pch  = $d661
+hyper_trap_pcl  = $d662
+hyper_trap_pch  = $d663
 
 ;macros for error & success traps to allow user modification
 ;example:
@@ -2295,6 +2297,8 @@ hyper_entry2:
 	; 1	user spl
 	; 0
 	
+	.dpage $bf00
+	
 	lda $00
 	ldx $01
 	sta hyper_port_00
@@ -2310,8 +2314,8 @@ hyper_entry2:
 	sta $00
 	lda #$35
 	sta $01
-	
-	jmp ($d64e)		; Branch to trap entry point
+		
+	jmp (hyper_trap_pcl)		; Branch to trap entry point
 
 ; Hypervisor exit
 hyper_exit:
@@ -2319,6 +2323,9 @@ hyper_exit:
 	ldx hyper_port_01
 	sta $00
 	stx $01
+	
+	.dpage 0
+	
 	; Restore user registers
 	plx
 	ply
@@ -2333,7 +2340,8 @@ hyper_exit:
 	plx
 	pla
 	
-	rti			; Return from hypervisor	
+	rti			; Return from hypervisor
+	
 	trap			; We shouldn't reach here.
 	
 *=      $fffa ; vectors

@@ -58,7 +58,7 @@ always @(posedge clk) begin
 end
 
 // Mapper combinatorial path
-reg [2:0] map_enable_index;
+reg [1:0] map_enable_index;
 reg map_offset_index;
 reg [19:8] current_offset;
 reg [19:0] mapper_address;
@@ -98,13 +98,21 @@ always @(posedge clk) begin
 end
 
 // Expose internal user mapper state to hypervisor controller.  The selection is always
-// based on the bottom two CPU address bits.
+// based on the bottom two CPU address bits.   Note: The ordering here is so that the
+// addresses line up with how the legacy hypervisor registers are placed, which is like
+// this:
+/*
+          HYPER_REG_MAP_X = 6'h0A,
+          HYPER_REG_MAP_A = 6'h0B,
+          HYPER_REG_MAP_Z = 6'h0C,
+          HYPER_REG_MAP_Y = 6'h0D,
+*/
 always @(*) begin
   case(core_address_next[1:0])
-    0: map_reg_data = map_offset[0][15:8];
-    1: map_reg_data = {map_enable[0][3:0], map_offset[0][19:16]};
-    2: map_reg_data = map_offset[1][15:8];
-    3: map_reg_data = {map_enable[1][3:0], map_offset[1][19:16]};
+    3: map_reg_data = map_offset[0][15:8];                        // A
+    2: map_reg_data = {map_enable[0][3:0], map_offset[0][19:16]}; // X
+    1: map_reg_data = map_offset[1][15:8];                        // Y
+    0: map_reg_data = {map_enable[1][3:0], map_offset[1][19:16]}; // Z
   endcase
 end
 
@@ -142,22 +150,23 @@ always @* begin
   
   // So long as mapper state is idle (we're not executing a MAP instruction) we can also
   // allow direct user mapper register updates via the hypervisor controller I/O registers.
+  // See comment up above on why these are in a seemingly strange order.
   if(map_state == MAP_IDLE) begin
     if(hypervisor_load_user_reg) begin
       case(map_reg_write_sel)
-        0: begin
+        3: begin
           load_map_sel = 0;
           load_a = 1;
         end
-        1: begin
+        2: begin
           load_map_sel = 0;
           load_x = 1;
         end
-        2: begin
+        1: begin
           load_map_sel = 0;
           load_y = 1;
         end
-        3: begin
+        0: begin
           load_map_sel = 0;
           load_z = 1;
         end
