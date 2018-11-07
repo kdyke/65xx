@@ -133,7 +133,9 @@ hyper_z 	= $d643
 hyper_b 	= $d644
 hyper_spl 	= $d645
 hyper_sph 	= $d646
-
+hyper_p		= $d647
+hyper_pcl	= $d648
+hyper_pch	= $d649
 hyper_map_x	= $d64a
 hyper_map_a	= $d64b
 hyper_map_z	= $d64c
@@ -1895,7 +1897,7 @@ jxp_ok
 ; Hypervisor enter/exit test
 	sta $d640	; Attempt hypervisor entry
 
-        ;trap            ; We shouldn't get here...
+        trap            ; We shouldn't get here...
 
 hyper_exit_target:
 	
@@ -1938,7 +1940,7 @@ hyper_exit_target:
 	; Attempt hypervisor trap and return
 	lda #1
 	sta $d641	; Attempt hypervisor entry (Trap #1)	
-	;trap_ne		; Trap #1 should clear Z flag
+	trap_ne		; Trap #1 should clear Z flag
 	
         ; Disable mapper
         lda #$00
@@ -2257,45 +2259,45 @@ ji_px   nop             ;low address byte matched with ji_ret
 	nop
 
 hyper_entry1:	
-	;lda #<hyper_exit_target
-	;sta $d648
-	;lda #>hyper_exit_target
-	;sta $d649
+	lda #<hyper_exit_target
+	sta hyper_pcl
+	lda #>hyper_exit_target
+	sta hyper_pch
 	jmp hyper_exit		; Exit from hypervisor
 	
 hyper_entry2:
-	;lda hyper_p
-	;ora #$02		; set Z flag
-	;sta hyper_p
+	lda hyper_p
+	ora #$02		; set Z flag
+	sta hyper_p
 	jmp hyper_exit		; Exit from hypervisor
 
 ; Raw hypervisor trap entry. Save all registers and important machine state, then branch indirect to trap vector.
 *=	$8200
-	pha
-	phx
-	phy
-	phz
+	sta hyper_a
+	stx hyper_x
+	sty hyper_y
+	stz hyper_z
 	tba
 	cle ; Switch to user stack
 	tsx
 	tsy
 	see ; Switch back
-	pha
-	phy ; push sph first
-	phx
-	
+	sta hyper_b
+	stx hyper_spl
+	sty hyper_sph
+		
 	; Hypervisor Stack frame now looks like this:
-	; 10	user pch
-	; 9	user pcl
-	; 8	user p
-	; 7	user a
-	; 6	user x
-	; 5	user y
-	; 4	user z
-	; 3	user b
-	; 2	user sph
-	; 1	user spl
-	; 0
+	; 3	user pch
+	; 2	user pcl
+	; 1	user p
+	
+	; pop stack frame and store where kickstart expects it to be
+	pla
+	plx
+	ply
+	sta hyper_p
+	stx hyper_pcl
+	sty hyper_pch
 	
 	.dpage $bf00
 	
@@ -2314,7 +2316,13 @@ hyper_entry2:
 	sta $00
 	lda #$35
 	sta $01
-		
+
+	; restore user registers for call arguments
+	lda hyper_a
+	ldx hyper_x
+	ldy hyper_y
+	ldz hyper_z
+			
 	jmp (hyper_trap_pcl)		; Branch to trap entry point
 
 ; Hypervisor exit
@@ -2326,19 +2334,30 @@ hyper_exit:
 	
 	.dpage 0
 	
-	; Restore user registers
-	plx
-	ply
-	pla
+	; set up hypervisor return stack frame
+	lda hyper_p
+	ldx hyper_pcl
+	ldy hyper_pch
+	
+	phy
+	phx
+	pha
+	
+	; Restore base page register and user stack
+	ldx hyper_spl
+	ldy hyper_sph
+	lda hyper_b
 	cle	; switch to user stack registers
 	txs
 	tys
 	see	; switch back to hypervisor stack
 	tab
-	plz
-	ply
-	plx
-	pla
+	
+	; Restore user registers
+	ldz hyper_z
+	ldy hyper_y
+	ldx hyper_x
+	lda hyper_a
 	
 	rti			; Return from hypervisor
 	
