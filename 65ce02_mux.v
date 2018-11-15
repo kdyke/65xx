@@ -22,19 +22,56 @@
 
 `include "65ce02_inc.vh"
 
-`SCHEM_KEEP_HIER module `dbo_mux(input [1:0] dbo_sel, input [7:0] data_i, input [7:0] dreg_bus, input [7:0] alu_out, input [7:0] pc_next,
-                                output reg [7:0] data_o_next);
+//`define EN_MARK_DEBUG
+`ifdef EN_MARK_DEBUG
+`define MARK_DEBUG (* mark_debug = "true", dont_touch = "true" *)
+`else
+`define MARK_DEBUG
+`endif
+
+`SCHEM_KEEP_HIER module `dbi_mux(input clk, input ready, input [7:0] data_i, output reg [7:0] data_i_mux);
+
+reg [7:0] data_i_reg;
 
 always @(*)
 begin
-  case(dbo_sel)
-    `kDBO_ALU   : data_o_next = alu_out;
-    `kDBO_DREG  : data_o_next = dreg_bus;
-    `kDBO_DI    : data_o_next = data_i;
-    `kDBO_PCHn  : data_o_next = pc_next;
-  endcase
+  if(ready)
+    data_i_mux = data_i;
+  else
+    data_i_mux = data_i_reg;
 end
 
+always @(posedge clk)
+begin
+  data_i_reg = data_i_mux;
+end
+endmodule
+
+// This is poorly named as a mux since there's also an output register in here now.
+`SCHEM_KEEP_HIER module `dbo_mux(input clk, input ready, input [1:0] dbo_sel, input [7:0] data_i, input [7:0] dreg_bus, input [7:0] alu_out, input [7:0] pc_next,
+                                output reg [7:0] data_o_next);
+
+reg [7:0] data_o_reg;
+
+always @(*)
+begin
+  data_o_next = data_o_reg;
+  if(ready)
+  begin
+    case(dbo_sel)
+      `kDBO_ALU   : data_o_next = alu_out;
+      `kDBO_DREG  : data_o_next = dreg_bus;
+      `kDBO_DI    : data_o_next = data_i;
+      `kDBO_PCHn  : data_o_next = pc_next;
+    endcase
+  end
+end
+
+always @(posedge clk)
+begin
+  data_o_reg <= data_o_next;
+end
+    
 endmodule
 
 // This is poorly named as a mux since there's also an output register in here now.
@@ -207,8 +244,8 @@ endmodule
 `SCHEM_KEEP_HIER module `ir_next_mux(input sync, 
                                     input intg,
                                     input [7:0] data_i,
-                                    input [7:0] ir,
-                                    output reg [7:0] ir_next);
+                                    `MARK_DEBUG input [7:0] ir,
+                                    `MARK_DEBUG output reg [7:0] ir_next);
 
 // IR input
 always @(*)

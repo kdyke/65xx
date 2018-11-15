@@ -28,6 +28,15 @@
 `endif
 `define NMI_BUG_FIX 1
 
+//`define M65
+`ifdef M65
+`define RESET_HYPER 1'b1
+`define RESET_VECHI 8'h81
+`else
+`define RESET_HYPER 1'b0
+`define RESET_VECHI 8'hff
+`endif
+
 `SCHEM_KEEP_HIER module `timing_ctrl(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
 input clk;
 input reset;
@@ -115,8 +124,9 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `interrupt_control(clk, reset, irq, nmi, mc_sync, reg_p, load_i, intg, nmig, resp, hyp, hyperg, hyper_mode, hyper_rti, pc_hold, vector_hi, vector_lo);
+`SCHEM_KEEP_HIER module `interrupt_control(clk, ready, reset, irq, nmi, mc_sync, reg_p, load_i, intg, nmig, resp, hyp, hyperg, hyper_mode, hyper_rti, pc_hold, vector_hi, vector_lo);
 input clk;
+input ready;
 input reset;
 input irq;
 input nmi;
@@ -141,6 +151,19 @@ reg nmil; // Delayed NMI for edge detection
 reg nmig;
 reg intp;
 reg intg;
+
+// This is the internal hypervisor mode bit.
+reg hyper_mode_int;
+
+// We need to start driving hyper_mode to 0 as soon as we are in
+// the cycle that has the microcode signal that says to exit
+// hypervisor mode.  This is because at this point we will already
+// be driving the address bus with the first PC address to fetch
+// upon exit.  The internal flip flop will lag by one cycle.
+always @(*)
+begin
+  hyper_mode = hyper_mode_int & ~(hyper_rti&mc_sync);
+end
 
 always @(posedge clk)
 begin
@@ -168,31 +191,33 @@ begin
     nmig <= 1;
   nmil <= nmi;    // remember current state
   
-  if(reset | mc_sync)
-  begin
-    // Hypervisor interrupts take precedence over NMI and IRQ.
-    if(hyp) begin
-      hyperg <= 1;
-      hyper_mode <= 1;
-    end else if((((intp & ~reg_p[`kPF_I]) | nmig ) & ~hyper_mode) | reset) begin
-      intg <= 1;
-      hyperg <= 0;
-      if(reset)
-        hyper_mode <= 0;      
-    end else if(hyper_rti) begin
-      hyper_mode <= 0;
-    end
-  end
-  // internal pending interrupt is always cleared at the same time we set interrupt mask.
-  else if(load_i)
-  begin
-      if(hyperg) begin
-        hyperg <= 0;      // Only clear hyperg.  Leave intg and nmig alone.
-      end else begin        
-        intg <= 0;
-        if(intg)
-          nmig <= 0;
+  if(ready) begin
+    if(reset | mc_sync)
+    begin
+      // Hypervisor interrupts take precedence over NMI and IRQ.
+      if(hyp) begin
+        hyperg <= 1;
+        hyper_mode_int <= 1;
+      end else if((((intp & ~reg_p[`kPF_I]) | nmig ) & ~hyper_mode_int) | reset) begin
+        intg <= 1;
+        hyperg <= 0;
+        if(reset)
+          hyper_mode_int <= `RESET_HYPER;
+      end else if(hyper_rti) begin
+        hyper_mode_int <= 0;
       end
+    end
+    // internal pending interrupt is always cleared at the same time we set interrupt mask.
+    else if(load_i)
+    begin
+        if(hyperg) begin
+          hyperg <= 0;      // Only clear hyperg.  Leave intg and nmig alone.
+        end else begin        
+          intg <= 0;
+          if(intg)
+            nmig <= 0;
+        end
+    end
   end
 end
 
@@ -202,9 +227,9 @@ assign pc_hold = intg|hyperg;
 always @(*)
 begin
   if(resp == 1)
-    vector_hi = 8'hFF;
+    vector_hi = `RESET_VECHI;
   else if(hyperg)
-    vector_hi = 8'hD6;
+    vector_hi = 8'hD6;  // Hypervisor vectors through hypervisor register at 0xD660
   else
     vector_hi = 8'hFF;
 end
@@ -214,7 +239,7 @@ begin
   if(resp == 1)
     vector_lo = 8'hFC;
   else if(hyperg)
-    vector_lo = 8'h60;
+    vector_lo = 8'h74;
   else if(nmig & intg)
     vector_lo = 8'hFA;
   else

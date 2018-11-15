@@ -20,14 +20,19 @@
 ** SOFTWARE.
 */
 
-`ifndef _6502_inc_vh_
-`define _6052_inc_vh_ 1
+`ifdef _6052_inc_vh_
+//error
+`endif
+
+`ifndef _65ce02_inc_vh_
+`define _65ce02_inc_vh_
 
 // For when I want to synthesize and keep the full internal hierarchy
-`define SCHEM_KEEP 1
+//`define SCHEM_KEEP 1
 `ifdef SCHEM_KEEP
 `define SCHEM_KEEP_HIER (* keep_hierarchy = "yes" *)
 `else
+`undef SCHEM_KEEP_HIER
 `define SCHEM_KEEP_HIER
 `endif
 
@@ -38,6 +43,7 @@
 `define cond_control        cond_control_65ce02
 `define ir_next_mux         ir_next_mux_65ce02
 `define dreg_mux            dreg_mux_65ce02
+`define dbi_mux             dbi_mux_65ce02
 `define dbo_mux             dbo_mux_65ce02  
 `define predecode           predecode_65ce02
 `define interrupt_control   interrupt_control_65ce02
@@ -442,7 +448,10 @@
 `define WRITE_BITS        50:50
 `define WRITE       |(1               << `FIELD_SHIFT(`WRITE_BITS))
 
-`define MICROCODE_BITS    52:0
+`define MAP_BITS          53:53
+`define MC_MAP      |(1               << `FIELD_SHIFT(`MAP_BITS))
+
+`define MICROCODE_BITS    53:0
 
 // TODO - Move all the microcode related `defines to a separate file that's not visible to the rest
 // of the code, since it's supposed to be an implementation detail.
@@ -454,10 +463,10 @@
 `define MICROCODE(_ins, _t, _bits) mc[(_ins << 3) | _t] = 0 _bits;
 
 `define BRK(_insbyte) \
-`MICROCODE( _insbyte, 2, `AB_SPn `PC_INC  `DBO_PCHn            `WRITE           ) \
+`MICROCODE( _insbyte, 2, `AB_SPn `PC_INC  `DBO_PCHn                    `WRITE   ) \
 `MICROCODE( _insbyte, 3, `AB_SPn          `SP_DEC `AREG_PCL `ASEL_AREG `WRITE   ) \
 `MICROCODE( _insbyte, 4, `AB_SPn          `SP_DEC `BSEL_P              `WRITE   ) \
-`MICROCODE( _insbyte, 5, `AB_ABn `ABH_VEC `ABL_ALU `SP_DEC           `ASEL_VEC           ) \
+`MICROCODE( _insbyte, 5, `AB_ABn `ABH_VEC `ABL_ALU `SP_DEC  `ASEL_VEC           ) \
 `MICROCODE( _insbyte, 6, `AB_ABn `AB_INC  `ADL_ALU `BSEL_DB `FLAGS_SETI         ) \
 `MICROCODE( _insbyte, 7, `AB_PCn          `BSEL_DB `PCH_ALU `PCL_ADL `SYNC      ) \
 `MICROCODE( _insbyte, 1, `AB_PCn `PC_INC                                        )
@@ -759,10 +768,10 @@
 // were sniffing the instruction stream to detect MAP, also detecting a NOP would have been easy.
 
 `define MAP(_insbyte) \
-`MICROCODE( _insbyte,  2, `DBO_DREG `DREG_DO_A) \
-`MICROCODE( _insbyte,  3, `DBO_DREG `DREG_DO_X) \
-`MICROCODE( _insbyte,  4, `DBO_DREG `DREG_DO_Y) \
-`MICROCODE( _insbyte,  5, `DBO_DREG `DREG_DO_Z `SYNC) \
+`MICROCODE( _insbyte,  2, `DBO_DREG `DREG_DO_A `MC_MAP) \
+`MICROCODE( _insbyte,  3, `DBO_DREG `DREG_DO_X `MC_MAP) \
+`MICROCODE( _insbyte,  4, `DBO_DREG `DREG_DO_Y `MC_MAP) \
+`MICROCODE( _insbyte,  5, `DBO_DREG `DREG_DO_Z `MC_MAP `SYNC) \
 `MICROCODE( _insbyte,  1, `PC_INC)
 
 `define ADDR_abs_(_insbyte, _args) \
@@ -861,4 +870,4 @@
 `MICROCODE( _insbyte, 4, `SYNC) \
 `MICROCODE( _insbyte, 1, `PC_INC)
 
-`endif //_6502_inc_vh_
+`endif //_65ce02_inc_vh_

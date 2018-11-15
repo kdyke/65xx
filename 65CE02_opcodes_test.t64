@@ -145,10 +145,11 @@ hyper_port_00	= $d650
 hyper_port_01	= $d651
 hyper_iomode	= $d652
 
-hyper_vector_pcl  = $d660
-hyper_vector_pch  = $d661
-hyper_trap_pcl  = $d662
-hyper_trap_pch  = $d663
+hyper_vector_pcl  = $d674
+hyper_vector_pch  = $d675
+
+hyper_trap_pcl  = $d676
+hyper_trap_pch  = $d677
 
 ;macros for error & success traps to allow user modification
 ;example:
@@ -755,6 +756,18 @@ gcs4    iny
     .endif
         next_test            
 
+; Check that interrupts aren't hosed
+	cli
+	ldy #2
+	lda #1
+	lda $fe
+	dey
+	beq irq_not_taken
+	
+	trap
+irq_not_taken:
+	trap
+	
 ; quick/dirty test 16-bit branches by jumping across Z register test code (which should be more than 128 bytes large).
 
         ldy #0
@@ -1922,6 +1935,12 @@ hyper_exit_target:
         cmp $4000
         trap_ne
         
+	; Attempt hypervisor trap and return.  Hypervisor will use map/eom to disable its own map
+	; registers, which shouldn't affect ours.
+	lda #1
+	sta $d641	; Attempt hypervisor entry (Trap #1)	
+	trap_ne		; Trap #1 should clear Z flag
+	
         lda #$33
         sta $c000
         lda #$66
@@ -2266,6 +2285,14 @@ hyper_entry1:
 	jmp hyper_exit		; Exit from hypervisor
 	
 hyper_entry2:
+        ; Disable mapper
+        lda #$00
+        ldx #$00
+        ldy #$00
+        ldz #$00
+        map
+        eom
+
 	lda hyper_p
 	ora #$02		; set Z flag
 	sta hyper_p

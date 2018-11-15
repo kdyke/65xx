@@ -22,15 +22,28 @@
 
 `include "65ce02_inc.vh"
 
-`SCHEM_KEEP_HIER module mapper4510(input clk, input reset, input [7:0] data_i, input [7:0] data_o, input ready, input sync,
+`define EN_MARK_DEBUG
+`ifdef EN_MARK_DEBUG
+`define MARK_DEBUG (* mark_debug = "true", dont_touch = "true" *)
+`else
+`define MARK_DEBUG
+`endif
+
+`SCHEM_KEEP_HIER module mapper4510(input clk, input reset, input [7:0] data_i, `MARK_DEBUG input [7:0] data_o, input ready, input sync,
                   input ext_irq, input ext_nmi, output cpu_irq, output cpu_nmi, input enable_i, input disable_i,
-                  input load_a, input load_x, input load_y, input load_z, input load_map_sel, input active_map,
+                  `MARK_DEBUG input load_a, `MARK_DEBUG input load_x, `MARK_DEBUG input load_y, `MARK_DEBUG input load_z, 
+                  `MARK_DEBUG input load_map_sel, `MARK_DEBUG input active_map,
                   output reg [7:0] map_reg_data,
                   output reg [19:0] address, output reg [19:0] address_next, input [15:0] core_address_next, 
-                  output reg map_next, output reg map);
+                  `MARK_DEBUG output reg map_next, output reg map,
+                  output wire [11:0] monitor_map_offset_low,
+                  output wire [11:0] monitor_map_offset_high,
+                  output wire [3:0] monitor_map_enables_low,
+                  output wire [3:0] monitor_map_enables_high
+                  );
 
-reg [19:8] map_offset[0:3];
-reg [3:0] map_enable[0:3];
+`MARK_DEBUG reg [19:8] map_offset[0:3];
+`MARK_DEBUG reg [3:0] map_enable[0:3];
 reg int_enable;
 
 // It's not clear whether NMI should be done this way or not. The C65 docs aren't clear on if the MAP instruction masks off NMIs.
@@ -64,13 +77,13 @@ always @(posedge clk) begin
   
   if(reset) begin
     map_offset[1][19:16] <= 4'h0;
-    map_offset[3][19:16] <= 4'h0;
+    map_offset[3][19:16] <= 4'hf;
   end
     else if(load_z) map_offset[{load_map_sel,1'b1}][19:16] <= data_o[3:0];
 
   if(reset) begin
     map_enable[1][3:0] <= 4'h0;
-    map_enable[3][3:0] <= 4'h0;
+    map_enable[3][3:0] <= 4'h3;
   end 
     else if(load_z) map_enable[{load_map_sel,1'b1}][3:0] <= data_o[7:4];
     
@@ -79,12 +92,18 @@ always @(posedge clk) begin
   else if(enable_i) int_enable <= 1;
 end
 
+// Monitor map info
+assign monitor_map_offset_low = map_offset[{active_map,1'b0}];
+assign monitor_map_offset_high = map_offset[{active_map,1'b1}];
+assign monitor_map_enables_low = map_enable[{active_map,1'b0}];
+assign monitor_map_enables_high = map_enable[{active_map,1'b1}];
+
 // Mapper combinatorial path
-reg [1:0] map_enable_index;
-reg map_offset_index;
-reg [19:8] current_offset;
-reg [19:0] mapper_address;
-reg map_en;
+`MARK_DEBUG reg [1:0] map_enable_index;
+`MARK_DEBUG reg map_offset_index;
+`MARK_DEBUG reg [19:8] current_offset;
+`MARK_DEBUG reg [19:0] mapper_address;
+`MARK_DEBUG reg map_en;
 
 always @(*) begin
   map_offset_index = core_address_next[15];
@@ -140,24 +159,14 @@ end
 
 endmodule
 
+// This really isn't an FSM any more.
 module mapper4510_fsm(input clk, input reset, input [7:0] data_i, input ready, input sync, input map_sel, input [1:0] map_reg_write_sel, input hypervisor_load_user_reg,
-                  output reg load_a, output reg load_x, output reg load_y, output reg load_z, output reg load_map_sel, output reg enable_i, output reg disable_i);
-
-parameter MAP_IDLE = 0, 
-          MAP_READ_A = 1, 
-          MAP_READ_X = 2, 
-          MAP_READ_Y = 3, 
-          MAP_READ_Z = 4;
-
-reg [2:0] map_state, map_state_next; 
-
-always @(posedge clk)
-  if(reset) map_state <= MAP_IDLE;
-  else map_state <= map_state_next;
+                  output reg load_a, output reg load_x, output reg load_y, output reg load_z, 
+                  input [1:0] t, input map,
+                  output reg load_map_sel, output reg enable_i, output reg disable_i);
   
 // Look for either MAP or EOM (NOP) being fetched.
 always @* begin
-  map_state_next = 'bx;
   load_a = 0;
   load_x = 0;
   load_y = 0;
@@ -173,7 +182,7 @@ always @* begin
   // So long as mapper state is idle (we're not executing a MAP instruction) we can also
   // allow direct user mapper register updates via the hypervisor controller I/O registers.
   // See comment up above on why these are in a seemingly strange order.
-  if(map_state == MAP_IDLE) begin
+  if(map == 0) begin
     if(hypervisor_load_user_reg) begin
       case(map_reg_write_sel)
         3: begin
@@ -194,45 +203,18 @@ always @* begin
         end
       endcase
     end
+  end else begin
+    disable_i = 1;
+    if(ready)
+    begin
+      case(t)
+        2: load_a = 1;
+        3: load_x = 1;
+        0: load_y = 1;
+        1: load_z = 1;
+      endcase
+    end
   end
-  
-  case(map_state) // synthesis full_case parallel_case
-    MAP_IDLE:
-          if(data_i == 8'h5C && ready && sync)
-              map_state_next = MAP_READ_A;
-          else
-              map_state_next = MAP_IDLE;
-    MAP_READ_A: begin
-          load_a = 1;
-          disable_i = 1;
-          
-          if(ready)
-              map_state_next = MAP_READ_X;
-          else
-              map_state_next = MAP_READ_A;
-      end
-    MAP_READ_X: begin
-          load_x = 1;
-          if(ready)
-              map_state_next = MAP_READ_Y;
-          else
-              map_state_next = MAP_READ_X;
-      end
-    MAP_READ_Y: begin
-          load_y = 1;
-          if(ready)
-              map_state_next = MAP_READ_Z;
-          else
-              map_state_next = MAP_READ_Y;
-      end
-    MAP_READ_Z: begin
-          load_z = 1;
-          if(ready)
-              map_state_next = MAP_IDLE;
-          else
-              map_state_next = MAP_READ_Z;
-      end
-  endcase
 end
 
 endmodule

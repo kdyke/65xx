@@ -22,8 +22,21 @@
 
 `include "65ce02_inc.vh"
 
-`SCHEM_KEEP_HIER module hyper_ctrl(input clk, input reset, input hyper_cs, input [7:0] hyper_addr, input [7:0] hyper_io_data_i, output reg [7:0] hyper_data_o,
-                  input cpu_write, input ready, input hyper_mode, output reg hyp, output reg load_user_reg, input [7:0] user_mapper_reg);
+`define EN_MARK_DEBUG
+`ifdef EN_MARK_DEBUG
+`define MARK_DEBUG (* mark_debug = "true", dont_touch = "true" *)
+`else
+`define MARK_DEBUG
+`endif
+
+`SCHEM_KEEP_HIER module hyper_ctrl(input clk, input reset, `MARK_DEBUG input hyper_cs, 
+                  `MARK_DEBUG input [7:0] hyper_addr, `MARK_DEBUG input [7:0] hyper_io_data_i, `MARK_DEBUG output reg [7:0] hyper_data_o,
+                  `MARK_DEBUG input cpu_write, `MARK_DEBUG input ready, `MARK_DEBUG input hyper_mode, `MARK_DEBUG output reg hyp, 
+                  `MARK_DEBUG output reg load_user_reg, `MARK_DEBUG input [7:0] user_mapper_reg,
+                  output reg [7:0] virtualised_hardware, output reg [7:0] protected_hardware, 
+                  output wire rom_writeprotect, output wire speed_gate_enable, output wire force_fast,
+                  `MARK_DEBUG output reg [7:0] monitor_char, `MARK_DEBUG output reg monitor_char_toggle, `MARK_DEBUG input monitor_char_busy,
+                  `MARK_DEBUG input [1:0] iomode, `MARK_DEBUG output reg [1:0] iomode_set, `MARK_DEBUG output reg iomode_set_toggle);
 
 // Note: Many of these registers won't be needed once I do the cutover and then
 // rework the kickstart code to just use kickstart memory locations rather than
@@ -46,15 +59,27 @@ parameter HYPER_REG_A = 6'h00,
           HYPER_REG_MAP_Z = 6'h0C,
           HYPER_REG_MAP_Y = 6'h0D,
           HYPER_REG_PORT_00 = 6'h10,
-          HYPER_REG_PORT_01 = 6'h10,
-          HYPER_REG_IOMODE  = 6'h12,
+          HYPER_REG_PORT_01 = 6'h11,
+          HYPER_REG_IOMODE  = 6'h12,  // This is just storage at the moment.
+          
+          HYPER_REG_VIRT_HW = 6'h19,
+                              
+          // D672 - Protected hardware
+          HYPER_REG_PROT_HW = 6'h32,
+          
+          HYPER_REG_SET_IOMODE = 6'h33,
           
           // New regisers used to control the initial entry vector and to record
           // the actual desired trap.
-          HYPER_REG_VECTOR_PCL = 6'h20,
-          HYPER_REG_VECTOR_PCH = 6'h21,
-          HYPER_REG_TRAP_PCL = 6'h22,
-          HYPER_REG_TRAP_PCH = 6'h23,
+          HYPER_REG_VECTOR_PCL = 6'h34,
+          HYPER_REG_VECTOR_PCH = 6'h35,
+          
+          HYPER_REG_TRAP_PCL = 6'h36,
+          HYPER_REG_TRAP_PCH = 6'h37,
+          
+          HYPER_REG_UART_OUT = 6'h3C,
+          HYPER_REG_OVERRIDES = 6'h3D,
+          HYPER_REG_UPGRADED = 6'h3E,
           
           // This last one isn't used any more
           HYPER_REG_EXIT = 6'h3F;
@@ -114,6 +139,17 @@ reg [7:0] hyper_port_00, hyper_port_01;
 reg load_port_00, load_port_01;
 reg [1:0] hyper_iomode;
 reg load_iomode;
+`MARK_DEBUG reg hyper_upgraded;
+
+reg [7:0] overrides;
+
+reg load_overrides;
+reg load_virtualised_hw;
+reg load_protected_hw;
+reg load_set_iomode;
+reg load_uart_out;
+`MARK_DEBUG reg load_hyper_upgraded;
+
 
 always @(*)
 begin
@@ -145,6 +181,14 @@ begin
         hyper_reg_data_o = hyper_vector_pc[7:0];
       end
       HYPER_REG_VECTOR_PCH:               hyper_reg_data_o = hyper_vector_pc[15:8];
+
+      HYPER_REG_SET_IOMODE:               hyper_reg_data_o = iomode;
+      HYPER_REG_OVERRIDES:                hyper_reg_data_o = overrides;
+      HYPER_REG_VIRT_HW:                  hyper_reg_data_o = virtualised_hardware;
+      HYPER_REG_PROT_HW:                  hyper_reg_data_o = protected_hardware;
+      HYPER_REG_UART_OUT:                 hyper_reg_data_o = {6'b0,monitor_char_busy,monitor_char_busy};
+      HYPER_REG_UPGRADED:                 hyper_reg_data_o = {hyper_upgraded,2'b11,5'b0}; // FIXME, exrom and game not hooked up yet
+      HYPER_REG_EXIT:                     hyper_reg_data_o = 8'h48;
       default: ;
     endcase
   end
@@ -175,16 +219,20 @@ begin
     hyper_trap_pc[15:8] <= hyper_io_data_i;  
   end
   
-  if(reset)
-    hyper_vector_pc <= 16'h00;
-  else if(load_vector_pcl)
-    hyper_vector_pc[7:0] <= hyper_io_data_i;
-    
+  // Default hypervisor vector landing address is 0x8200 but can be changed by
+  // the hypervisor if desired.
   if(reset)
     hyper_vector_pc[15:8] <= 16'h82;
   else if(load_vector_pch)
     hyper_vector_pc[15:8] <= hyper_io_data_i;  
 
+  if(reset)
+    hyper_vector_pc[7:0] <= 16'h00;
+  else if(load_vector_pcl)
+    hyper_vector_pc[7:0] <= hyper_io_data_i;    
+
+  // These are all just storage and so don't really need special reset
+  // treatment.
   if(load_a) hyper_a <= hyper_io_data_i;
   if(load_x) hyper_x <= hyper_io_data_i;
   if(load_y) hyper_y <= hyper_io_data_i;
@@ -199,13 +247,48 @@ begin
   if(load_port_01) hyper_port_01 <= hyper_io_data_i;
   if(load_iomode) hyper_iomode <= hyper_io_data_i[1:0];
   
+  if(reset)
+    virtualised_hardware <= 0;
+  else if(load_virtualised_hw) 
+    virtualised_hardware <= hyper_io_data_i;
+  
+  if(reset)
+    protected_hardware <= 0;
+  else if(load_protected_hw)
+    protected_hardware <= hyper_io_data_i;
+    
+  if(load_uart_out) begin
+    monitor_char <= hyper_io_data_i;
+    monitor_char_toggle <= ~monitor_char_toggle;
+  end
+  
+  if(load_set_iomode) begin
+    iomode_set <= hyper_io_data_i;
+    iomode_set_toggle <= ~iomode_set_toggle;
+  end
+  
+  if(reset)
+    overrides <= 8'h40;
+  else if(load_overrides)
+    overrides <= hyper_io_data_i;
+    
+  if(reset)
+    hyper_upgraded <= 0;
+  else if(load_hyper_upgraded)
+    hyper_upgraded <= 1;
+  
 end
   
+assign rom_writeprotect = overrides[2];
+assign speed_gate_enable = overrides[3];
+assign force_fast = overrides[4];
+
 // This will eventually be all of the register decoder stuff and other hypervisor entry/exit control.
 always @(*)
 begin
   hyper_enter_req = 0;
   hypervisor_trap_port = 0;
+  
   load_user_reg = 0;
   load_trap_pcl = 0;
   load_trap_pch = 0;
@@ -221,6 +304,17 @@ begin
   load_p = 0;
   load_pcl = 0;
   load_pch = 0;
+  load_port_00 = 0;
+  load_port_01 = 0;
+  load_iomode = 0;
+  
+  load_overrides = 0;
+  load_virtualised_hw = 0;
+  load_protected_hw = 0;
+  load_iomode = 0;
+  load_set_iomode = 0;
+  load_uart_out = 0;
+  load_hyper_upgraded = 0;
   
   if(hyper_cs & ready) begin
     if(hyper_addr[7:6] == 2'b01) begin
@@ -238,6 +332,10 @@ begin
             HYPER_REG_PCL: load_pcl = 1;
             HYPER_REG_PCH: load_pch = 1;
             
+            HYPER_REG_PORT_00: load_port_00 = 1;
+            HYPER_REG_PORT_01: load_port_01 = 1;
+            HYPER_REG_IOMODE: load_iomode = 1;
+            
             HYPER_REG_MAP_A, HYPER_REG_MAP_X,
             HYPER_REG_MAP_Y, HYPER_REG_MAP_Z: load_user_reg = 1;
 
@@ -245,6 +343,14 @@ begin
             HYPER_REG_TRAP_PCH: load_trap_pch = 1;
             HYPER_REG_VECTOR_PCL: load_vector_pcl = 1;
             HYPER_REG_VECTOR_PCH: load_vector_pch = 1;
+            
+            HYPER_REG_SET_IOMODE: load_set_iomode = 1;
+            HYPER_REG_VIRT_HW: load_virtualised_hw = 1;
+            HYPER_REG_PROT_HW: load_protected_hw = 1;
+            HYPER_REG_OVERRIDES: load_overrides = 1;
+            HYPER_REG_UART_OUT: load_uart_out = 1;
+            HYPER_REG_UPGRADED: load_hyper_upgraded = 1;
+            
             default: ;
           endcase
         end else begin

@@ -54,7 +54,8 @@
                 output [4:0] test_flags,
                 output test_flag0,
                 output word_z,
-                output write);
+                output write,
+                output map);
 
 reg [`MICROCODE_BITS] mc_out;
 (* rom_style = "block" *) reg [`MICROCODE_BITS] mc[0:2047];
@@ -420,6 +421,7 @@ assign word_z     = mc_out[`WORD_Z_BITS];
 assign write      = mc_out[`WRITE_BITS];
 assign test_flags = mc_out[`TEST_FLAGS_BITS];
 assign test_flag0 = mc_out[`TEST_FLAG0_BITS];
+assign map        = mc_out[`MAP_BITS];
 
 always @(posedge clk)
 begin

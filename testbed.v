@@ -21,6 +21,8 @@ reg cpu_clock_enable;
 reg [7:0] io_port_in;
 reg [7:0] io_port;
 reg io_port_cs;
+reg io_port_delay1;
+reg io_port_delay2;
 
 wire [7:0] a_out;
 wire [7:0] x_out;
@@ -36,6 +38,8 @@ wire irq, nmi;
 
 reg [63:0] clock_count;
 reg clock_reset;
+
+wire [2:0] t;
 
 reg [1:0] bus_device;
 
@@ -55,9 +59,9 @@ wire hyp; // Hypervisor interrupt line
 
 	memory memory_inst(.clk(clk), .we(memory_write), .addr(cpu_address_next[15:0]), .di(memory_in), .do(memory_out));
 
-  cpu4510 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .hyp(hyp), .ready(ready), .write_next(cpu_write_next), .write(cpu_write), .cpu_state(cpu_state),
+  cpu4510 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .hyp(hyp), .ready(ready), .write_next(cpu_write_next), .write_out(cpu_write), .cpu_state(cpu_state),
             .address(cpu_address), .address_next(cpu_address_next), .sync(sync), .data_i(cpu_data_in), .data_o_next(cpu_data_out), .data_o(cpu_data_out_reg),
-            .map_reg_data(map_reg_data), .hypervisor_load_user_reg(hypervisor_load_user_reg), .hyper_mode(hyper_mode),
+            .map_reg_data(map_reg_data), .hypervisor_load_user_reg(hypervisor_load_user_reg), .hyper_mode(hyper_mode), .t(t),
             .a_out(a_out), .x_out(x_out), .y_out(y_out), .z_out(z_out), .sp_out(sp_out));
 
   hyper_ctrl hyper_ctrl0(.clk(clk), .reset(reset), .hyper_cs(hyper_cs), .hyper_addr(cpu_address_next[7:0]), .hyper_io_data_i(cpu_data_out), 
@@ -139,8 +143,8 @@ wire hyp; // Hypervisor interrupt line
   // Start driving memory and CPU clocks.
   always begin
 //`ifdef NOTDEF
-    $monitor($time,,"%m. clk = %b cnt: %d rdy: %d sync: %d addr: %x addrn: %x hm: %d mem: %02x do: %02x wn: %d w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x P: %02x SP: %04x",
-      clk,clock_count[31:0],ready,sync,cpu_address,cpu_address_next,hyper_mode,cpu_data_in,cpu_data_out_reg,cpu_write_next,cpu_write,cpu_clock_enable,irq,nmi,reset,
+    $monitor($time,,"%m. clk = %b cnt: %d rdy: %d sync: %d t: %d addr: %x addrn: %x hm: %d mem: %02x do: %02x wn: %d w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x P: %02x SP: %04x",
+      clk,clock_count[31:0],ready,sync,t,cpu_address,cpu_address_next,hyper_mode,cpu_data_in,cpu_data_out_reg,cpu_write_next,cpu_write,cpu_clock_enable,irq,nmi,reset,
         a_out,x_out,y_out,z_out,cpu_state,sp_out);
 //`endif
 //    if(cpu_clock_enable)
@@ -160,10 +164,10 @@ wire hyp; // Hypervisor interrupt line
     //$display("clock: %d reset: %d",clock_count[31:0],clock_reset);
       
     // Stress test for ready signal.
-    if((clock_count & 3) == 0)
+    if((clock_count & 1) == 0)
       ready <= 1;
     else
-      ready <= 1;
+      ready <= 0;
     if(clock_count == 2)
 	    reset <= 1;
     if(clock_count == 16)
@@ -176,11 +180,26 @@ wire hyp; // Hypervisor interrupt line
   // io_port writes
   always @(posedge clk)
   begin
-    //$display("io_port ? %04x %08b w: %d",cpu_address,cpu_data_out,cpu_write);
-    if(cpu_address_next == 16'hbffc && (cpu_write_next & ready))
-    begin
-      io_port = cpu_data_out;
-      $display("io_port <= %08b",cpu_data_out);
+    if(reset) begin
+      io_port <= 0;
+      io_port_delay1 <= 0;
+      io_port_delay2 <= 0;
+    end else begin
+      //$display("io_port ? %04x %08b w: %d",cpu_address,cpu_data_out,cpu_write);
+      if(io_port_cs == 1 && (cpu_write_next & ready))
+      begin
+        io_port <= cpu_data_out;
+        $display("io_port <= %08b",cpu_data_out);
+      end
+      else if(cpu_address_next == 16'h00fe && ready && ~cpu_write_next)
+        io_port_delay1 <= 1;
+      else if(io_port_delay1) begin
+        io_port_delay1 <= 0;
+        io_port_delay2 <= 1;
+      end else if(io_port_delay2) begin
+        io_port_delay2 <= 0;
+        io_port <= 1;        
+      end
     end
   end
   
