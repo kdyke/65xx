@@ -50,6 +50,8 @@ parameter BUS_MEM = 0,
 assign irq = io_port[0];
 assign nmi = io_port[1];
 
+reg phi1, phi2, phi3;
+
 reg hyper_cs;
 wire hyper_mode;
 wire [7:0] hyper_data_o;
@@ -57,15 +59,18 @@ wire [7:0] map_reg_data;
 wire hypervisor_load_user_reg;
 wire hyp; // Hypervisor interrupt line
 
-	memory memory_inst(.clk(clk), .we(memory_write), .addr(cpu_address_next[15:0]), .di(memory_in), .do(memory_out));
+wire [7:0] monitor_opcode;
+wire [15:0] monitor_state;
 
-  cpu4510 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .hyp(hyp), .ready(ready), .write_next(cpu_write_next), .write_out(cpu_write), .cpu_state(cpu_state),
-            .address(cpu_address), .address_next(cpu_address_next), .sync(sync), .data_i(cpu_data_in), .data_o_next(cpu_data_out), .data_o(cpu_data_out_reg),
-            .map_reg_data(map_reg_data), .hypervisor_load_user_reg(hypervisor_load_user_reg), .hyper_mode(hyper_mode), .t(t),
-            .a_out(a_out), .x_out(x_out), .y_out(y_out), .z_out(z_out), .sp_out(sp_out));
+	memory memory_inst(.clk(clk), .en(phi3), .we(memory_write), .addr(cpu_address[15:0]), .di(memory_in), .do(memory_out));
 
-  hyper_ctrl hyper_ctrl0(.clk(clk), .reset(reset), .hyper_cs(hyper_cs), .hyper_addr(cpu_address_next[7:0]), .hyper_io_data_i(cpu_data_out), 
-                    .hyper_data_o(hyper_data_o), .cpu_write(cpu_write_next), .ready(ready), .hyper_mode(hyper_mode),
+  cpu4510 cpu_inst(.clk(clk), .phi1(phi1), .phi2(phi2), .reset(reset), .nmi(nmi), .irq(irq), .hyp(hyp), .ready(ready), .write_out(cpu_write),
+            .address(cpu_address), .address_next(cpu_address_next), .sync(sync), .data_i(cpu_data_in), .data_o(cpu_data_out),
+            .map_reg_data(map_reg_data), .hypervisor_load_user_reg(hypervisor_load_user_reg), .hyper_mode(hyper_mode),
+            .monitor_opcode(monitor_opcode), .monitor_state(monitor_state));
+
+  hyper_ctrl hyper_ctrl0(.clk(clk), .phi1(phi1), .phi2(phi2), .phi3(phi3), .reset(reset), .hyper_cs(hyper_cs), .hyper_addr(cpu_address[7:0]), .hyper_io_data_i(cpu_data_out), 
+                    .hyper_data_o(hyper_data_o), .cpu_write(cpu_write), .ready(phi3), .hyper_mode(hyper_mode),
                     .hyp(hyp), .load_user_reg(hypervisor_load_user_reg), .user_mapper_reg(map_reg_data));
 
 	initial begin
@@ -103,26 +108,28 @@ wire hyp; // Hypervisor interrupt line
     hyper_cs = 0;
     io_port_cs = 0;
 
-    if(cpu_address_next[19:6] == {12'h0D6,2'b01})
+    if(cpu_address[19:6] == {12'h0D6,2'b01})
       hyper_cs = 1;
 
-    if(cpu_address_next == 16'hbffc)
+    if(cpu_address == 16'hbffc)
       io_port_cs = 1;
   end
   
   always@(posedge clk)
   begin
+    if(phi3) begin
       if(io_port_cs)
         bus_device <= BUS_IO;
       else if(hyper_cs)
         bus_device <= BUS_HYP;
       else
         bus_device <= BUS_MEM;
+    end
   end
   
   always @(*)
   begin
-    memory_write = cpu_write_next & ready & (!(io_port_cs|hyper_cs));
+    memory_write = cpu_write & phi3 & (!(io_port_cs|hyper_cs));
   end
   
   always @(*)
@@ -142,15 +149,31 @@ wire hyp; // Hypervisor interrupt line
   
   // Start driving memory and CPU clocks.
   always begin
-//`ifdef NOTDEF
-    $monitor($time,,"%m. clk = %b cnt: %d rdy: %d sync: %d t: %d addr: %x addrn: %x hm: %d mem: %02x do: %02x wn: %d w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x P: %02x SP: %04x",
-      clk,clock_count[31:0],ready,sync,t,cpu_address,cpu_address_next,hyper_mode,cpu_data_in,cpu_data_out_reg,cpu_write_next,cpu_write,cpu_clock_enable,irq,nmi,reset,
+`ifdef NOTDEF
+    $monitor($time,,"%m. clk = %b p: %d%d%d cnt: %d rdy: %d sync: %d t: %d %02x addr: %x addrn: %x hm: %d mem: %02x do: %02x w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x P: %02x SP: %04x",
+      clk,phi1,phi2,phi3,clock_count[31:0],ready,sync,monitor_state,monitor_opcode,cpu_address,cpu_address_next,hyper_mode,cpu_data_in,cpu_data_out,cpu_write,cpu_clock_enable,irq,nmi,reset,
         a_out,x_out,y_out,z_out,cpu_state,sp_out);
-//`endif
+`endif
 //    if(cpu_clock_enable)
      #1 clk = ~clk;
   end
 
+  always @(*)
+  begin
+    phi3 = ready & ~phi1 & ~phi2;
+  end
+  
+  always @(posedge clk)
+  begin
+    if(reset) begin
+      phi1 <= 0;
+      phi2 <= 0;
+    end else begin
+      phi1 <= phi3;
+      phi2 <= phi1;
+    end
+  end
+  
   always @(posedge clk)
   begin
     if(clock_reset)
@@ -164,10 +187,10 @@ wire hyp; // Hypervisor interrupt line
     //$display("clock: %d reset: %d",clock_count[31:0],clock_reset);
       
     // Stress test for ready signal.
-    if((clock_count & 1) == 0)
+    if((clock_count & 7) == 0)
       ready <= 1;
     else
-      ready <= 0;
+      ready <= 1;
     if(clock_count == 2)
 	    reset <= 1;
     if(clock_count == 16)

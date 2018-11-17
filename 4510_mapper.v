@@ -29,7 +29,7 @@
 `define MARK_DEBUG
 `endif
 
-`SCHEM_KEEP_HIER module mapper4510(input clk, input reset, input [7:0] data_i, `MARK_DEBUG input [7:0] data_o, input ready, input sync,
+`SCHEM_KEEP_HIER module mapper4510(input clk, input phi1, input phi2, input phi3, input reset, input [7:0] data_i, `MARK_DEBUG input [7:0] data_o, input ready, input sync,
                   input ext_irq, input ext_nmi, output cpu_irq, output cpu_nmi, input enable_i, input disable_i,
                   `MARK_DEBUG input load_a, `MARK_DEBUG input load_x, `MARK_DEBUG input load_y, `MARK_DEBUG input load_z, 
                   `MARK_DEBUG input load_map_sel, `MARK_DEBUG input active_map,
@@ -121,7 +121,7 @@ always @(*) begin
   mapper_address[19:8] = current_offset[19:8] + core_address_next[15:8];
   mapper_address[7:0] = core_address_next[7:0];
   
-  if(ready) begin
+  if(phi2) begin
     address_next = mapper_address;
     map_next = map_en;
   end else begin
@@ -132,7 +132,7 @@ end
 
 // Registered output address
 always @(posedge clk) begin
-  if(ready) begin
+  if(phi2) begin
     address <= address_next;
     map <= map_next;
   end
@@ -160,7 +160,8 @@ end
 endmodule
 
 // This really isn't an FSM any more.
-module mapper4510_fsm(input clk, input reset, input [7:0] data_i, input ready, input sync, input map_sel, input [1:0] map_reg_write_sel, input hypervisor_load_user_reg,
+module mapper4510_fsm(input clk, input phi1, input phi2, input phi3, input reset, 
+                  input [7:0] data_i, input ready, input sync, input map_sel, input [1:0] map_reg_write_sel, input hypervisor_load_user_reg,
                   output reg load_a, output reg load_x, output reg load_y, output reg load_z, 
                   input [1:0] t, input map,
                   output reg load_map_sel, output reg enable_i, output reg disable_i);
@@ -176,7 +177,7 @@ always @* begin
   load_map_sel = map_sel;
   
   // This doesn't need to be dependent on the state machine.
-  if(data_i == 8'hEA && ready && sync)
+  if(data_i == 8'hEA && phi2 && sync)
     enable_i = 1;
   
   // So long as mapper state is idle (we're not executing a MAP instruction) we can also
@@ -205,7 +206,7 @@ always @* begin
     end
   end else begin
     disable_i = 1;
-    if(ready)
+    if(phi2)
     begin
       case(t)
         2: load_a = 1;

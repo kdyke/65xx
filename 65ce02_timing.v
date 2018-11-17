@@ -191,7 +191,7 @@ begin
     nmig <= 1;
   nmil <= nmi;    // remember current state
   
-  if(ready) begin
+  if(ready | reset) begin
     if(reset | mc_sync)
     begin
       // Hypervisor interrupts take precedence over NMI and IRQ.
@@ -219,6 +219,7 @@ begin
         end
     end
   end
+  //$display("intg: %d hyperg: %d  hmi: %d  hyp: %d ready: %d reset: %d",intg,hyperg,hyper_mode_int,hyp,ready,reset);
 end
 
 // Disable PC increment when processing a BRK with recognized IRQ/NMI or upon hypervisor entry

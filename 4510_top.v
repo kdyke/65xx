@@ -29,7 +29,7 @@
 `define MARK_DEBUG
 `endif
 
-`SCHEM_KEEP_HIER module cpu4510(input clk, `MARK_DEBUG input reset, `MARK_DEBUG input nmi, `MARK_DEBUG input irq, `MARK_DEBUG input hyp, `MARK_DEBUG input ready, 
+`SCHEM_KEEP_HIER module cpu4510(input clk, input phi1, input phi2, input phi3, `MARK_DEBUG input reset, `MARK_DEBUG input nmi, `MARK_DEBUG input irq, `MARK_DEBUG input hyp, `MARK_DEBUG input ready, 
                                 `MARK_DEBUG output wire write_out, `MARK_DEBUG output wire write_next, 
                                 `MARK_DEBUG output wire sync, `MARK_DEBUG output wire [19:0] address, `MARK_DEBUG output wire [19:0] address_next, 
                                 `MARK_DEBUG output wire map_next, `MARK_DEBUG output wire map_out,
@@ -71,7 +71,7 @@ wire [7:0] cpu_data_i;
 wire load_map_sel; // Which set of mapper registers is being loaded (user or supervisor)
 
 // This is the state machine that actually watches for MAP/EOM instructions and tells the mapper what to do.
-mapper4510_fsm mapper_fsm(.clk(clk), .reset(reset), .data_i(data_i), .ready(ready), .sync(sync),
+mapper4510_fsm mapper_fsm(.clk(clk), .phi1(phi1), .phi2(phi2), .phi3(phi3), .reset(reset), .data_i(data_i), .ready(ready), .sync(sync),
                       .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_z(load_z),
                       .t(t[1:0]), .map(map),
                       .map_sel(hyper_mode), .map_reg_write_sel(core_address_next[1:0]), 
@@ -79,7 +79,7 @@ mapper4510_fsm mapper_fsm(.clk(clk), .reset(reset), .data_i(data_i), .ready(read
                       .enable_i(map_enable_i), .disable_i(map_disable_i));
 
 // The mapper handles the mapping address calculations but not the state machine part of it.
-mapper4510 mapper(.clk(clk), .reset(reset), .data_i(data_i), .data_o(data_o_next), .ready(ready), .sync(sync),
+mapper4510 mapper(.clk(clk), .phi1(phi1), .phi2(phi2), .phi3(phi3), .reset(reset), .data_i(data_i), .data_o(data_o), .ready(ready), .sync(sync),
                   .ext_irq(irq), .ext_nmi(nmi), .cpu_irq(cpu_irq), .cpu_nmi(cpu_nmi), 
                   .enable_i(map_enable_i), .disable_i(map_disable_i),
                   .load_a(load_a), .load_x(load_x), .load_y(load_y), .load_z(load_z), .load_map_sel(load_map_sel), .active_map(hyper_mode),
@@ -91,7 +91,7 @@ mapper4510 mapper(.clk(clk), .reset(reset), .data_i(data_i), .data_o(data_o_next
                   .monitor_map_enables_low(monitor_map_enables_low),
                   .monitor_map_enables_high(monitor_map_enables_high));
                   
-cpu65CE02 cpu_core(.clk(clk), .reset(reset), .nmi(cpu_nmi), .irq(cpu_irq), .hyp(hyp), .ready(ready), .sync(sync),
+cpu65CE02 cpu_core(.clk(clk), .phi1(phi1), .phi2(phi2), .phi3(phi3), .reset(reset), .nmi(cpu_nmi), .irq(cpu_irq), .hyp(hyp), .ready(ready), .sync(sync),
                   .write(write_out), .write_next(write_next), .address(core_address), .address_next(core_address_next),
                   .data_i(data_i), .data_o(data_o), .data_o_next(data_o_next), .hyper_mode(hyper_mode), 
                   .t(t), .map(map),

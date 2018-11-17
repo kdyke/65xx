@@ -31,19 +31,10 @@
 
 `SCHEM_KEEP_HIER module `dbi_mux(input clk, input ready, input [7:0] data_i, output reg [7:0] data_i_mux);
 
-reg [7:0] data_i_reg;
-
-always @(*)
+always @(posedge clk)
 begin
   if(ready)
     data_i_mux = data_i;
-  else
-    data_i_mux = data_i_reg;
-end
-
-always @(posedge clk)
-begin
-  data_i_reg = data_i_mux;
 end
 endmodule
 
@@ -55,8 +46,6 @@ reg [7:0] data_o_reg;
 
 always @(*)
 begin
-  data_o_next = data_o_reg;
-  if(ready)
   begin
     case(dbo_sel)
       `kDBO_ALU   : data_o_next = alu_out;
@@ -69,7 +58,8 @@ end
 
 always @(posedge clk)
 begin
-  data_o_reg <= data_o_next;
+  if(ready)
+    data_o_reg <= data_o_next;
 end
     
 endmodule
@@ -84,27 +74,17 @@ reg [15:0] tmp;
 always @(*)
 begin
   case(ab_sel)
-    `kAB_PCn  : tmp = pc;
-    `kAB_ABn  : tmp = ab;
-    `kAB_ADn  : tmp = ad;
-    `kAB_SPn  : tmp = sp;
+    `kAB_PCn  : abus_next = pc;
+    `kAB_ABn  : abus_next = ab;
+    `kAB_ADn  : abus_next = ad;
+    `kAB_SPn  : abus_next = sp;
   endcase
-end
-
-always @(*)
-begin
-  if(ready)
-    abus_next = tmp;
-  else
-    abus_next = abus;
-  //$display("abus_next: %04x",abus_next);
 end
 
 always @(posedge clk)
 begin
-  begin
+  if(ready)
     abus <= abus_next;
-  end
 end
 
 endmodule

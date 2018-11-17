@@ -29,7 +29,7 @@
 `define MARK_DEBUG
 `endif
 
-`SCHEM_KEEP_HIER module hyper_ctrl(input clk, input reset, `MARK_DEBUG input hyper_cs, 
+`SCHEM_KEEP_HIER module hyper_ctrl(input clk, input phi1, input phi2, input phi3, input reset, `MARK_DEBUG input hyper_cs, 
                   `MARK_DEBUG input [7:0] hyper_addr, `MARK_DEBUG input [7:0] hyper_io_data_i, `MARK_DEBUG output reg [7:0] hyper_data_o,
                   `MARK_DEBUG input cpu_write, `MARK_DEBUG input ready, `MARK_DEBUG input hyper_mode, `MARK_DEBUG output reg hyp, 
                   `MARK_DEBUG output reg load_user_reg, `MARK_DEBUG input [7:0] user_mapper_reg,
@@ -316,7 +316,7 @@ begin
   load_uart_out = 0;
   load_hyper_upgraded = 0;
   
-  if(hyper_cs & ready) begin
+  if(hyper_cs & phi3) begin
     if(hyper_addr[7:6] == 2'b01) begin
       if(cpu_write) begin
         if(hyper_mode) begin
