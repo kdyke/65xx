@@ -116,6 +116,7 @@ assign pcl_incremented = pc[7:0] + pc_inc;
 
 always @(*)
 begin
+
   if(cond_met && pcl_sel == `kPCL_ALU)
     pc_next[7:0] = pcl_alu;
   else if(cond_met && pcl_sel == `kPCL_ADL)
@@ -130,9 +131,6 @@ begin
   else
     pc_next[15:8] = pc[15:8] + pcl_incremented[8];
 
-  //$display("r: %d pcn: %04x inc: %d cm: %d sel: %d %d adl: %02x alu_ea: %02x aluc: %d alub7: %d pcl_alu: %02x c: %d",
-  //  ready,pc_next,pc_inc,cond_met,pch_sel,pcl_sel,adl,alu_ea,aluc,alub7, pcl_alu, pcl_alu_carry);
-
 end
 
 always @(posedge clk)
@@ -144,7 +142,7 @@ end
 endmodule
 
 `SCHEM_KEEP_HIER module `sp_reg(input clk, input reset, input ready, input e_bit, 
-                               input [1:0] sp_inc, input sph_sel, input spl_sel, input [7:0] data_i, 
+                               input [1:0] sp_inc, input sph_sel, input spl_sel, input [7:0] alu_ea, 
                                output reg [15:0] sp_next, output reg [15:0] sp, input is_ssp);
 
 reg [15:0] sp_add_in;
@@ -159,13 +157,6 @@ begin
   endcase
 end
 
-wire [8:0] spl_add_out;
-wire [7:0] sph_add_out;
-reg last_c;
-
-// Dedicated SP adders.
-assign spl_add_out = sp[7:0] + data_i;
-assign sph_add_out = sp[15:8] + last_c;
 assign sp_add_out = sp + sp_add_in;
 
 always @(*)
@@ -178,9 +169,9 @@ begin
       sp_next[15:8] = 8'h01;
   end else begin  
     if(sph_sel)
-      sp_next[15:8] = sph_add_out;
+      sp_next[15:8] = alu_ea;
     else if(spl_sel)
-      sp_next[7:0] = spl_add_out[7:0];
+      sp_next[7:0] = alu_ea;
     else if(sp_inc != 0)
     begin
       sp_next[7:0] = sp_add_out[7:0];
@@ -192,10 +183,8 @@ end
 
 always @(posedge clk)
 begin
-  if(ready|reset) begin
+  if(ready|reset)
     sp <= sp_next;
-    last_c <= spl_add_out[8];
-  end
 end
 
 endmodule

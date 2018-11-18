@@ -116,9 +116,7 @@ wire [15:0] hsp_next;
 // ALU inputs and outputs
 wire [7:0] abus;
 wire [7:0] alua_bus;
-wire [7:0] alua_ea_bus;
 wire [7:0] areg_bus;
-wire [7:0] areg_ea_bus;
 wire [7:0] dreg_bus;
 wire [7:0] dreg_do_bus;
 wire [7:0] alub_bus;
@@ -215,20 +213,19 @@ assign monitor_proceed = ready;
 
   // A couple of dedicated adders for effective address calculations.
   `ea_adder pcl_adder(areg[1] == 1 /* areg ==`kAREG_PCL */ ? pc[7:0] : 8'h00, data_i_mux, aluc_sel[0], pcl_alu_out, pcl_alu_carry);  
-  
-  `ea_adder ea_adder(alua_ea_bus,alub_bus,aluc_bus,alu_ea,alu_ea_c);
+  `ea_adder ea_adder(alua_bus,alub_bus,aluc_bus,alu_ea,alu_ea_c);
   
   `ab_reg reg_ab(clk, phi2, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, vector_hi, ab_next, ab);
   `ad_reg reg_ad(clk, phi2, adh_sel, adl_sel, alu_ea, ad_next, ad);
   `pc_reg reg_pc(clk, phi2, pc_inc & ~pc_hold, cond_met, pch_sel, pcl_sel, ad[7:0], alu_ea, alu_ea_c, data_i_mux[7], pcl_alu_out, pcl_alu_carry, pc_next, pc);
   
-  `sp_reg reg_usp(clk, reset, phi2 & ~stack_sel, reg_p[`kPF_E], sp_incdec, sph_sel, spl_sel, data_i_mux, usp_next, usp, 1'b0);
+  `sp_reg reg_usp(clk, reset, phi2 & ~stack_sel, reg_p[`kPF_E], sp_incdec, sph_sel, spl_sel, alu_ea, usp_next, usp, 1'b0);
 
   // For now the hypervisor stack is forced to work in 8-bit mode since I'm using the E bit in hypervisor mode to control
   // which stack gets used.   Leaving the true hypervisor stack in 8-bit mode is probably not a big deal, but it's easy
   // enough to change it to always run in 16-bit mode if it becomes a big limitation.  In any case it doesn't seem like it
   // needs to be switchable on the fly.   It was only done that way on the 65CE02 for backwards compatibility reasons.
-  `sp_reg reg_hsp(clk, reset, phi2 & stack_sel, 1'b1, sp_incdec, sph_sel, spl_sel, data_i_mux, hsp_next, hsp, 1'b1);
+  `sp_reg reg_hsp(clk, reset, phi2 & stack_sel, 1'b1, sp_incdec, sph_sel, spl_sel, alu_ea, hsp_next, hsp, 1'b1);
   
   // In hypervisor mode, the E bit controls whether we are accessing the hypervisor (1) or user (0) stack registers.
   assign stack_sel = hyper_mode & reg_p[`kPF_E];
@@ -240,16 +237,11 @@ assign monitor_proceed = ready;
 
   `dreg_mux dreg_mux(dreg, reg_a, reg_x, reg_y, reg_z, dreg_bus);
   `areg_mux areg_mux(areg, pc[15:8], sp[15:8], pc[7:0], sp[7:0], areg_bus);
-
+  
   `alua_mux alua_mux(alua_sel, areg_bus, dreg_bus, data_i_mux, vector_lo, alua_bus);
   `alub_mux alub_mux(alub_sel, data_i_mux, dbd, reg_p, reg_b, ir[6:4], bit_inv, alub_bus);
-  
   `aluc_mux aluc_mux(aluc_sel, reg_p[`kPF_C], alu_carry_out_last, aluc_bus);
-
-  // I may be able to get rid of these if I just have the PC unit have it's own dedicated adders.  TBD.
-  `areg_mux areg_ea_mux(areg, pc[15:8], 8'h00, pc[7:0], 8'h00, areg_ea_bus);
-  `alua_mux alua_ea_mux(alua_sel, areg_ea_bus, dreg_bus, data_i_mux, vector_lo, alua_ea_bus);
-      
+    
   `clocked_reg8 dbd_reg(clk, phi2, data_i_mux, dbd);
   `clocked_reg8 a_reg(clk, load_reg_decode[`kLR_A] && phi2, alu_out, reg_a);
   `clocked_reg8 x_reg(clk, load_reg_decode[`kLR_X] && phi2, alu_out, reg_x);
