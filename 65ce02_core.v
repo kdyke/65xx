@@ -130,8 +130,6 @@ wire bit_inv;
 wire dec_add, dec_sub;
 wire alu_carry_out;
 
-wire sync;
-
 wire onecycle;
 
 wire hyperg, hyper_rti;

@@ -21,8 +21,6 @@ reg cpu_clock_enable;
 reg [7:0] io_port_in;
 reg [7:0] io_port;
 reg io_port_cs;
-reg io_port_delay1;
-reg io_port_delay2;
 
 wire [7:0] a_out;
 wire [7:0] x_out;
@@ -179,26 +177,11 @@ wire hyp; // Hypervisor interrupt line
   // io_port writes
   always @(posedge clk)
   begin
-    if(reset) begin
-      io_port <= 0;
-      io_port_delay1 <= 0;
-      io_port_delay2 <= 0;
-    end else begin
-      //$display("io_port ? %04x %08b w: %d",cpu_address,cpu_data_out,cpu_write);
-      if(io_port_cs == 1 && (cpu_write_next & ready))
-      begin
-        io_port <= cpu_data_out;
-        $display("io_port <= %08b",cpu_data_out);
-      end
-      else if(cpu_address_next == 16'h00fe && ready && ~cpu_write_next)
-        io_port_delay1 <= 1;
-      else if(io_port_delay1) begin
-        io_port_delay1 <= 0;
-        io_port_delay2 <= 1;
-      end else if(io_port_delay2) begin
-        io_port_delay2 <= 0;
-        io_port <= 1;        
-      end
+    //$display("io_port ? %04x %08b w: %d",cpu_address,cpu_data_out,cpu_write);
+    if(cpu_address_next == 16'hbffc && (cpu_write_next & ready))
+    begin
+      io_port = cpu_data_out;
+      $display("io_port <= %08b",cpu_data_out);
     end
   end
   

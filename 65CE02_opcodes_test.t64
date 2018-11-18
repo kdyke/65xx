@@ -756,18 +756,6 @@ gcs4    iny
     .endif
         next_test            
 
-; Check that interrupts aren't hosed
-	cli
-	ldy #2
-	lda #1
-	lda $fe
-	dey
-	beq irq_not_taken
-	
-	trap
-irq_not_taken:
-	trap
-	
 ; quick/dirty test 16-bit branches by jumping across Z register test code (which should be more than 128 bytes large).
 
         ldy #0
