@@ -22,7 +22,7 @@
 
 `include "65ce02_inc.vh"
 
-`SCHEM_KEEP_HIER module `clocked_reg8(input clk, input ready, input [7:0] register_in, output reg [7:0] register_out);
+(* keep_hierarchy = "yes" *) module `clocked_reg8(input clk, input ready, input [7:0] register_in, output reg [7:0] register_out);
 
 always @(posedge clk)
 begin
@@ -34,7 +34,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `clocked_reset_reg8(input clk, input reset, input ready, 
+(* keep_hierarchy = "yes" *) module `clocked_reset_reg8(input clk, input reset, input ready, 
                                            input [7:0] register_in, output reg [7:0] register_out);
 
 always @(posedge clk)
@@ -49,7 +49,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `ab_reg(input clk, input ready, input ab_inc, input [1:0] abh_sel, input abl_sel,
+(* keep_hierarchy = "yes" *) module `ab_reg(input clk, input ready, input ab_inc, input [1:0] abh_sel, input abl_sel,
                                input [7:0] b, input[7:0] alu_ea, input [7:0] vector_hi, output reg [15:0] ab_next, output reg [15:0] ab);
 
 reg [15:0] ab_add;
@@ -84,7 +84,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `ad_reg(input clk, input ready, input adh_sel, input adl_sel,
+(* keep_hierarchy = "yes" *) module `ad_reg(input clk, input ready, input adh_sel, input adl_sel,
                                input [7:0] alu_ea, output reg [15:0] ad_next, output reg [15:0] ad);
 
 always @(*)
@@ -107,7 +107,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `pc_reg(input clk, input ready, input pc_inc, input cond_met, input [1:0] pch_sel, input [1:0] pcl_sel,
+(* keep_hierarchy = "yes" *) module `pc_reg(input clk, input ready, input pc_inc, input cond_met, input [1:0] pch_sel, input [1:0] pcl_sel,
                                input [7:0] adl, input [7:0] alu_ea, input aluc, input alub7, input [7:0] pcl_alu, input pcl_alu_carry,
                                output reg [15:0] pc_next, output reg[15:0] pc);
 
@@ -141,7 +141,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `sp_reg(input clk, input reset, input ready, input e_bit, 
+(* keep_hierarchy = "yes" *) module `sp_reg(input clk, input reset, input ready, input e_bit, 
                                input [1:0] sp_inc, input sph_sel, input spl_sel, input [7:0] alu_ea, 
                                output reg [15:0] sp_next, output reg [15:0] sp, input is_ssp);
 
@@ -189,7 +189,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `p_reg(input clk, input reset, input ready, input intg, input hyperg, input hyper_mode, output reg hyper_rti, input mc_sync, 
+(* keep_hierarchy = "yes" *) module `p_reg(input clk, input reset, input ready, input intg, input hyperg, input hyper_mode, output reg hyper_rti, input mc_sync, 
                                input [16:0] load_flag_decode, 
                                input [7:0] db_in, input sb_z, input sb_n, input carry, input overflow, input ir5, input ir0, output reg [7:0] reg_p);
 

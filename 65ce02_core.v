@@ -22,15 +22,17 @@
 
 `include "65ce02_inc.vh"
 
-`define EN_MARK_DEBUG
-`ifdef EN_MARK_DEBUG
+`undef MARK_DEBUG
+
+//`define CPU65CE02_CORE_DEBUG
+`ifdef CPU65CE02_CORE_DEBUG
 `define MARK_DEBUG (* mark_debug = "true", dont_touch = "true" *)
 `else
 `define MARK_DEBUG
 `endif
 
 //`SCHEM_KEEP_HIER 
-module cpu65CE02(input clk, input reset, input nmi, input irq, input hyp, input ready, 
+(* keep_hierarchy = "yes" *) module cpu65CE02(input clk, input reset, input nmi, input irq, input hyp, input ready, 
                   output reg write, output wire write_next, output wire sync, 
                   output wire [15:0] address, output wire [15:0] address_next, 
                   input [7:0] data_i, output wire [7:0] data_o, output wire [7:0] data_o_next, 

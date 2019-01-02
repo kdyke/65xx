@@ -54,12 +54,19 @@ wire [7:0] hyper_data_o;
 wire [7:0] map_reg_data;
 wire hypervisor_load_user_reg;
 wire hyp; // Hypervisor interrupt line
+wire map_next;
+wire [15:0] monitor_state;
+wire mapper_busy;
+reg bus_ready;
 
 	memory memory_inst(.clk(clk), .we(memory_write), .addr(cpu_address_next[15:0]), .di(memory_in), .do(memory_out));
 
   cpu4510 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .hyp(hyp), .ready(ready), .write_next(cpu_write_next), .write_out(cpu_write),
+            .map_next(map_next), .mapper_busy(mapper_busy),
             .address(cpu_address), .address_next(cpu_address_next), .sync(sync), .data_i(cpu_data_in), .data_o_next(cpu_data_out), .data_o(cpu_data_out_reg),
-            .map_reg_data(map_reg_data), .hypervisor_load_user_reg(hypervisor_load_user_reg), .hyper_mode(hyper_mode));
+            .map_reg_data(map_reg_data), .hypervisor_load_user_reg(hypervisor_load_user_reg), .hyper_mode(hyper_mode),
+            .monitor_state(monitor_state), .monitor_a(a_out), .monitor_x(x_out), .monitor_y(y_out), .monitor_z(z_out),
+            .monitor_sp(sp_out));
 
   hyper_ctrl hyper_ctrl0(.clk(clk), .reset(reset), .hyper_cs(hyper_cs), .hyper_addr(cpu_address_next[7:0]), .hyper_io_data_i(cpu_data_out), 
                     .hyper_data_o(hyper_data_o), .cpu_write(cpu_write_next), .ready(ready), .hyper_mode(hyper_mode),
@@ -140,8 +147,8 @@ wire hyp; // Hypervisor interrupt line
   // Start driving memory and CPU clocks.
   always begin
 `ifdef NOTDEF
-    $monitor($time,,"%m. clk = %b cnt: %d rdy: %d sync: %d t: %d addr: %x addrn: %x hm: %d mem: %02x do: %02x wn: %d w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x P: %02x SP: %04x",
-      clk,clock_count[31:0],ready,sync,t,cpu_address,cpu_address_next,hyper_mode,cpu_data_in,cpu_data_out_reg,cpu_write_next,cpu_write,cpu_clock_enable,irq,nmi,reset,
+    $monitor($time,,"%m. clk = %b rst: %d cnt: %d rdy: %d sync: %d t: %x addr: %x addrn: %x hm: %d mapn: %d mem: %02x do: %02x wn: %d w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x P: %02x SP: %04x",
+      clk,reset,clock_count[31:0],ready,sync,monitor_state,cpu_address,cpu_address_next,hyper_mode,map_next,cpu_data_in,cpu_data_out_reg,cpu_write_next,cpu_write,cpu_clock_enable,irq,nmi,reset,
         a_out,x_out,y_out,z_out,cpu_state,sp_out);
 `endif
 //    if(cpu_clock_enable)
@@ -162,9 +169,9 @@ wire hyp; // Hypervisor interrupt line
       
     // Stress test for ready signal.
     if((clock_count & 1) == 0)
-      ready <= 1;
+      bus_ready <= 1;
     else
-      ready <= 0;
+      bus_ready <= 0;
     if(clock_count == 2)
 	    reset <= 1;
     if(clock_count == 16)
@@ -174,6 +181,11 @@ wire hyp; // Hypervisor interrupt line
       $display("addr: %04x A: %02x X: %02x Y: %02x Z: %02x SP: %04x",cpu_address,a_out,x_out,y_out,z_out,sp_out);
   end
 
+  always @(*)
+  begin
+    ready = bus_ready & ~mapper_busy;
+  end
+  
   // io_port writes
   always @(posedge clk)
   begin

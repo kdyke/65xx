@@ -100,7 +100,7 @@ assign carry_out = ea_add[8];
 endmodule
 
 // Input muxing is done outside of the core ALU unit.
-`SCHEM_KEEP_HIER module `alu_unit(a,b,alu_out,c_in,dec_add,dec_sub,op,carry_out,overflow_out);
+(* keep_hierarchy = "yes" *) module `alu_unit(a,b,alu_out,c_in,dec_add,dec_sub,op,carry_out,overflow_out);
   input [7:0] a;
   input [7:0] b;
 	input [2:0] op;
@@ -174,7 +174,7 @@ endmodule
 
 endmodule
 
-`SCHEM_KEEP_HIER module `z_unit(input clk, input ready, input [2:0] op, input [7:0] aluy, output wire z_out, output reg dld_z, input word_z);
+(* keep_hierarchy = "yes" *) module `z_unit(input clk, input ready, input [2:0] op, input [7:0] aluy, output wire z_out, output reg dld_z, input word_z);
 
 wire alu_z;
 

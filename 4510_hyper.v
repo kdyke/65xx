@@ -29,9 +29,10 @@
 `define MARK_DEBUG
 `endif
 
-`SCHEM_KEEP_HIER module hyper_ctrl(input clk, input reset, `MARK_DEBUG input hyper_cs, 
+(* keep_hierarchy = "yes" *) module hyper_ctrl(input clk, input reset, `MARK_DEBUG input hyper_cs, 
                   `MARK_DEBUG input [7:0] hyper_addr, `MARK_DEBUG input [7:0] hyper_io_data_i, `MARK_DEBUG output reg [7:0] hyper_data_o,
                   `MARK_DEBUG input cpu_write, `MARK_DEBUG input ready, `MARK_DEBUG input hyper_mode, `MARK_DEBUG output reg hyp, 
+                  `MARK_DEBUG input matrix_trap,
                   `MARK_DEBUG output reg load_user_reg, `MARK_DEBUG input [7:0] user_mapper_reg,
                   output reg [7:0] virtualised_hardware, output reg [7:0] protected_hardware, 
                   output wire rom_writeprotect, output wire speed_gate_enable, output wire force_fast,
@@ -131,6 +132,8 @@ reg [6:0] hypervisor_trap_port;
 
 reg [7:0] hyper_reg_data_o;
 
+//`define HYPER_STATE_REGS
+`ifdef HYPER_STATE_REGS
 reg [7:0] hyper_a, hyper_x, hyper_y, hyper_z, hyper_b;
 reg load_a, load_x, load_y, load_z, load_b;
 reg [7:0] hyper_spl, hyper_sph, hyper_p, hyper_pcl, hyper_pch;
@@ -139,6 +142,8 @@ reg [7:0] hyper_port_00, hyper_port_01;
 reg load_port_00, load_port_01;
 reg [1:0] hyper_iomode;
 reg load_iomode;
+`endif
+
 `MARK_DEBUG reg hyper_upgraded;
 
 reg [7:0] overrides;
@@ -157,6 +162,7 @@ begin
   hyper_reg_data_o = 8'hFF;
   if(hyper_mode & hyper_cs & hyper_addr[7:6] == 2'b01) begin
     case(hyper_addr[5:0])
+`ifdef HYPER_STATE_REGS
       HYPER_REG_A:                        hyper_reg_data_o = hyper_a;
       HYPER_REG_X:                        hyper_reg_data_o = hyper_x;
       HYPER_REG_Y:                        hyper_reg_data_o = hyper_y;
@@ -167,13 +173,14 @@ begin
       HYPER_REG_P:                        hyper_reg_data_o = hyper_p;
       HYPER_REG_PCL:                      hyper_reg_data_o = hyper_pcl;
       HYPER_REG_PCH:                      hyper_reg_data_o = hyper_pch;
+      HYPER_REG_PORT_00:                  hyper_reg_data_o = hyper_port_00;
+      HYPER_REG_PORT_01:                  hyper_reg_data_o = hyper_port_01;
+      HYPER_REG_IOMODE:                   hyper_reg_data_o = hyper_iomode;
+`endif
       HYPER_REG_MAP_A:                    hyper_reg_data_o = user_mapper_reg;
       HYPER_REG_MAP_X:                    hyper_reg_data_o = user_mapper_reg;
       HYPER_REG_MAP_Y:                    hyper_reg_data_o = user_mapper_reg;
       HYPER_REG_MAP_Z:                    hyper_reg_data_o = user_mapper_reg;
-      HYPER_REG_PORT_00:                  hyper_reg_data_o = hyper_port_00;
-      HYPER_REG_PORT_01:                  hyper_reg_data_o = hyper_port_01;
-      HYPER_REG_IOMODE:                   hyper_reg_data_o = hyper_iomode;
       HYPER_REG_TRAP_PCL:                 hyper_reg_data_o = hyper_trap_pc[7:0];
       HYPER_REG_TRAP_PCH:                 hyper_reg_data_o = hyper_trap_pc[15:8];
       HYPER_REG_VECTOR_PCL: begin
@@ -233,6 +240,7 @@ begin
 
   // These are all just storage and so don't really need special reset
   // treatment.
+`ifdef HYPER_STATE_REGS
   if(load_a) hyper_a <= hyper_io_data_i;
   if(load_x) hyper_x <= hyper_io_data_i;
   if(load_y) hyper_y <= hyper_io_data_i;
@@ -246,6 +254,7 @@ begin
   if(load_port_00) hyper_port_00 <= hyper_io_data_i;
   if(load_port_01) hyper_port_01 <= hyper_io_data_i;
   if(load_iomode) hyper_iomode <= hyper_io_data_i[1:0];
+`endif
   
   if(reset)
     virtualised_hardware <= 0;
@@ -294,6 +303,7 @@ begin
   load_trap_pch = 0;
   load_vector_pcl = 0;
   load_vector_pch = 0;
+`ifdef HYPER_STATE_REGS
   load_a = 0;
   load_x = 0;
   load_y = 0;
@@ -307,20 +317,24 @@ begin
   load_port_00 = 0;
   load_port_01 = 0;
   load_iomode = 0;
-  
+`endif
+
   load_overrides = 0;
   load_virtualised_hw = 0;
   load_protected_hw = 0;
-  load_iomode = 0;
   load_set_iomode = 0;
   load_uart_out = 0;
   load_hyper_upgraded = 0;
   
-  if(hyper_cs & ready) begin
+  if(matrix_trap) begin
+    hyper_enter_req = 1;
+    hypervisor_trap_port = 7'b1000011; // Trap #67 ($43) = ALT-TAB key press (toggles matrix mode)
+  end else if(hyper_cs & ready) begin
     if(hyper_addr[7:6] == 2'b01) begin
       if(cpu_write) begin
         if(hyper_mode) begin
           case(hyper_addr[5:0])
+`ifdef HYPER_STATE_REGS
             HYPER_REG_A: load_a = 1;
             HYPER_REG_X: load_x = 1;
             HYPER_REG_Y: load_y = 1;
@@ -330,12 +344,11 @@ begin
             HYPER_REG_SPH: load_sph = 1;
             HYPER_REG_P: load_p = 1;
             HYPER_REG_PCL: load_pcl = 1;
-            HYPER_REG_PCH: load_pch = 1;
-            
+            HYPER_REG_PCH: load_pch = 1;            
             HYPER_REG_PORT_00: load_port_00 = 1;
             HYPER_REG_PORT_01: load_port_01 = 1;
             HYPER_REG_IOMODE: load_iomode = 1;
-            
+`endif
             HYPER_REG_MAP_A, HYPER_REG_MAP_X,
             HYPER_REG_MAP_Y, HYPER_REG_MAP_Z: load_user_reg = 1;
 

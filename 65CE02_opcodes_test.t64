@@ -126,24 +126,24 @@ ram_top = -1
         ;noopt       ;do not take shortcuts
         
 ; Hypervisor registers 
-hyper_a		= $d640
-hyper_x		= $d641
-hyper_y 	= $d642
-hyper_z 	= $d643
-hyper_b 	= $d644
-hyper_spl 	= $d645
-hyper_sph 	= $d646
-hyper_p		= $d647
-hyper_pcl	= $d648
-hyper_pch	= $d649
+;hyper_a		= $d640
+;hyper_x		= $d641
+;hyper_y 	= $d642
+;hyper_z 	= $d643
+;hyper_b 	= $d644
+;hyper_spl 	= $d645
+;hyper_sph 	= $d646
+;hyper_p		= $d647
+;hyper_pcl	= $d648
+;hyper_pch	= $d649
 hyper_map_x	= $d64a
 hyper_map_a	= $d64b
 hyper_map_z	= $d64c
 hyper_map_y	= $d64d
 
-hyper_port_00	= $d650
-hyper_port_01	= $d651
-hyper_iomode	= $d652
+;hyper_port_00	= $d650
+;hyper_port_01	= $d651
+;hyper_iomode	= $d652
 
 hyper_vector_pcl  = $d674
 hyper_vector_pch  = $d675
@@ -2377,6 +2377,28 @@ hyper_exit:
 	rti			; Return from hypervisor
 	
 	trap			; We shouldn't reach here.
+	
+*=	$bf00			; Kickstart ZP area
+
+hyper_a:		.byte 0
+hyper_x:		.byte 0
+hyper_y:		.byte 0
+hyper_z:		.byte 0
+hyper_b:		.byte 0
+hyper_spl:		.byte 0
+hyper_sph:		.byte 0
+hyper_p:		.byte 0
+hyper_pcl:		.byte 0
+hyper_pch:		.byte 0
+hyper_port_00:		.byte 0
+hyper_port_01:		.byte 0
+hyper_iomode:		.byte 0
+hyper_dmagic_srcmb:	.byte 0
+hyper_dmagic_dstmb:	.byte 0
+hyper_dmagic_list0:	.byte 0
+hyper_dmagic_list1:	.byte 0
+hyper_dmagic_list2:	.byte 0
+hyper_dmagic_list3:	.byte 0
 	
 *=      $fffa ; vectors
     

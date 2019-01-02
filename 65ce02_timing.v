@@ -37,7 +37,7 @@
 `define RESET_VECHI 8'hff
 `endif
 
-`SCHEM_KEEP_HIER module `timing_ctrl(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
+(* keep_hierarchy = "yes" *) module `timing_ctrl(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
 input clk;
 input reset;
 input ready;
@@ -98,7 +98,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `predecode(data_i, sync, onecycle);
+(* keep_hierarchy = "yes" *) module `predecode(data_i, sync, onecycle);
 input [7:0] data_i;
 input sync;
 output onecycle;
@@ -124,7 +124,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `interrupt_control(clk, ready, reset, irq, nmi, mc_sync, reg_p, load_i, intg, nmig, resp, hyp, hyperg, hyper_mode, hyper_rti, pc_hold, vector_hi, vector_lo);
+(* keep_hierarchy = "yes" *) module `interrupt_control(clk, ready, reset, irq, nmi, mc_sync, reg_p, load_i, intg, nmig, resp, hyp, hyperg, hyper_mode, hyper_rti, pc_hold, vector_hi, vector_lo);
 input clk;
 input ready;
 input reset;
@@ -191,7 +191,7 @@ begin
     nmig <= 1;
   nmil <= nmi;    // remember current state
   
-  if(ready) begin
+  if(ready | reset) begin
     if(reset | mc_sync)
     begin
       // Hypervisor interrupts take precedence over NMI and IRQ.
@@ -248,7 +248,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `cond_control(reg_p, dld_z, test_flags, test_bit, cond_met);
+(* keep_hierarchy = "yes" *) module `cond_control(reg_p, dld_z, test_flags, test_bit, cond_met);
 input [7:0] reg_p;
 input [4:0] test_flags;
 input test_bit;

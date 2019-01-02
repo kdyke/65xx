@@ -22,14 +22,16 @@
 
 `include "65ce02_inc.vh"
 
-//`define EN_MARK_DEBUG
-`ifdef EN_MARK_DEBUG
+`undef MARK_DEBUG
+
+//`define CPU65CE02_MUX_DEBUG
+`ifdef CPU65CE02_MUX_DEBUG
 `define MARK_DEBUG (* mark_debug = "true", dont_touch = "true" *)
 `else
 `define MARK_DEBUG
 `endif
 
-`SCHEM_KEEP_HIER module `dbi_mux(input clk, input ready, input [7:0] data_i, output reg [7:0] data_i_mux);
+(* keep_hierarchy = "yes" *) module `dbi_mux(input clk, input ready, input [7:0] data_i, output reg [7:0] data_i_mux);
 
 reg [7:0] data_i_reg;
 
@@ -48,7 +50,7 @@ end
 endmodule
 
 // This is poorly named as a mux since there's also an output register in here now.
-`SCHEM_KEEP_HIER module `dbo_mux(input clk, input ready, input [1:0] dbo_sel, input [7:0] data_i, input [7:0] dreg_bus, input [7:0] alu_out, input [7:0] pc_next,
+(* keep_hierarchy = "yes" *) module `dbo_mux(input clk, input ready, input [1:0] dbo_sel, input [7:0] data_i, input [7:0] dreg_bus, input [7:0] alu_out, input [7:0] pc_next,
                                 output reg [7:0] data_o_next);
 
 reg [7:0] data_o_reg;
@@ -75,7 +77,7 @@ end
 endmodule
 
 // This is poorly named as a mux since there's also an output register in here now.
-`SCHEM_KEEP_HIER module `addrbus_mux(input clk, input ready, input [1:0] ab_sel, 
+(* keep_hierarchy = "yes" *) module `addrbus_mux(input clk, input ready, input [1:0] ab_sel, 
                                     input [15:0] ad, input [15:0] ab, input [15:0] sp, input [15:0] pc, 
                                     output reg [15:0] abus_next, output reg [15:0] abus);
 
@@ -97,7 +99,6 @@ begin
     abus_next = tmp;
   else
     abus_next = abus;
-  //$display("abus_next: %04x",abus_next);
 end
 
 always @(posedge clk)
@@ -109,7 +110,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `dreg_mux(input [1:0] dreg, input [7:0] reg_a, input [7:0] reg_x, input [7:0] reg_y, input [7:0] reg_z, output reg [7:0] dreg_bus);
+(* keep_hierarchy = "yes" *) module `dreg_mux(input [1:0] dreg, input [7:0] reg_a, input [7:0] reg_x, input [7:0] reg_y, input [7:0] reg_z, output reg [7:0] dreg_bus);
 
 always @(*)
 begin
@@ -124,7 +125,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `areg_mux(input [1:0] areg, input [7:0] pch, input [7:0] sph, input [7:0] pcl, input [7:0] spl, output reg [7:0] areg_bus);
+(* keep_hierarchy = "yes" *) module `areg_mux(input [1:0] areg, input [7:0] pch, input [7:0] sph, input [7:0] pcl, input [7:0] spl, output reg [7:0] areg_bus);
 
 always @(*)
 begin
@@ -139,7 +140,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `alua_mux(input [2:0] alua_sel, 
+(* keep_hierarchy = "yes" *) module `alua_mux(input [2:0] alua_sel, 
                                  input [7:0] areg_bus,
                                  input [7:0] dreg_bus,
                                  input [7:0] db,
@@ -164,7 +165,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `decoder3to8(index, inv, outbits);
+(* keep_hierarchy = "yes" *) module `decoder3to8(index, inv, outbits);
 input [2:0] index;
 input inv;
 output reg [7:0] outbits;
@@ -192,7 +193,7 @@ begin
 end
 endmodule
 
-`SCHEM_KEEP_HIER module `alub_mux(input [2:0] alub_sel, 
+(* keep_hierarchy = "yes" *) module `alub_mux(input [2:0] alub_sel, 
                                  input [7:0] db, 
                                  input [7:0] dbd,
                                  input [7:0] reg_p,
@@ -223,7 +224,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `aluc_mux(input [1:0] aluc_sel, 
+(* keep_hierarchy = "yes" *) module `aluc_mux(input [1:0] aluc_sel, 
                                  input carry,
                                  input last_carry,
                                  output reg aluc);
@@ -241,7 +242,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `ir_next_mux(input sync, 
+(* keep_hierarchy = "yes" *) module `ir_next_mux(input sync, 
                                     input intg,
                                     input [7:0] data_i,
                                     `MARK_DEBUG input [7:0] ir,
@@ -266,39 +267,39 @@ endmodule
 
 // Note: LM_C_DB0, LM_Z_DB1, LM_I_DB2 and LM_D_DB3 are currently always set together and are thus redundant,
 // so if we ever went back to predecoded flags we could save 3 bits there.
-`SCHEM_KEEP_HIER module `flags_decode(input [3:0] load_flags, output reg [16:0] load_flags_decode);
+(* keep_hierarchy = "yes" *) module `flags_decode(input [3:0] load_flags, output reg [16:0] load_flags_decode);
 always @(*)
 begin
   case (load_flags)
-    `kFLAGS_DB   : load_flags_decode = (`LM_C_DB0 | `LM_Z_DB1 | `LM_I_DB2 | `LM_D_DB3 | `LM_V_DB6 | `LM_N_DB7);
-    `kFLAGS_SBZN : load_flags_decode = (`LM_Z_SBZ | `LM_N_SBN);
-    `kFLAGS_D    : load_flags_decode = (`LM_D_IR5);
-    `kFLAGS_I    : load_flags_decode = (`LM_I_IR5);
-    `kFLAGS_C    : load_flags_decode = (`LM_C_IR5);
-    `kFLAGS_V    : load_flags_decode = (`LM_V_0);
-    `kFLAGS_Z    : load_flags_decode = (`LM_Z_SBZ);
-    `kFLAGS_CNZ  : load_flags_decode = (`LM_C_ACR | `LM_Z_SBZ | `LM_N_SBN);
-    `kFLAGS_ALU  : load_flags_decode = (`LM_C_ACR | `LM_V_AVR | `LM_Z_SBZ | `LM_N_SBN);
-    `kFLAGS_BIT  : load_flags_decode = (`LM_V_DB6 | `LM_N_DB7);
-    `kFLAGS_SETI : load_flags_decode = (`LM_I_1|`LM_D_IR5);     // Clear D flag too
-    `kFLAGS_E    : load_flags_decode = (`LM_E_IR0);
-    `kFLAGS_RTI  : load_flags_decode = (`LM_C_DB0 | `LM_Z_DB1 | `LM_I_DB2 | `LM_D_DB3 | `LM_V_DB6 | `LM_N_DB7 | `LM_E_RTI);
+    `kFLAGS_DB   : load_flags_decode = (`kLM_C_DB0 | `kLM_Z_DB1 | `kLM_I_DB2 | `kLM_D_DB3 | `kLM_V_DB6 | `kLM_N_DB7);
+    `kFLAGS_SBZN : load_flags_decode = (`kLM_Z_SBZ | `kLM_N_SBN);
+    `kFLAGS_D    : load_flags_decode = (`kLM_D_IR5);
+    `kFLAGS_I    : load_flags_decode = (`kLM_I_IR5);
+    `kFLAGS_C    : load_flags_decode = (`kLM_C_IR5);
+    `kFLAGS_V    : load_flags_decode = (`kLM_V_0);
+    `kFLAGS_Z    : load_flags_decode = (`kLM_Z_SBZ);
+    `kFLAGS_CNZ  : load_flags_decode = (`kLM_C_ACR | `kLM_Z_SBZ | `kLM_N_SBN);
+    `kFLAGS_ALU  : load_flags_decode = (`kLM_C_ACR | `kLM_V_AVR | `kLM_Z_SBZ | `kLM_N_SBN);
+    `kFLAGS_BIT  : load_flags_decode = (`kLM_V_DB6 | `kLM_N_DB7);
+    `kFLAGS_SETI : load_flags_decode = (`kLM_I_1|`kLM_D_IR5);     // Clear D flag too
+    `kFLAGS_E    : load_flags_decode = (`kLM_E_IR0);
+    `kFLAGS_RTI  : load_flags_decode = (`kLM_C_DB0 | `kLM_Z_DB1 | `kLM_I_DB2 | `kLM_D_DB3 | `kLM_V_DB6 | `kLM_N_DB7 | `kLM_E_RTI);
     default      : load_flags_decode = 0;
   endcase
 end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `reg_decode(input [2:0] load_reg, output reg [4:0] load_reg_decode);
+(* keep_hierarchy = "yes" *) module `reg_decode(input [2:0] load_reg, output reg [4:0] load_reg_decode);
 
 always @(*)
 begin
 case (load_reg)
-  `kLOAD_A    : load_reg_decode = `LR_A;
-  `kLOAD_X    : load_reg_decode = `LR_X;
-  `kLOAD_Y    : load_reg_decode = `LR_Y;
-  `kLOAD_Z    : load_reg_decode = `LR_Z;
-  `kLOAD_B    : load_reg_decode = `LR_B;
+  `kLOAD_A    : load_reg_decode = `kLM_A;
+  `kLOAD_X    : load_reg_decode = `kLM_X;
+  `kLOAD_Y    : load_reg_decode = `kLM_Y;
+  `kLOAD_Z    : load_reg_decode = `kLM_Z;
+  `kLOAD_B    : load_reg_decode = `kLM_B;
   default     : load_reg_decode = 0;
 endcase
 //$display("load_reg: %02x decode: %016b",load_reg,load_reg_decode);
@@ -306,7 +307,7 @@ end
 
 endmodule
 
-`SCHEM_KEEP_HIER module `sp_sel_mux(input hyper_mode, input [15:0] usp, input [15:0] hsp, output reg [15:0] sp);
+(* keep_hierarchy = "yes" *) module `sp_sel_mux(input hyper_mode, input [15:0] usp, input [15:0] hsp, output reg [15:0] sp);
 
 always @(*)
 begin
