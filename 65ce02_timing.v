@@ -37,62 +37,63 @@
 `define RESET_VECHI 8'hff
 `endif
 
-(* keep_hierarchy = "yes" *) module `timing_ctrl(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
-input clk;
-input reset;
-input ready;
-input mc_sync;
-output sync;
-input onecycle;
-output [2:0] t;
-output [2:0] t_next;
+(* keep_hierarchy = "yes" *) module `timing_ctrl(input clk, input reset, input ready, 
+      output reg [8:0] mca, output reg [8:0] next_mca, input [8:0] next_mca_ucode, 
+      input [8:0] next_mca_a0, input [8:0] next_mca_a1, input [1:0] next_mca_sel,
+      input mc_sync, output reg sync, input onecycle);
 
-wire sync;
-reg [2:0] t;
-reg [2:0] t_next;
-
-// TODO - Separate the state machine from the output encoding?
-parameter T0 = 3'b000,
-          T1 = 3'b001,
-          T2 = 3'b010,
-          T3 = 3'b011,
-          T4 = 3'b100,
-          T5 = 3'b101,
-          T6 = 3'b110,
-          T7 = 3'b111;
-
-assign sync = (t == 1);
+reg sync_next;
 
 always @(posedge clk)
 begin
-  if(reset)       t <= T2;
-  else if(ready) begin
-    t <= t_next;
-    //$display("T: %d t_next: %d sync: %d",t,t_next,sync);
+  if(reset) begin
+    mca <= 0;      // This is primarily just for debugging/logging/monitor/etc.
+    sync <= 0;
+  end else if(ready) begin
+    mca <= next_mca;      // This is primarily just for debugging/logging/monitor/etc.
+    sync <= sync_next;
+    //$display("mca: %03x next_mca: %03x: sync: %d",mca,next_mca,sync);
+  //$display("r: %d rdy: %d mca: %03x mca_next: %03x mc_sync: %d onecycle: %d mca_sel: %d uc: %03x a0: %03x a1: %03x",reset, ready, mca, next_mca, mc_sync,onecycle,next_mca_sel,
+  //  next_mca_ucode,next_mca_a0,next_mca_a1);
   end
 end
 
 always @(*)
 begin
-  t_next = t+1;
-  if(onecycle)
-    t_next = T1;
-  if(mc_sync)
-    t_next = T1;
-
-  //$display("Tn: %d t_next: %d mc_sync: %d onecycle: %d",t,t_next,mc_sync,onecycle);
-  
+  next_mca = mca;
+  sync_next = sync;
+  if(ready) begin
+    sync_next = 0;
+    if(onecycle) begin
+      //next_mca = next_mca_a0;
+      sync_next = 1;
+    end
+    if(mc_sync) begin
+      //next_mca = next_mca_a0;
+      sync_next = 1;
+    end
+    next_mca = next_mca_ucode;
+    if(sync)
+      next_mca = next_mca_a0;
+    else if(next_mca_sel == 2) begin // FIXME, ugh, need a real `define for this
+      next_mca = next_mca_a1;
+    end
+  end
+  if(reset) begin
+    next_mca = 9'h00;
+  end
+      
   // synthesis translate_off
   //if(t == 7 && !mc_sync)
   //begin
   //  $display("Ran off end of microcode");
   //  $finish;
   //end
-  if(t == 0)
-  begin
-    $display("Jumped to T0!");
-    $finish;
-  end
+  //if(t == 0)
+  //begin
+  //  $display("Jumped to T0!");
+  //  $finish;
+  //end
   // synthesis translate_on
 end
 
@@ -119,7 +120,7 @@ begin
 
   default:      onecycle = 0;
   endcase
-  //$display("onecycle: %02x %d %d",ir_next,onecycle,active);
+  //$display("onecycle: %02x %d %d",data_i,onecycle,sync);
 end
 
 endmodule

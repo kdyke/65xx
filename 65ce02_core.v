@@ -144,6 +144,13 @@ wire [16:0] load_flags_decode;
 
 wire stack_sel;
 
+wire [8:0] mca;
+wire [8:0] next_mca;
+wire [8:0] next_mca_ucode;
+wire [8:0] next_mca_a0;
+wire [8:0] next_mca_a1;
+wire [1:0] next_mca_sel;
+
 wire [7:0] vector_hi;
 wire [7:0] vector_lo;
 
@@ -157,12 +164,17 @@ assign monitor_p = reg_p;
 assign monitor_sp = sp; // For now this shows the "current" stack.
 assign monitor_pc = pc;
 assign monitor_opcode = ir;
-assign monitor_state = t;
+assign monitor_state = mca;
 assign monitor_hypervisor_mode = hyper_mode;
 assign monitor_proceed = ready;
+assign t = mca[1:0];
 
   // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
-  `microcode mc_inst(.clk(clk), .ready(ready), .ir(ir_next), .t(t_next), .mc_sync(mc_sync), .alua_sel(alua_sel), .alub_sel(alub_sel),
+  `microcode mc_inst(.clk(clk), .ready(ready), .reset(reset), .ir(ir_next), 
+                  .next_mca(next_mca), .next_mca_ucode(next_mca_ucode),
+                  .next_mca_a0(next_mca_a0), .next_mca_a1(next_mca_a1),
+                  .next_mca_sel(next_mca_sel),
+                  .mc_sync(mc_sync), .alua_sel(alua_sel), .alub_sel(alub_sel),
                   .aluc_sel(aluc_sel), .bit_inv(bit_inv),
                   .dreg(dreg), .dreg_do(dreg_do), .areg(areg), .alu_sel(alu_sel), .dbo_sel(dbo_sel), .ab_sel(ab_sel),
                   .pc_inc(pc_inc), .pch_sel(pch_sel), .pcl_sel(pcl_sel), 
@@ -200,7 +212,10 @@ assign monitor_proceed = ready;
                                       hyp, hyperg, hyper_mode, hyper_rti, pc_hold, vector_hi, vector_lo);
 
   // Timing control state machine
-  `timing_ctrl timing(clk, reset, ready, t, t_next, mc_sync, sync, onecycle);
+  `timing_ctrl timing(.clk(clk), .reset(reset), .ready(ready), 
+                  .mca(mca), .next_mca(next_mca), .next_mca_ucode(next_mca_ucode),
+                  .next_mca_a0(next_mca_a0), .next_mca_a1(next_mca_a1),
+                  .next_mca_sel(next_mca_sel), .mc_sync(mc_sync), .sync(sync), .onecycle(onecycle));
 
   `clocked_reset_reg8 ir_reg(clk, reset, sync & ready, ir_next, ir);
 

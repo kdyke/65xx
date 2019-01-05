@@ -332,6 +332,10 @@
 
 `define kMAP_BITS          53:53
 
-`define kMICROCODE_BITS    53:0
+`define kNEXT_ADDR_BITS    62:54          // Currently 9 bits of microcode address?
+
+`define kNEXT_ADDR_SEL_BITS 64:63
+
+`define kMICROCODE_BITS    64:0
 
 `endif //_65ce02_inc_vh_
