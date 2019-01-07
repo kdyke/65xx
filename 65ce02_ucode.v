@@ -761,6 +761,9 @@ end
 // anything interesting shows up on the external pins of the 4510 when its executing a map sequence.  It
 // might shed some light on how it was done.
 
+// Alas, nothing is visible externally on the memory bus, but it does appear that the MAP instruction
+// takes 5 cycles total, so I think my theory is probably pretty close to how it works on the real 4510.
+
 // The other thing that has to happen when a MAP instruction is encountered is that interrupts get disabled
 // until a NOP is executed.  Again, I think this could have been done with external logic since if they
 // were sniffing the instruction stream to detect MAP, also detecting a NOP would have been easy.
