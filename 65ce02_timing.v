@@ -40,7 +40,8 @@
 (* keep_hierarchy = "yes" *) module `timing_ctrl(input clk, input reset, input ready, 
       output reg [8:0] mca, output reg [8:0] next_mca, input [8:0] next_mca_ucode, 
       input [8:0] next_mca_a0, input [8:0] next_mca_a1, input [1:0] next_mca_sel,
-      input mc_sync, output reg sync, input onecycle);
+      input mc_sync, output reg sync, input onecycle,
+      input mc_cond_met, input [2:0] mc_cond_addr);
 
 reg sync_next;
 
@@ -52,7 +53,7 @@ begin
   end else if(ready) begin
     mca <= next_mca;      // This is primarily just for debugging/logging/monitor/etc.
     sync <= sync_next;
-    //$display("mca: %03x next_mca: %03x: sync: %d",mca,next_mca,sync);
+    //$display("mca: %03x next_mca: %03x: sync: %d mc_cond_met: %d",mca,next_mca,sync,mc_cond_met);
   //$display("r: %d rdy: %d mca: %03x mca_next: %03x mc_sync: %d onecycle: %d mca_sel: %d uc: %03x a0: %03x a1: %03x",reset, ready, mca, next_mca, mc_sync,onecycle,next_mca_sel,
   //  next_mca_ucode,next_mca_a0,next_mca_a1);
   end
@@ -75,7 +76,9 @@ begin
     next_mca = next_mca_ucode;
     if(sync)
       next_mca = next_mca_a0;
-    else if(next_mca_sel == 2) begin // FIXME, ugh, need a real `define for this
+    else if(mc_cond_met)
+      next_mca = {5'b11111,mc_cond_addr};
+    else if(next_mca_sel == `kNEXT_A1) begin // FIXME, ugh, need a real `define for this
       next_mca = next_mca_a1;
     end
   end
@@ -249,6 +252,26 @@ end
 
 endmodule
 
+(* keep_hierarchy = "yes" *) module mc_cond_control(input slow, input branch_cond_met, input branch_page_cross, 
+    input [2:0] mc_cond, output reg mc_cond_met);
+
+always @(*)
+begin
+  if(slow)
+  begin
+    //$display("mc_cond: %d %d %d",mc_cond,branch_cond_met,branch_page_cross);
+    case(mc_cond)
+      `kNEXT_COND_BRANCH: mc_cond_met = branch_cond_met;
+      `kNEXT_COND_BPC:    mc_cond_met = branch_page_cross;
+      default:            mc_cond_met = 0;
+    endcase
+  end
+  else
+    mc_cond_met = 0;
+end
+
+endmodule
+
 (* keep_hierarchy = "yes" *) module `cond_control(reg_p, dld_z, test_flags, test_bit, cond_met);
 input [7:0] reg_p;
 input [4:0] test_flags;
@@ -269,7 +292,7 @@ begin
                           (test_flags[`kF_N] & reg_p[`kPF_N]) |
                           (test_flags[`kF_B] & dld_z)));
 `ifdef NOTDEF
-  $display("cond_met: %d  bit: %d no_flag: %d z: %d:%d v: %d:%d c: %d:%d n: %d:%d b: %d:%d x: %d",
+  $display("cond_met: %d  bit: %d no_flag: %d z: %d:%d v: %d:%d c: %d:%d n: %d:%d b: %d:%d x: %d  page_cross: %d",
     cond_met,test_bit,no_flag,
     test_flags[`kF_Z],reg_p[`kPF_Z],
     test_flags[`kF_V],reg_p[`kPF_V],

@@ -62,7 +62,9 @@
                 output test_flag0,
                 output word_z,
                 output write,
-                output map);
+                output map,
+                output [2:0] mc_cond_addr,
+                output [2:0] mc_cond);
 
 `define SYNC          |(1 << `FIELD_SHIFT(`kSYNC_BITS))
 
@@ -224,9 +226,16 @@
 `define WRITE       |(1               << `FIELD_SHIFT(`kWRITE_BITS))
 `define MC_MAP      |(1               << `FIELD_SHIFT(`kMAP_BITS))
 
-`define NEXT_UCODE  |(0               << `FIELD_SHIFT(`kNEXT_ADDR_SEL_BITS))    // Default
-`define NEXT_A0     |(1               << `FIELD_SHIFT(`kNEXT_ADDR_SEL_BITS))    // Basically SYNC
-`define NEXT_A1     |(2               << `FIELD_SHIFT(`kNEXT_ADDR_SEL_BITS))    // "Execution" phase after addressing
+`define NEXT_UCODE  |(`kNEXT_UC               << `FIELD_SHIFT(`kNEXT_ADDR_SEL_BITS))    // Default
+`define NEXT_A0     |(`kNEXT_A0               << `FIELD_SHIFT(`kNEXT_ADDR_SEL_BITS))    // Basically SYNC
+`define NEXT_A1     |(`kNEXT_A1               << `FIELD_SHIFT(`kNEXT_ADDR_SEL_BITS))    // "Execution" phase after addressing
+`define NEXT_CC     |(`kNEXT_CC               << `FIELD_SHIFT(`kNEXT_ADDR_SEL_BITS))    // "Execution" phase after addressing
+
+`define NEXT_COND_BRANCH   |(`kNEXT_COND_BRANCH <<  `FIELD_SHIFT(`kNEXT_COND_BITS))
+`define NEXT_COND_BPC      |(`kNEXT_COND_BPC    <<  `FIELD_SHIFT(`kNEXT_COND_BITS))
+
+`define NEXT_COND_ADDR_BRA1   |(0 << `FIELD_SHIFT(`kNEXT_COND_ADDR_BITS))
+`define NEXT_COND_ADDR_BRA2   |(1 << `FIELD_SHIFT(`kNEXT_COND_ADDR_BITS))
 
 // TODO - Move all the microcode related `defines to a separate file that's not visible to the rest
 // of the code, since it's supposed to be an implementation detail.
@@ -485,7 +494,11 @@ localparam
     kMCA_e_beqw1                      = 8'hF3,
     kMCA_e_inc_mem0                   = 8'hF4,
     kMCA_e_dec_mem0                   = 8'hF5,
-    kMCA_end                          = 8'hF6;
+    
+    kMCA_e_bra1                       = 8'hF8,
+    kMCA_e_bra2                       = 8'hF9,
+    
+    kMCA_end                          = 8'hFA;
             
 reg [`kMICROCODE_BITS] mc_out;
 
@@ -570,18 +583,23 @@ end
 `MICROCODE( kMCA_e_jmpindx2, kMCA_e_jmpindx3, `PC_INC `BSEL_DB `ADL_ALU)
 `MICROCODE( kMCA_e_jmpindx3, kMCA_e_fetch0,   `PC_INC `BSEL_DB `PCH_ALU `PCL_ADL `SYNC)
 
-`MICROCODE( kMCA_e_bpl,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_N `TEST_FLAG0 `SYNC)
-`MICROCODE( kMCA_e_bmi,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_N `SYNC)
-`MICROCODE( kMCA_e_bvc,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_V `TEST_FLAG0 `SYNC)
-`MICROCODE( kMCA_e_bvs,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_V `SYNC)
-`MICROCODE( kMCA_e_bra,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `SYNC)
-`MICROCODE( kMCA_e_bcc,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_C `TEST_FLAG0 `SYNC)
-`MICROCODE( kMCA_e_bcs,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_C `SYNC)
-`MICROCODE( kMCA_e_bne,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_Z `TEST_FLAG0 `SYNC)
-`MICROCODE( kMCA_e_beq,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_Z `SYNC)
+// These could probably be collapsed. The flag to test can be inferred from IR
+`MICROCODE( kMCA_e_bpl,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_N `TEST_FLAG0 `SYNC `NEXT_COND_BRANCH `NEXT_COND_ADDR_BRA1)
+`MICROCODE( kMCA_e_bmi,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_N `SYNC `NEXT_COND_BRANCH `NEXT_COND_ADDR_BRA1)
+`MICROCODE( kMCA_e_bvc,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_V `TEST_FLAG0 `SYNC `NEXT_COND_BRANCH `NEXT_COND_ADDR_BRA1)
+`MICROCODE( kMCA_e_bvs,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_V `SYNC `NEXT_COND_BRANCH `NEXT_COND_ADDR_BRA1)
+`MICROCODE( kMCA_e_bra,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `SYNC `NEXT_COND_BRANCH `NEXT_COND_ADDR_BRA1)
+`MICROCODE( kMCA_e_bcc,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_C `TEST_FLAG0 `SYNC `NEXT_COND_BRANCH `NEXT_COND_ADDR_BRA1)
+`MICROCODE( kMCA_e_bcs,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_C `SYNC `NEXT_COND_BRANCH `NEXT_COND_ADDR_BRA1)
+`MICROCODE( kMCA_e_bne,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_Z `TEST_FLAG0 `SYNC `NEXT_COND_BRANCH `NEXT_COND_ADDR_BRA1)
+`MICROCODE( kMCA_e_beq,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_Z `SYNC `NEXT_COND_BRANCH `NEXT_COND_ADDR_BRA1)
+
+`MICROCODE( kMCA_e_bra1, kMCA_e_fetch0, `SYNC `NEXT_COND_BPC `NEXT_COND_ADDR_BRA2)
+`MICROCODE( kMCA_e_bra2, kMCA_e_fetch0, `SYNC)
 
 `MICROCODE( kMCA_e_braw0, 0, `PC_INC `ADL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `NEXT_A1)
 
+// These could probably be collapsed. The flag to test can be inferred from IR
 `MICROCODE( kMCA_e_bplw1, kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `TF_N `TEST_FLAG0 `SYNC)
 `MICROCODE( kMCA_e_bmiw1, kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `TF_N `SYNC)
 `MICROCODE( kMCA_e_bvcw1, kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `TF_V `TEST_FLAG0 `SYNC)
@@ -1194,6 +1212,8 @@ assign write      = mc_out[`kWRITE_BITS];
 assign test_flags = mc_out[`kTEST_FLAGS_BITS];
 assign test_flag0 = mc_out[`kTEST_FLAG0_BITS];
 assign map        = mc_out[`kMAP_BITS];
+assign mc_cond      = mc_out[`kNEXT_COND_BITS];
+assign mc_cond_addr = mc_out[`kNEXT_COND_ADDR_BITS];
 
 always @(posedge clk)
 begin

@@ -321,6 +321,11 @@
 `define kTF_V       (1 << `kF_V)
 `define kTF_B       (1 << `kF_B)
 
+`define kNEXT_UC      0
+`define kNEXT_A0      1
+`define kNEXT_A1      2
+`define kNEXT_CC      3
+
 // Microcode test masks
 `define kTEST_FLAGS_BITS   47:43
 
@@ -332,10 +337,17 @@
 
 `define kMAP_BITS          53:53
 
-`define kNEXT_ADDR_BITS    62:54          // Currently 9 bits of microcode address?
+`define kNEXT_ADDR_BITS    62:54          // Currently 9 bits of microcode address
 
 `define kNEXT_ADDR_SEL_BITS 64:63
 
-`define kMICROCODE_BITS    64:0
+`define kNEXT_COND_ADDR_BITS 67:65          // 3-bit special destination address (F8 - FF)
+
+`define kNEXT_COND_BRANCH   1               // 8-bit branch condition met
+`define kNEXT_COND_BPC      2               // 8-bit branch page crossing
+
+`define kNEXT_COND_BITS     70:68
+
+`define kMICROCODE_BITS    70:0
 
 `endif //_65ce02_inc_vh_

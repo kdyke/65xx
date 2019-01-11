@@ -32,6 +32,7 @@
 `endif
 
 (* keep_hierarchy = "yes" *)  module cpu4510(input clk, `MARK_DEBUG input reset, `MARK_DEBUG input nmi, `MARK_DEBUG input irq, `MARK_DEBUG input hyp, `MARK_DEBUG input ready, 
+                                `MARK_DEBUG input slow,
                                 `MARK_DEBUG output wire write_out, `MARK_DEBUG output wire write_next, 
                                 `MARK_DEBUG output wire sync, `MARK_DEBUG output wire [19:0] address, `MARK_DEBUG output wire [19:0] address_next, 
                                 `MARK_DEBUG output wire map_next, `MARK_DEBUG output wire map_out,
@@ -86,7 +87,7 @@ mapper4510 mapper(.clk(clk), .reset(reset), .data_i(data_i), .data_o(data_o_next
                   .monitor_map_enables_low(monitor_map_enables_low),
                   .monitor_map_enables_high(monitor_map_enables_high));
                   
-cpu65CE02 cpu_core(.clk(clk), .reset(reset), .nmi(cpu_nmi), .irq(cpu_irq), .hyp(hyp), .ready(ready), .sync(sync),
+cpu65CE02 cpu_core(.clk(clk), .reset(reset), .nmi(cpu_nmi), .irq(cpu_irq), .hyp(hyp), .ready(ready), .sync(sync), .slow(slow),
                   .write(write_out), .write_next(write_next), .address(core_address), .address_next(core_address_next),
                   .data_i(data_i), .data_o(data_o), .data_o_next(data_o_next), .hyper_mode(hyper_mode), 
                   .t(t), .map(map_insn),

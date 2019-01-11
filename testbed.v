@@ -62,7 +62,7 @@ reg bus_ready;
 	memory memory_inst(.clk(clk), .we(memory_write), .addr(cpu_address_next[15:0]), .di(memory_in), .do(memory_out));
 
   cpu4510 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .hyp(hyp), .ready(ready), .write_next(cpu_write_next), .write_out(cpu_write),
-            .map_next(map_next), .mapper_busy(mapper_busy),
+            .map_next(map_next), .mapper_busy(mapper_busy), .slow(1'b1),
             .address(cpu_address), .address_next(cpu_address_next), .sync(sync), .data_i(cpu_data_in), .data_o_next(cpu_data_out), .data_o(cpu_data_out_reg),
             .map_reg_data(map_reg_data), .hypervisor_load_user_reg(hypervisor_load_user_reg), .hyper_mode(hyper_mode),
             .monitor_state(monitor_state), .monitor_a(a_out), .monitor_x(x_out), .monitor_y(y_out), .monitor_z(z_out),

@@ -32,8 +32,8 @@
 `endif
 
 //`SCHEM_KEEP_HIER 
-(* keep_hierarchy = "yes" *) module cpu65CE02(input clk, input reset, input nmi, input irq, input hyp, input ready, 
-                  output reg write, output wire write_next, output wire sync, 
+(* keep_hierarchy = "yes" *) module cpu65CE02(input clk, input reset, input nmi, input irq, input hyp, input ready, input slow,
+                  output reg write, output wire write_next, output wire sync,
                   output wire [15:0] address, output wire [15:0] address_next, 
                   input [7:0] data_i, output wire [7:0] data_o, output wire [7:0] data_o_next, 
                   output wire hyper_mode, output wire map, `MARK_DEBUG output wire [2:0] t,
@@ -62,7 +62,7 @@ wire [7:0] cpu_state;
 wire [7:0] data_i_mux;
 
 // microcode output signals
-wire mc_sync; 
+wire mc_sync, mc_sync_override; 
 wire [2:0] alua_sel;
 wire [2:0] alub_sel;
 wire [1:0] aluc_sel;
@@ -88,6 +88,9 @@ wire [3:0] load_flags;
 wire [4:0] test_flags;
 wire test_flag0;
 wire word_z;
+wire [2:0] mc_cond;
+wire [2:0] mc_cond_addr;
+wire mc_cond_met;
 
 // Clocked internal registers
 wire [15:0] ab;
@@ -154,6 +157,8 @@ wire [1:0] next_mca_sel;
 wire [7:0] vector_hi;
 wire [7:0] vector_lo;
 
+reg branch_page_cross;
+
 // monitor outputs
 assign monitor_a = reg_a; 
 assign monitor_x = reg_x; 
@@ -182,7 +187,8 @@ assign t = mca[1:0];
                   .ab_inc(ab_inc), .abh_sel(abh_sel), .abl_sel(abl_sel),
                   .adh_sel(adh_sel), .adl_sel(adl_sel),
                   .load_reg(load_reg), .load_flags(load_flags), .test_flags(test_flags), .test_flag0(test_flag0),
-                  .word_z(word_z),.write(write_cycle), .map(map));
+                  .word_z(word_z),.write(write_cycle), .map(map),
+                  .mc_cond(mc_cond), .mc_cond_addr(mc_cond_addr));
 
   //always @(mc_sync)
   //begin
@@ -192,11 +198,15 @@ assign t = mca[1:0];
   `reg_decode     reg_decode(load_reg, load_reg_decode);
   `flags_decode flags_decode(load_flags, load_flags_decode);
 
+  mc_cond_control mc_cond_control(.slow(slow), .branch_cond_met(cond_met), .branch_page_cross(branch_page_cross), .mc_cond(mc_cond), .mc_cond_met(mc_cond_met));
+  
   `cond_control cond_control(reg_p, dld_z, test_flags, test_flag0, cond_met);
   
   `ir_next_mux ir_next_mux(sync, intg|hyperg, data_i_mux, ir, ir_next);
 
   assign write_next = ready ? (write_cycle & ~resp) : write;  
+  assign mc_sync_override = mc_sync & ~mc_cond_met;
+  
   always @(posedge clk)
   begin
     write <= write_next;
@@ -208,14 +218,15 @@ assign t = mca[1:0];
     
   `predecode predecode(data_i_mux, sync & ~intg, onecycle);
 
-  `interrupt_control interrupt_control(clk, ready, reset, irq, nmi, mc_sync, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp,
+  `interrupt_control interrupt_control(clk, ready, reset, irq, nmi, mc_sync_override, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp,
                                       hyp, hyperg, hyper_mode, hyper_rti, pc_hold, vector_hi, vector_lo);
 
   // Timing control state machine
   `timing_ctrl timing(.clk(clk), .reset(reset), .ready(ready), 
                   .mca(mca), .next_mca(next_mca), .next_mca_ucode(next_mca_ucode),
                   .next_mca_a0(next_mca_a0), .next_mca_a1(next_mca_a1),
-                  .next_mca_sel(next_mca_sel), .mc_sync(mc_sync), .sync(sync), .onecycle(onecycle));
+                  .next_mca_sel(next_mca_sel), .mc_sync(mc_sync_override), .sync(sync), .onecycle(onecycle), 
+                  .mc_cond_met(mc_cond_met), .mc_cond_addr(mc_cond_addr));
 
   `clocked_reset_reg8 ir_reg(clk, reset, sync & ready, ir_next, ir);
 
@@ -228,8 +239,15 @@ assign t = mca[1:0];
   `alu_unit alu_inst(alua_bus, alub_bus, alu_out, aluc_bus, dec_add, dec_sub, alu_sel, alu_carry_out, alu_overflow_out);
 
   // A couple of dedicated adders for effective address calculations.
-  `ea_adder pcl_adder(areg[1] == 1 /* areg ==`kAREG_PCL */ ? pc[7:0] : 8'h00, data_i_mux, aluc_sel[0], pcl_alu_out, pcl_alu_carry);  
+  `ea_adder pcl_adder(areg[1] == 1 /* areg ==`kAREG_PCL */ ? pc[7:0] : 8'h00, data_i_mux, aluc_sel[0], pcl_alu_out, pcl_alu_carry);
   `ea_adder ea_adder(alua_bus,alub_bus,aluc_bus,alu_ea,alu_ea_c);
+  
+  always @(posedge clk)
+  begin
+    branch_page_cross = pcl_alu_carry ^ data_i_mux[7];
+    //if(cond_met && pch_sel == `kPCH_ADJ)
+    //  $display("pc: %04x pc_next: %04x off: %02x carry: %d cross: %d cond: %d pch: %d",pc,pc_next,data_i_mux,pcl_alu_carry,branch_page_cross,cond_met,pch_sel);
+  end
   
   `ab_reg reg_ab(clk, ready, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, vector_hi, ab_next, ab);
   `ad_reg reg_ad(clk, ready, adh_sel, adl_sel, alu_ea, ad_next, ad);
