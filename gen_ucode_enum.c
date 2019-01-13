@@ -31,15 +31,31 @@ _op(kMCA_e_tba0                 )\
 _op(kMCA_e_jmp0                 )\
 _op(kMCA_e_jmpind0              )\
 _op(kMCA_e_jmpindx0             )\
-_op(kMCA_e_bpl                  )\
-_op(kMCA_e_bmi                  )\
-_op(kMCA_e_bvc                  )\
-_op(kMCA_e_bvs                  )\
 _op(kMCA_e_bra                  )\
-_op(kMCA_e_bcc                  )\
-_op(kMCA_e_bcs                  )\
-_op(kMCA_e_bne                  )\
-_op(kMCA_e_beq                  )\
+_op(kMCA_e_bpl0                 )\
+_op(kMCA_e_bpl1                 )\
+_op(kMCA_e_bpl2                 )\
+_op(kMCA_e_bmi0                 )\
+_op(kMCA_e_bmi1                 )\
+_op(kMCA_e_bmi2                 )\
+_op(kMCA_e_bvc0                 )\
+_op(kMCA_e_bvc1                 )\
+_op(kMCA_e_bvc2                 )\
+_op(kMCA_e_bvs0                 )\
+_op(kMCA_e_bvs1                 )\
+_op(kMCA_e_bvs2                 )\
+_op(kMCA_e_bcc0                 )\
+_op(kMCA_e_bcc1                 )\
+_op(kMCA_e_bcc2                 )\
+_op(kMCA_e_bcs0                 )\
+_op(kMCA_e_bcs1                 )\
+_op(kMCA_e_bcs2                 )\
+_op(kMCA_e_bne0                 )\
+_op(kMCA_e_bne1                 )\
+_op(kMCA_e_bne2                 )\
+_op(kMCA_e_beq0                 )\
+_op(kMCA_e_beq1                 )\
+_op(kMCA_e_beq2                 )\
 _op(kMCA_e_braw0                )\
 _op(kMCA_e_deca                 )\
 _op(kMCA_e_decx                 )\
@@ -74,7 +90,10 @@ _op(kMCA_e_push_x               )\
 _op(kMCA_e_push_y               )\
 _op(kMCA_e_push_z               )\
 _op(kMCA_e_pull0                )\
+_op(kMCA_n_pull0                )\
+_op(kMCA_n_pull1                )\
 _op(kMCA_e_jsr0                 )\
+_op(kMCA_n_jsr0                 )\
 _op(kMCA_e_bsr0                 )\
 _op(kMCA_e_rts0                 )\
 _op(kMCA_e_rti0                 )\
@@ -91,16 +110,31 @@ _op(kMCA_e_neg                  )\
 _op(kMCA_e_addr_r_abs0          )\
 _op(kMCA_e_addr_r_absx0         )\
 _op(kMCA_e_addr_r_absy0         )\
+_op(kMCA_n_addr_r_absx0         )\
+_op(kMCA_n_addr_r_absy0         )\
+_op(kMCA_n_addr_m_absx0         )\
+_op(kMCA_n_addr_m_absy0         )\
 _op(kMCA_e_addr_r_zp0           )\
 _op(kMCA_e_addr_r_zpx0          )\
 _op(kMCA_e_addr_r_zpy0          )\
 _op(kMCA_e_addr_r_zpxind0       )\
 _op(kMCA_e_addr_r_zpindy0       )\
 _op(kMCA_e_addr_r_zpindz0       )\
+_op(kMCA_n_addr_r_zpindy0       )\
+_op(kMCA_n_addr_r_zpx0          )\
+_op(kMCA_n_addr_r_zpx1          )\
+_op(kMCA_n_addr_r_zpy0          )\
+_op(kMCA_n_addr_r_zpy1          )\
+_op(kMCA_n_addr_m_zp0           )\
+_op(kMCA_n_addr_m_abs0          )\
+_op(kMCA_n_addr_m_abs1          )\
+_op(kMCA_n_addr_r_zpxind0       )\
 _op(kMCA_e_addr_spind0          )\
 _op(kMCA_e_addr_w_abs0          )\
 _op(kMCA_e_addr_w_absx0         )\
 _op(kMCA_e_addr_w_absy0         )\
+_op(kMCA_n_addr_w_absx0         )\
+_op(kMCA_n_addr_w_absy0         )\
 _op(kMCA_e_addr_w_zp0_a         )\
 _op(kMCA_e_addr_w_zp0_x         )\
 _op(kMCA_e_addr_w_zp0_y         )\
@@ -109,9 +143,18 @@ _op(kMCA_e_addr_w_zpx0_a        )\
 _op(kMCA_e_addr_w_zpx0_y        )\
 _op(kMCA_e_addr_w_zpx0_z        )\
 _op(kMCA_e_addr_w_zpy0_x        )\
+_op(kMCA_n_addr_w_zpx0          )\
+_op(kMCA_n_addr_w_zpx1_a        )\
+_op(kMCA_n_addr_w_zpx1_y        )\
+_op(kMCA_n_addr_w_zpy0          )\
+_op(kMCA_n_addr_w_zpy1_x        )\
 _op(kMCA_e_addr_w_zpxind0       )\
 _op(kMCA_e_addr_w_zpindy0       )\
 _op(kMCA_e_addr_w_zpindz0       )\
+_op(kMCA_n_addr_m_zpx0          )\
+_op(kMCA_n_addr_m_zpx1          )\
+_op(kMCA_n_addr_w_zpxind0       )\
+_op(kMCA_n_addr_w_zpindy0       )\
 \
 _op(kMCA_e_jmp1                 )\
 _op(kMCA_e_jmpind1              )\
@@ -123,6 +166,7 @@ _op(kMCA_e_jmpindx3             )\
 _op(kMCA_e_bitm1                )\
 _op(kMCA_e_mem_fetch            )\
 _op(kMCA_e_push1                )\
+_op(kMCA_n_jsr1                 )\
 _op(kMCA_e_jsr1                 )\
 _op(kMCA_e_jsr2                 )\
 _op(kMCA_e_jsr3                 )\
@@ -180,6 +224,14 @@ _op(kMCA_e_tsb1                 )\
 _op(kMCA_e_addr_r_abs1          )\
 _op(kMCA_e_addr_r_absx1         )\
 _op(kMCA_e_addr_r_absy1         )\
+_op(kMCA_n_addr_r_absx1         )\
+_op(kMCA_n_addr_r_absx2         )\
+_op(kMCA_n_addr_m_absx1         )\
+_op(kMCA_n_addr_m_absx2         )\
+_op(kMCA_n_addr_r_absy1         )\
+_op(kMCA_n_addr_r_absy2         )\
+_op(kMCA_n_addr_m_absy1         )\
+_op(kMCA_n_addr_m_absy2         )\
 _op(kMCA_e_addr_r_zpxind1       )\
 _op(kMCA_e_addr_r_zpxind2       )\
 _op(kMCA_e_addr_w_zpxind1       )\
@@ -194,6 +246,18 @@ _op(kMCA_e_addr_w_zpindz1       )\
 _op(kMCA_e_addr_w_zpindz2       )\
 _op(kMCA_e_addr_spind1          )\
 _op(kMCA_e_addr_spind2          )\
+_op(kMCA_n_addr_r_zpxind1       )\
+_op(kMCA_n_addr_r_zpxind2       )\
+_op(kMCA_n_addr_r_zpxind3       )\
+_op(kMCA_n_addr_w_zpxind1       )\
+_op(kMCA_n_addr_w_zpxind2       )\
+_op(kMCA_n_addr_w_zpxind3       )\
+_op(kMCA_n_addr_r_zpindy1       )\
+_op(kMCA_n_addr_r_zpindy2       )\
+_op(kMCA_n_addr_r_zpindy3       )\
+_op(kMCA_n_addr_w_zpindy1       )\
+_op(kMCA_n_addr_w_zpindy2       )\
+_op(kMCA_n_addr_w_zpindy3       )\
 _op(kMCA_e_brk1                 )\
 _op(kMCA_e_brk2                 )\
 _op(kMCA_e_brk3                 )\
@@ -210,6 +274,13 @@ _op(kMCA_e_addr_w_absx1_y       )\
 _op(kMCA_e_addr_w_absx1_z       )\
 _op(kMCA_e_addr_w_absy1_a       )\
 _op(kMCA_e_addr_w_absy1_x       )\
+_op(kMCA_n_addr_w_absx1         )\
+_op(kMCA_n_addr_w_absy1         )\
+_op(kMCA_n_addr_w_absx2_a       )\
+_op(kMCA_n_addr_w_absx2_y       )\
+_op(kMCA_n_addr_w_absx2_z       )\
+_op(kMCA_n_addr_w_absy2_a       )\
+_op(kMCA_n_addr_w_absy2_x       )\
 _op(kMCA_e_addr_w_spind3        )\
 _op(kMCA_e_cmpa                 )\
 _op(kMCA_e_cmpx                 )\
@@ -230,6 +301,7 @@ _op(kMCA_e_rol_mem0             )\
 _op(kMCA_e_lsr_mem0             )\
 _op(kMCA_e_ror_mem0             )\
 _op(kMCA_e_asr_mem0             )\
+_op(kMCA_n_rmw_mem0             )\
 _op(kMCA_e_pull_p               )\
 _op(kMCA_e_pull_a               )\
 _op(kMCA_e_pull_x               )\
@@ -266,8 +338,8 @@ int main(int ac, char **av)
 	printf("localparam\n");
 	for(i = 0; i < c-1; i++)
 	{
-		printf("    %-30s    = 8'h%02X,\n",ucode_addr_names[i],(int)i);
+		printf("    %-30s    = 9'h%02X,\n",ucode_addr_names[i],(int)i);
 	}
-	printf("    %-30s    = 8'h%02X;\n",ucode_addr_names[i],(int)i);
+	printf("    %-30s    = 9'h%02X;\n",ucode_addr_names[i],(int)i);
 	exit(0);
 }

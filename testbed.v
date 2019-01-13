@@ -146,7 +146,8 @@ reg bus_ready;
   
   // Start driving memory and CPU clocks.
   always begin
-`ifdef NOTDEF
+//`define LOGADDR
+`ifdef LOGADDR
     $monitor($time,,"%m. clk = %b rst: %d cnt: %d rdy: %d sync: %d t: %x addr: %x addrn: %x hm: %d mapn: %d mem: %02x do: %02x wn: %d w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x P: %02x SP: %04x",
       clk,reset,clock_count[31:0],ready,sync,monitor_state,cpu_address,cpu_address_next,hyper_mode,map_next,cpu_data_in,cpu_data_out_reg,cpu_write_next,cpu_write,cpu_clock_enable,irq,nmi,reset,
         a_out,x_out,y_out,z_out,cpu_state,sp_out);

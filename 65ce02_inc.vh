@@ -341,13 +341,12 @@
 
 `define kNEXT_ADDR_SEL_BITS 64:63
 
-`define kNEXT_COND_ADDR_BITS 67:65          // 3-bit special destination address (F8 - FF)
+`define kNEXT_COND_BITS     67:65
 
-`define kNEXT_COND_BRANCH   1               // 8-bit branch condition met
-`define kNEXT_COND_BPC      2               // 8-bit branch page crossing
+`define kNEXT_COND_BRANCH   1               // 8-bit branch condition met, go to ucode+1
+`define kNEXT_COND_BPC      2               // 8-bit branch page crossing, go to ucode+1
+`define kNEXT_COND_LC       3               // If slow & last ALU carry out, go to ucode+1
 
-`define kNEXT_COND_BITS     70:68
-
-`define kMICROCODE_BITS    70:0
+`define kMICROCODE_BITS    67:0
 
 `endif //_65ce02_inc_vh_

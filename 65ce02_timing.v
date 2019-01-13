@@ -22,6 +22,13 @@
 
 `include "65ce02_inc.vh"
 
+`define CPU65CE02_TIMING_DEBUG
+`ifdef CPU65CE02_TIMING_DEBUG
+`define MARK_DEBUG (* mark_debug = "true", dont_touch = "true" *)
+`else
+`define MARK_DEBUG
+`endif
+
 // This may be also defined to "fix" the original 6502 BRK/NMI bug without enabling the full CMOS stuff
 `ifdef CMOS
 `define NMI_BUG_FIX 1
@@ -37,13 +44,13 @@
 `define RESET_VECHI 8'hff
 `endif
 
-(* keep_hierarchy = "yes" *) module `timing_ctrl(input clk, input reset, input ready, 
-      output reg [8:0] mca, output reg [8:0] next_mca, input [8:0] next_mca_ucode, 
-      input [8:0] next_mca_a0, input [8:0] next_mca_a1, input [1:0] next_mca_sel,
-      input mc_sync, output reg sync, input onecycle,
-      input mc_cond_met, input [2:0] mc_cond_addr);
+(* keep_hierarchy = "yes" *) module `timing_ctrl(input clk, input reset, `MARK_DEBUG input ready, 
+      `MARK_DEBUG output reg [8:0] mca, `MARK_DEBUG output reg [8:0] next_mca, `MARK_DEBUG input [8:0] next_mca_ucode, 
+      `MARK_DEBUG input [8:0] next_mca_a0, `MARK_DEBUG input [8:0] next_mca_a1, `MARK_DEBUG input [1:0] next_mca_sel,
+      `MARK_DEBUG input mc_sync, `MARK_DEBUG output reg sync, `MARK_DEBUG input onecycle,
+      `MARK_DEBUG input mc_cond_met);
 
-reg sync_next;
+`MARK_DEBUG reg sync_next;
 
 always @(posedge clk)
 begin
@@ -53,7 +60,7 @@ begin
   end else if(ready) begin
     mca <= next_mca;      // This is primarily just for debugging/logging/monitor/etc.
     sync <= sync_next;
-    //$display("mca: %03x next_mca: %03x: sync: %d mc_cond_met: %d",mca,next_mca,sync,mc_cond_met);
+  //$display("mca: %03x next_mca: %03x: sync: %d mc_cond_met: %d",mca,next_mca,sync,mc_cond_met);
   //$display("r: %d rdy: %d mca: %03x mca_next: %03x mc_sync: %d onecycle: %d mca_sel: %d uc: %03x a0: %03x a1: %03x",reset, ready, mca, next_mca, mc_sync,onecycle,next_mca_sel,
   //  next_mca_ucode,next_mca_a0,next_mca_a1);
   end
@@ -77,10 +84,9 @@ begin
     if(sync)
       next_mca = next_mca_a0;
     else if(mc_cond_met)
-      next_mca = {5'b11111,mc_cond_addr};
-    else if(next_mca_sel == `kNEXT_A1) begin // FIXME, ugh, need a real `define for this
+      next_mca = mca+1;
+    else if(next_mca_sel == `kNEXT_A1)
       next_mca = next_mca_a1;
-    end
   end
   if(reset) begin
     next_mca = 9'h00;
@@ -252,22 +258,22 @@ end
 
 endmodule
 
-(* keep_hierarchy = "yes" *) module mc_cond_control(input slow, input branch_cond_met, input branch_page_cross, 
+(* keep_hierarchy = "yes" *) module mc_cond_control(input slow, input branch_cond_met, input branch_page_cross, input alu_carry_out, input alu_last_carry,
     input [2:0] mc_cond, output reg mc_cond_met);
 
 always @(*)
 begin
+  mc_cond_met = 0;
   if(slow)
   begin
-    //$display("mc_cond: %d %d %d",mc_cond,branch_cond_met,branch_page_cross);
+    //$display("mc_cond: %d bc: %d bp: %d co: %d lc: %d",mc_cond,branch_cond_met,branch_page_cross,alu_carry_out,alu_last_carry);
     case(mc_cond)
       `kNEXT_COND_BRANCH: mc_cond_met = branch_cond_met;
       `kNEXT_COND_BPC:    mc_cond_met = branch_page_cross;
-      default:            mc_cond_met = 0;
+      `kNEXT_COND_LC:     mc_cond_met = alu_last_carry;
+      default:            ;
     endcase
   end
-  else
-    mc_cond_met = 0;
 end
 
 endmodule
