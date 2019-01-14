@@ -16,10 +16,10 @@
   `A0_A1_ADDR_6502(8'h0E, kMCA_n_addr_m_abs0        , kMCA_e_asl_mem0       ) // 0E ASL abs
   `A0_A1_ADDR_6502(8'h0F, kMCA_e_bbr0               , 8'hFF                 ) // 0F BBR0 zp
                                                                       
-  `A0_A1_ADDR_6502(8'h10, kMCA_e_bpl0               , 8'hFF                 ) // 10 BPL rel
+  `A0_A1_ADDR_6502(8'h10, kMCA_e_bc0                , 8'hFF                 ) // 10 BPL rel
   `A0_A1_ADDR_6502(8'h11, kMCA_n_addr_r_zpindy0     , kMCA_e_ora            ) // 11 ORA (zp),y
   `A0_A1_ADDR_6502(8'h12, kMCA_e_addr_r_zpindz0     , kMCA_e_ora            ) // 12 ORA (zp),z
-  `A0_A1_ADDR_6502(8'h13, kMCA_e_braw0              , kMCA_e_bplw1          ) // 13 BPL wrel
+  `A0_A1_ADDR_6502(8'h13, kMCA_e_braw0              , kMCA_e_bcw1           ) // 13 BPL wrel
   `A0_A1_ADDR_6502(8'h14, kMCA_e_addr_r_zp0         , kMCA_e_trb0           ) // 14 TRB zp
   `A0_A1_ADDR_6502(8'h15, kMCA_n_addr_r_zpx0        , kMCA_e_ora            ) // 15 ORA zp,x
   `A0_A1_ADDR_6502(8'h16, kMCA_n_addr_m_zpx0        , kMCA_e_asl_mem0       ) // 16 ASL zp,x
@@ -50,10 +50,10 @@
   `A0_A1_ADDR_6502(8'h2E, kMCA_n_addr_m_abs0        , kMCA_e_rol_mem0       ) // 2E ROL abs
   `A0_A1_ADDR_6502(8'h2F, kMCA_e_bbr0               , 8'hFF                 ) // 2F BBR2 zp
                                                                       
-  `A0_A1_ADDR_6502(8'h30, kMCA_e_bmi0               , 8'hFF                 ) // 30 BMI rel
+  `A0_A1_ADDR_6502(8'h30, kMCA_e_bc0                , 8'hFF                 ) // 30 BMI rel
   `A0_A1_ADDR_6502(8'h31, kMCA_n_addr_r_zpindy0     , kMCA_e_and            ) // 31 AND (zp),y
   `A0_A1_ADDR_6502(8'h32, kMCA_e_addr_r_zpindz0     , kMCA_e_and            ) // 32 AND (zp),z
-  `A0_A1_ADDR_6502(8'h33, kMCA_e_braw0              , kMCA_e_bmiw1          ) // 33 BMI wrel
+  `A0_A1_ADDR_6502(8'h33, kMCA_e_braw0              , kMCA_e_bcw1           ) // 33 BMI wrel
   `A0_A1_ADDR_6502(8'h34, kMCA_n_addr_r_zpx0        , kMCA_e_bitm0          ) // 34 BIT zp,x
   `A0_A1_ADDR_6502(8'h35, kMCA_n_addr_r_zpx0        , kMCA_e_and            ) // 35 AND zp,x
   `A0_A1_ADDR_6502(8'h36, kMCA_n_addr_m_zpx0        , kMCA_e_rol_mem0       ) // 36 ROL zp,x
@@ -84,10 +84,10 @@
   `A0_A1_ADDR_6502(8'h4E, kMCA_n_addr_m_abs0        , kMCA_e_lsr_mem0       ) // 4E LSR abs
   `A0_A1_ADDR_6502(8'h4F, kMCA_e_bbr0               , 8'hFF                 ) // 4F BBR4 zp
                                                                       
-  `A0_A1_ADDR_6502(8'h50, kMCA_e_bvc0               , 8'hFF                 ) // 50 BVC rel
+  `A0_A1_ADDR_6502(8'h50, kMCA_e_bc0                , 8'hFF                 ) // 50 BVC rel
   `A0_A1_ADDR_6502(8'h51, kMCA_n_addr_r_zpindy0     , kMCA_e_eor            ) // 51 EOR (zp),y
   `A0_A1_ADDR_6502(8'h52, kMCA_e_addr_r_zpindz0     , kMCA_e_eor            ) // 52 EOR (zp),z
-  `A0_A1_ADDR_6502(8'h53, kMCA_e_braw0              , kMCA_e_bvcw1          ) // 53 BVC wrel
+  `A0_A1_ADDR_6502(8'h53, kMCA_e_braw0              , kMCA_e_bcw1           ) // 53 BVC wrel
   `A0_A1_ADDR_6502(8'h54, kMCA_e_addr_r_zpx0        , kMCA_e_asr_mem0       ) // 54 ASR zp,x
   `A0_A1_ADDR_6502(8'h55, kMCA_n_addr_r_zpx0        , kMCA_e_eor            ) // 55 EOR zp,x
   `A0_A1_ADDR_6502(8'h56, kMCA_n_addr_m_zpx0        , kMCA_e_lsr_mem0       ) // 56 LSR zp,x
@@ -109,7 +109,7 @@
   `A0_A1_ADDR_6502(8'h65, kMCA_e_addr_r_zp0         , kMCA_e_adc            ) // 65 ADC zp
   `A0_A1_ADDR_6502(8'h66, kMCA_n_addr_m_zp0         , kMCA_e_ror_mem0       ) // 66 ROR zp
   `A0_A1_ADDR_6502(8'h67, kMCA_e_addr_r_zp0         , kMCA_e_rmb0           ) // 67 RMB6 zp
-  `A0_A1_ADDR_6502(8'h68, kMCA_n_pull0              , kMCA_e_pull_a         ) // 68 PLA
+  `A0_A1_ADDR_6502(8'h68, kMCA_n_pull0              , kMCA_e_lda            ) // 68 PLA
   `A0_A1_ADDR_6502(8'h69, kMCA_e_adci               , 8'hFF                 ) // 69 ADC #
   `A0_A1_ADDR_6502(8'h6A, kMCA_e_ror_a              , 8'hFF                 ) // 6A ROR
   `A0_A1_ADDR_6502(8'h6B, kMCA_e_tza0               , 8'hFF                 ) // 6B TZA
@@ -118,17 +118,17 @@
   `A0_A1_ADDR_6502(8'h6E, kMCA_n_addr_m_abs0        , kMCA_e_ror_mem0       ) // 6E ROR abs
   `A0_A1_ADDR_6502(8'h6F, kMCA_e_bbr0               , 8'hFF                 ) // 6F BBR6 zp
                                                                       
-  `A0_A1_ADDR_6502(8'h70, kMCA_e_bvs0               , 8'hFF                 ) // 70 BVS rel
+  `A0_A1_ADDR_6502(8'h70, kMCA_e_bc0                , 8'hFF                 ) // 70 BVS rel
   `A0_A1_ADDR_6502(8'h71, kMCA_n_addr_r_zpindy0     , kMCA_e_adc            ) // 71 ADC (zp),y
   `A0_A1_ADDR_6502(8'h72, kMCA_e_addr_r_zpindz0     , kMCA_e_adc            ) // 72 ADC (zp),z
-  `A0_A1_ADDR_6502(8'h73, kMCA_e_braw0              , kMCA_e_bvsw1          ) // 73 BVS wrel
+  `A0_A1_ADDR_6502(8'h73, kMCA_e_braw0              , kMCA_e_bcw1           ) // 73 BVS wrel
   `A0_A1_ADDR_4510(8'h74, kMCA_e_addr_w_zpx0_z      , 8'hFF                 ) // 74 STZ zp,x
   `A0_A1_ADDR_6502(8'h75, kMCA_n_addr_r_zpx0        , kMCA_e_adc            ) // 75 ADC zp,x
   `A0_A1_ADDR_6502(8'h76, kMCA_n_addr_m_zpx0        , kMCA_e_ror_mem0       ) // 76 ROR zp,x
   `A0_A1_ADDR_6502(8'h77, kMCA_e_addr_r_zp0         , kMCA_e_rmb0           ) // 77 RMB7 zp
   `A0_A1_ADDR_6502(8'h78, kMCA_e_sei0               , 8'hFF                 ) // 78 SEI               // Always 2 cycles
   `A0_A1_ADDR_6502(8'h79, kMCA_n_addr_r_absy0       , kMCA_e_adc            ) // 79 ADC abs,y
-  `A0_A1_ADDR_6502(8'h7A, kMCA_e_pull0              , kMCA_e_pull_y         ) // 7A PLY
+  `A0_A1_ADDR_6502(8'h7A, kMCA_e_pull0              , kMCA_e_ldy            ) // 7A PLY
   `A0_A1_ADDR_6502(8'h7B, kMCA_e_tba0               , 8'hFF                 ) // 7B TBA
   `A0_A1_ADDR_6502(8'h7C, kMCA_e_jmpindx0           , 8'hFF                 ) // 7C JMP (ind,x)
   `A0_A1_ADDR_6502(8'h7D, kMCA_n_addr_r_absx0       , kMCA_e_adc            ) // 7D ADC abs,x
@@ -137,7 +137,7 @@
                                                                       
   `A0_A1_ADDR_6502(8'h80, kMCA_e_bra                , 8'hFF                 ) // 80 BRA rel
   `A0_A1_ADDR_6502(8'h81, kMCA_n_addr_w_zpxind0     , 8'hFF                 ) // 81 STA (zp,x)
-  `A0_A1_ADDR_6502(8'h82, kMCA_e_addr_spind0        , kMCA_e_addr_w_spind3  ) // 82 STA (d,SP),Y
+  `A0_A1_ADDR_6502(8'h82, kMCA_e_addr_spind0        , kMCA_e_addr_w_zpindy2 ) // 82 STA (d,SP),Y
   `A0_A1_ADDR_6502(8'h83, kMCA_e_braw0              , kMCA_e_braw1          ) // 83 BRA wrel
   `A0_A1_ADDR_6502(8'h84, kMCA_e_addr_w_zp0_y       , 8'hFF                 ) // 84 STZ zp
   `A0_A1_ADDR_6502(8'h85, kMCA_e_addr_w_zp0_a       , 8'hFF                 ) // 85 STA zp
@@ -152,16 +152,16 @@
   `A0_A1_ADDR_6502(8'h8E, kMCA_e_addr_w_abs0        , kMCA_e_addr_w_abs1_x  ) // 8E STX abs
   `A0_A1_ADDR_6502(8'h8F, kMCA_e_bbs0               , 8'hFF                 ) // 8F BBS0 zp
   
-  `A0_A1_ADDR_6502(8'h90, kMCA_e_bcc0               , 8'hFF                 ) // 90 BCC rel
+  `A0_A1_ADDR_6502(8'h90, kMCA_e_bc0                , 8'hFF                 ) // 90 BCC rel
   `A0_A1_ADDR_6502(8'h91, kMCA_n_addr_w_zpindy0     , 8'hFF                 ) // 91 STA (zp),y
   `A0_A1_ADDR_6502(8'h92, kMCA_e_addr_w_zpindz0     , 8'hFF                 ) // 92 STA (zp),z
-  `A0_A1_ADDR_6502(8'h93, kMCA_e_braw0              , kMCA_e_bccw1          ) // 93 BCC wrel
-  `A0_A1_ADDR_6502(8'h94, kMCA_n_addr_w_zpx0        , kMCA_n_addr_w_zpx1_y  ) // 94 STY zp,x
-  `A0_A1_ADDR_6502(8'h95, kMCA_n_addr_w_zpx0        , kMCA_n_addr_w_zpx1_a  ) // 95 STA zp,x
-  `A0_A1_ADDR_6502(8'h96, kMCA_n_addr_w_zpy0        , kMCA_n_addr_w_zpy1_x  ) // 96 STX zp,y
+  `A0_A1_ADDR_6502(8'h93, kMCA_e_braw0              , kMCA_e_bcw1           ) // 93 BCC wrel
+  `A0_A1_ADDR_6502(8'h94, kMCA_e_addr_r_zp0         , kMCA_n_addr_w_zpx1_y  ) // 94 STY zp,x
+  `A0_A1_ADDR_6502(8'h95, kMCA_e_addr_r_zp0         , kMCA_n_addr_w_zpx1_a  ) // 95 STA zp,x
+  `A0_A1_ADDR_6502(8'h96, kMCA_e_addr_r_zp0         , kMCA_n_addr_w_zpy1_x  ) // 96 STX zp,y
   `A0_A1_ADDR_6502(8'h97, kMCA_e_addr_r_zp0         , kMCA_e_smb0           ) // 97 SMB1 zp
   `A0_A1_ADDR_6502(8'h98, kMCA_e_tya0               , 8'hFF                 ) // 98 TYA
-  `A0_A1_ADDR_6502(8'h99, kMCA_n_addr_w_absy0       , kMCA_n_addr_w_absy2_a ) // 99 STA abs,y
+  `A0_A1_ADDR_6502(8'h99, kMCA_n_addr_w_absy0       , kMCA_n_addr_w_absx2_a ) // 99 STA abs,y
   `A0_A1_ADDR_6502(8'h9A, kMCA_e_txs0               , 8'hFF                 ) // 9A TXS
   `A0_A1_ADDR_6502(8'h9B, kMCA_n_addr_w_absy0       , kMCA_n_addr_w_absy2_x ) // 9B STX abs,y
   `A0_A1_ADDR_6502(8'h9C, kMCA_e_addr_w_abs0        , kMCA_e_addr_w_abs1_z  ) // 9C STZ abs
@@ -186,10 +186,10 @@
   `A0_A1_ADDR_6502(8'hAE, kMCA_e_addr_r_abs0        , kMCA_e_ldx            ) // AE LDX abs
   `A0_A1_ADDR_6502(8'hAF, kMCA_e_bbs0               , 8'hFF                 ) // AF BBS2 zp
   
-  `A0_A1_ADDR_6502(8'hB0, kMCA_e_bcs0               , 8'hFF                 ) // B0 BCS rel
+  `A0_A1_ADDR_6502(8'hB0, kMCA_e_bc0                , 8'hFF                 ) // B0 BCS rel
   `A0_A1_ADDR_6502(8'hB1, kMCA_n_addr_r_zpindy0     , kMCA_e_lda            ) // B1 LDA (zp),y
   `A0_A1_ADDR_6502(8'hB2, kMCA_e_addr_r_zpindz0     , kMCA_e_lda            ) // B2 LDA (zp),z
-  `A0_A1_ADDR_6502(8'hB3, kMCA_e_braw0              , kMCA_e_bcsw1          ) // B3 BCS wrel
+  `A0_A1_ADDR_6502(8'hB3, kMCA_e_braw0              , kMCA_e_bcw1           ) // B3 BCS wrel
   `A0_A1_ADDR_6502(8'hB4, kMCA_n_addr_r_zpx0        , kMCA_e_ldy            ) // B4 LDY zp,x
   `A0_A1_ADDR_6502(8'hB5, kMCA_n_addr_r_zpx0        , kMCA_e_lda            ) // B5 LDA zp,x
   `A0_A1_ADDR_6502(8'hB6, kMCA_n_addr_r_zpy0        , kMCA_e_ldx            ) // B6 LDX zp,y
@@ -220,10 +220,10 @@
   `A0_A1_ADDR_6502(8'hCE, kMCA_e_addr_r_abs0        , kMCA_e_dec_mem0       ) // CE DEC abs
   `A0_A1_ADDR_6502(8'hCF, kMCA_e_bbs0               , 8'hFF                 ) // CF BBS4 zp
 
-  `A0_A1_ADDR_6502(8'hD0, kMCA_e_bne0               , 8'hFF                 ) // D0 BNE rel
+  `A0_A1_ADDR_6502(8'hD0, kMCA_e_bc0                , 8'hFF                 ) // D0 BNE rel
   `A0_A1_ADDR_6502(8'hD1, kMCA_n_addr_r_zpindy0     , kMCA_e_cmpa           ) // D1 CMP (zp),y
   `A0_A1_ADDR_6502(8'hD2, kMCA_e_addr_r_zpindz0     , kMCA_e_cmpa           ) // D2 CMP (zp),z
-  `A0_A1_ADDR_6502(8'hD3, kMCA_e_braw0              , kMCA_e_bnew1          ) // D3 BNE wrel
+  `A0_A1_ADDR_6502(8'hD3, kMCA_e_braw0              , kMCA_e_bcw1           ) // D3 BNE wrel
   `A0_A1_ADDR_6502(8'hD4, kMCA_e_addr_r_zp0         , kMCA_e_cmpz           ) // D4 CPZ zp
   `A0_A1_ADDR_6502(8'hD5, kMCA_n_addr_r_zpx0        , kMCA_e_cmpa           ) // D5 CMP zp,x
   `A0_A1_ADDR_6502(8'hD6, kMCA_n_addr_m_zpx0        , kMCA_e_dec_mem0       ) // D6 DEC zp,x
@@ -254,18 +254,18 @@
   `A0_A1_ADDR_6502(8'hEE, kMCA_e_addr_r_abs0        , kMCA_e_inc_mem0       ) // EE INC abs
   `A0_A1_ADDR_6502(8'hEF, kMCA_e_bbs0               , 8'hFF                 ) // EF BBS6 zp
 
-  `A0_A1_ADDR_6502(8'hF0, kMCA_e_beq0               , 8'hFF                 ) // F0 BEQ rel
+  `A0_A1_ADDR_6502(8'hF0, kMCA_e_bc0                , 8'hFF                 ) // F0 BEQ rel
   `A0_A1_ADDR_6502(8'hF1, kMCA_n_addr_r_zpindy0     , kMCA_e_sbc            ) // F1 SBC (zp),y
   `A0_A1_ADDR_6502(8'hF2, kMCA_e_addr_r_zpindz0     , kMCA_e_sbc            ) // F2 SBC (zp),z
-  `A0_A1_ADDR_6502(8'hF3, kMCA_e_braw0              , kMCA_e_beqw1          ) // F3 BEQ wrel
+  `A0_A1_ADDR_6502(8'hF3, kMCA_e_braw0              , kMCA_e_bcw1           ) // F3 BEQ wrel
   `A0_A1_ADDR_6502(8'hF4, kMCA_e_phwi0              , 8'hFF                 ) // F4 PHD imm
   `A0_A1_ADDR_6502(8'hF5, kMCA_n_addr_r_zpx0        , kMCA_e_sbc            ) // F5 SBC zp,x
   `A0_A1_ADDR_6502(8'hF6, kMCA_n_addr_m_zpx0        , kMCA_e_inc_mem0       ) // F6 INC zp,x
   `A0_A1_ADDR_6502(8'hF7, kMCA_e_addr_r_zp0         , kMCA_e_smb0           ) // F7 SMB7 zp
   `A0_A1_ADDR_6502(8'hF8, kMCA_e_cldsed0            , 8'hFF                 ) // F8 SED
   `A0_A1_ADDR_6502(8'hF9, kMCA_n_addr_r_absy0       , kMCA_e_sbc            ) // F9 SBC abs,y
-  `A0_A1_ADDR_6502(8'hFA, kMCA_e_pull0              , kMCA_e_pull_x         ) // FA PLX
-  `A0_A1_ADDR_6502(8'hFB, kMCA_e_pull0              , kMCA_e_pull_z         ) // FB PLZ
+  `A0_A1_ADDR_6502(8'hFA, kMCA_e_pull0              , kMCA_e_ldx            ) // FA PLX
+  `A0_A1_ADDR_6502(8'hFB, kMCA_e_pull0              , kMCA_e_ldz            ) // FB PLZ
   `A0_A1_ADDR_6502(8'hFC, kMCA_e_phw0               , 8'hFF                 ) // FC PHD abs
   `A0_A1_ADDR_6502(8'hFD, kMCA_n_addr_r_absx0       , kMCA_e_sbc            ) // FD SBC abs,x
   `A0_A1_ADDR_6502(8'hFE, kMCA_n_addr_m_absx0       , kMCA_e_inc_mem0       ) // FE INC abs,x

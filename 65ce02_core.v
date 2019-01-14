@@ -85,7 +85,7 @@ wire adh_sel;
 wire adl_sel;
 wire [2:0] load_reg;
 wire [3:0] load_flags;
-wire [4:0] test_flags;
+wire [1:0] test_flags;
 wire test_flag0;
 wire word_z;
 wire [2:0] mc_cond;
@@ -201,7 +201,7 @@ assign t = mca[1:0];
   mc_cond_control mc_cond_control(.slow(slow), .branch_cond_met(cond_met), .branch_page_cross(branch_page_cross), 
                                   .alu_carry_out(alu_carry_out), .alu_last_carry(alu_carry_out_last), .mc_cond(mc_cond), .mc_cond_met(mc_cond_met));
   
-  `cond_control cond_control(reg_p, dld_z, test_flags, test_flag0, cond_met);
+  `cond_control cond_control(reg_p, dld_z, ir[7:5], test_flags, test_flag0, cond_met);
   
   `ir_next_mux ir_next_mux(sync, intg|hyperg, data_i_mux, ir, ir_next);
 

@@ -59,7 +59,7 @@
                 output adl_sel,
                 output [2:0] load_reg, 
                 output [3:0] load_flags,
-                output [4:0] test_flags,
+                output [1:0] test_flags,
                 output test_flag0,
                 output word_z,
                 output write,
@@ -215,10 +215,7 @@
 `define LOAD_Z        |(`kLOAD_Z      << `FIELD_SHIFT(`kLOAD_REG_BITS))
 `define LOAD_B        |(`kLOAD_B      << `FIELD_SHIFT(`kLOAD_REG_BITS))
 
-`define TF_C        |(`kTF_C          << `FIELD_SHIFT(`kTEST_FLAGS_BITS))
-`define TF_Z        |(`kTF_Z          << `FIELD_SHIFT(`kTEST_FLAGS_BITS))
-`define TF_N        |(`kTF_N          << `FIELD_SHIFT(`kTEST_FLAGS_BITS))
-`define TF_V        |(`kTF_V          << `FIELD_SHIFT(`kTEST_FLAGS_BITS))
+`define TF_IR       |(`kTF_IR         << `FIELD_SHIFT(`kTEST_FLAGS_BITS))
 `define TF_B        |(`kTF_B          << `FIELD_SHIFT(`kTEST_FLAGS_BITS))
 
 `define TEST_FLAG0  |(1               << `FIELD_SHIFT(`kTEST_FLAG0_BITS))
@@ -292,8 +289,11 @@ end
 `MICROCODE( kMCA_e_brk1, kMCA_e_brk2, `AB_SPn          `SP_DEC `AREG_PCL `ASEL_AREG `WRITE   )
 `MICROCODE( kMCA_e_brk2, kMCA_e_brk3, `AB_SPn          `SP_DEC `BSEL_P              `WRITE   )
 `MICROCODE( kMCA_e_brk3, kMCA_e_brk4, `AB_ABn `ABH_VEC `ABL_ALU `SP_DEC  `ASEL_VEC           )
-`MICROCODE( kMCA_e_brk4, kMCA_e_brk5, `AB_ABn `AB_INC  `ADL_ALU `BSEL_DB `FLAGS_SETI         )
-`MICROCODE( kMCA_e_brk5, kMCA_e_fetch0, `AB_PCn        `BSEL_DB `PCH_ALU `PCL_ADL `SYNC      )
+`MICROCODE( kMCA_e_brk4, kMCA_e_pchfetch, `AB_ABn `AB_INC  `ADL_ALU `BSEL_DB `FLAGS_SETI         )
+
+// Fetch PCH from bus, PCL from ADL, sync
+`MICROCODE( kMCA_e_pclfetch, kMCA_e_pchfetch, `AB_ABn `AB_INC `ADL_ALU `BSEL_DB)
+`MICROCODE( kMCA_e_pchfetch, kMCA_e_fetch0, `BSEL_DB `PCH_ALU `PCL_ADL `SYNC)
 
 // Single cycle instructions - implicit SYNC
 `MICROCODE( kMCA_e_clcsec0, 0, `PC_INC `FLAGS_C)
@@ -304,10 +304,10 @@ end
 `MICROCODE( kMCA_e_sei0,    kMCA_e_fetch0, `FLAGS_I `SYNC)
 `MICROCODE( kMCA_e_clesee0, kMCA_e_fetch0, `FLAGS_E `SYNC)
 
-`MICROCODE( kMCA_e_lda, kMCA_e_fetch0, `BSEL_DB `FLAGS_SBZN `SYNC `LOAD_A)
-`MICROCODE( kMCA_e_ldx, kMCA_e_fetch0, `BSEL_DB `FLAGS_SBZN `SYNC `LOAD_X)
-`MICROCODE( kMCA_e_ldy, kMCA_e_fetch0, `BSEL_DB `FLAGS_SBZN `SYNC `LOAD_Y)
-`MICROCODE( kMCA_e_ldz, kMCA_e_fetch0, `BSEL_DB `FLAGS_SBZN `SYNC `LOAD_Z)
+`MICROCODE( kMCA_e_lda, kMCA_e_fetch0, `BSEL_DB `FLAGS_SBZN `LOAD_A `SYNC)
+`MICROCODE( kMCA_e_ldx, kMCA_e_fetch0, `BSEL_DB `FLAGS_SBZN `LOAD_X `SYNC)
+`MICROCODE( kMCA_e_ldy, kMCA_e_fetch0, `BSEL_DB `FLAGS_SBZN `LOAD_Y `SYNC)
+`MICROCODE( kMCA_e_ldz, kMCA_e_fetch0, `BSEL_DB `FLAGS_SBZN `LOAD_Z `SYNC)
 
 `MICROCODE( kMCA_e_ldai, kMCA_e_fetch0, `BSEL_DB `FLAGS_SBZN `SYNC `LOAD_A `PC_INC)
 `MICROCODE( kMCA_e_ldxi, kMCA_e_fetch0, `BSEL_DB `FLAGS_SBZN `SYNC `LOAD_X `PC_INC)
@@ -334,60 +334,25 @@ end
 
 // JMP ind
 `MICROCODE( kMCA_e_jmpind0, kMCA_e_jmpind1, `PC_INC `BSEL_DB `ADL_ALU)
-`MICROCODE( kMCA_e_jmpind1, kMCA_e_jmpind2, `PC_INC `BSEL_DB `PCH_ALU `PCL_ADL)
-`MICROCODE( kMCA_e_jmpind2, kMCA_e_jmpind3, `PC_INC `BSEL_DB `ADL_ALU)
-`MICROCODE( kMCA_e_jmpind3, kMCA_e_fetch0,  `PC_INC `BSEL_DB `PCH_ALU `PCL_ADL `SYNC)
+`MICROCODE( kMCA_e_jmpind1, kMCA_e_jmp0,    `PC_INC `BSEL_DB `PCH_ALU `PCL_ADL)
 
 // JMP ind,x
 `MICROCODE( kMCA_e_jmpindx0, kMCA_e_jmpindx1, `PC_INC `ADL_ALU `ALU_ADC `ASEL_DREG `DREG_X `BSEL_DB )
-`MICROCODE( kMCA_e_jmpindx1, kMCA_e_jmpindx2, `PC_INC `PCH_ALU `ALU_ADC `BSEL_DB `CSEL_D `PCL_ADL)
-`MICROCODE( kMCA_e_jmpindx2, kMCA_e_jmpindx3, `PC_INC `BSEL_DB `ADL_ALU)
-`MICROCODE( kMCA_e_jmpindx3, kMCA_e_fetch0,   `PC_INC `BSEL_DB `PCH_ALU `PCL_ADL `SYNC)
-
-// Branches could probably be collapsed to a single sequence.   We'd just need a TF_x bit that says to infer the
-// condition code to be tested from the instruction register bits directly.  We're not currently short on microcode
-// space, though since we're already down to two 18Kbit block RAMs.   The smallest address size is 9 bits anyway, so
-// we don't gain much by trying to squeeze into 8 bits.
+`MICROCODE( kMCA_e_jmpindx1, kMCA_e_jmp0,  `PC_INC `PCH_ALU `ALU_ADC `BSEL_DB `CSEL_D `PCL_ADL)
 
 `MICROCODE( kMCA_e_bra,  kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `SYNC)
 
-`MICROCODE( kMCA_e_bpl0, kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_N `TEST_FLAG0 `SYNC `NEXT_COND_BRANCH)
-`MICROCODE( kMCA_e_bpl1, kMCA_e_fetch0, `SYNC `NEXT_COND_BPC)
-`MICROCODE( kMCA_e_bpl2, kMCA_e_fetch0, `SYNC)
-`MICROCODE( kMCA_e_bmi0, kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_N `SYNC `NEXT_COND_BRANCH)
-`MICROCODE( kMCA_e_bmi1, kMCA_e_fetch0, `SYNC `NEXT_COND_BPC)
-`MICROCODE( kMCA_e_bmi2, kMCA_e_fetch0, `SYNC)
-`MICROCODE( kMCA_e_bvc0, kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_V `TEST_FLAG0 `SYNC `NEXT_COND_BRANCH)
-`MICROCODE( kMCA_e_bvc1, kMCA_e_fetch0, `SYNC `NEXT_COND_BPC)
-`MICROCODE( kMCA_e_bvc2, kMCA_e_fetch0, `SYNC)
-`MICROCODE( kMCA_e_bvs0, kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_V `SYNC `NEXT_COND_BRANCH)
-`MICROCODE( kMCA_e_bvs1, kMCA_e_fetch0, `SYNC `NEXT_COND_BPC)
-`MICROCODE( kMCA_e_bvs2, kMCA_e_fetch0, `SYNC)
-`MICROCODE( kMCA_e_bcc0, kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_C `TEST_FLAG0 `SYNC `NEXT_COND_BRANCH)
-`MICROCODE( kMCA_e_bcc1, kMCA_e_fetch0, `SYNC `NEXT_COND_BPC)
-`MICROCODE( kMCA_e_bcc2, kMCA_e_fetch0, `SYNC)
-`MICROCODE( kMCA_e_bcs0, kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_C `SYNC `NEXT_COND_BRANCH)
-`MICROCODE( kMCA_e_bcs1, kMCA_e_fetch0, `SYNC `NEXT_COND_BPC)
-`MICROCODE( kMCA_e_bcs2, kMCA_e_fetch0, `SYNC)
-`MICROCODE( kMCA_e_bne0, kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_Z `TEST_FLAG0 `SYNC `NEXT_COND_BRANCH)
-`MICROCODE( kMCA_e_bne1, kMCA_e_fetch0, `SYNC `NEXT_COND_BPC)
-`MICROCODE( kMCA_e_bne2, kMCA_e_fetch0, `SYNC)
-`MICROCODE( kMCA_e_beq0, kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_Z `SYNC `NEXT_COND_BRANCH)
-`MICROCODE( kMCA_e_beq1, kMCA_e_fetch0, `SYNC `NEXT_COND_BPC)
-`MICROCODE( kMCA_e_beq2, kMCA_e_fetch0, `SYNC)
+// 4510/6502 8-bit conditional branch
+`MICROCODE( kMCA_e_bc0, kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_IR `SYNC `NEXT_COND_BRANCH)
+`MICROCODE( kMCA_e_bc1, kMCA_e_fetch0, `SYNC `NEXT_COND_BPC)
+`MICROCODE( kMCA_e_mem_fetch, kMCA_e_fetch0,   `SYNC)
 
+// 4510 16-bit branch
 `MICROCODE( kMCA_e_braw0, 0, `PC_INC `ADL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `NEXT_A1)
 
-// These could probably be collapsed. The flag to test can be inferred from IR
-`MICROCODE( kMCA_e_bplw1, kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `TF_N `TEST_FLAG0 `SYNC)
-`MICROCODE( kMCA_e_bmiw1, kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `TF_N `SYNC)
-`MICROCODE( kMCA_e_bvcw1, kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `TF_V `TEST_FLAG0 `SYNC)
-`MICROCODE( kMCA_e_bvsw1, kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `TF_V `SYNC)
+// 4510 16-bit conditional branch
+`MICROCODE( kMCA_e_bcw1,  kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `TF_IR `SYNC)
 `MICROCODE( kMCA_e_braw1, kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `SYNC)
-`MICROCODE( kMCA_e_bccw1, kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `TF_C `TEST_FLAG0 `SYNC)
-`MICROCODE( kMCA_e_bcsw1, kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `TF_C `SYNC)
-`MICROCODE( kMCA_e_bnew1, kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `TF_Z `TEST_FLAG0 `SYNC)
-`MICROCODE( kMCA_e_beqw1, kMCA_e_fetch0, `PC_INC `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `TF_Z `SYNC)
 
 // Single cycle instructions - implicit SYNC
 `MICROCODE( kMCA_e_deca, 0, `PC_INC `ALU_ADC `BSEL_FF `FLAGS_SBZN `ASEL_DREG `DREG_A `LOAD_A)
@@ -445,32 +410,24 @@ end
 `MICROCODE( kMCA_e_inc_mem0, kMCA_e_mem_fetch, `AB_ABn `ALU_ADC `BSEL_DB `CSEL_1 `FLAGS_SBZN `WRITE)
 `MICROCODE( kMCA_e_dec_mem0, kMCA_e_mem_fetch, `AB_ABn `ALU_ADC `ASEL_FF `BSEL_DB `CSEL_0 `FLAGS_SBZN `WRITE)
 
-`MICROCODE( kMCA_e_mem_fetch, kMCA_e_fetch0,   `SYNC)
+`MICROCODE( kMCA_e_push_p,  kMCA_e_spdecsync, `AB_SPn `WRITE `BSEL_P)
+`MICROCODE( kMCA_e_push_a,  kMCA_e_spdecsync, `AB_SPn `WRITE `ASEL_DREG `DREG_A)
+`MICROCODE( kMCA_e_push_x,  kMCA_e_spdecsync, `AB_SPn `WRITE `ASEL_DREG `DREG_X)
+`MICROCODE( kMCA_e_push_y,  kMCA_e_spdecsync, `AB_SPn `WRITE `ASEL_DREG `DREG_Y)
+`MICROCODE( kMCA_e_push_z,  kMCA_e_spdecsync, `AB_SPn `WRITE `ASEL_DREG `DREG_Z)
 
-`MICROCODE( kMCA_e_push_p,  kMCA_e_push1, `AB_SPn `WRITE `BSEL_P)
-`MICROCODE( kMCA_e_push_a,  kMCA_e_push1, `AB_SPn `WRITE `ASEL_DREG `DREG_A)
-`MICROCODE( kMCA_e_push_x,  kMCA_e_push1, `AB_SPn `WRITE `ASEL_DREG `DREG_X)
-`MICROCODE( kMCA_e_push_y,  kMCA_e_push1, `AB_SPn `WRITE `ASEL_DREG `DREG_Y)
-`MICROCODE( kMCA_e_push_z,  kMCA_e_push1, `AB_SPn `WRITE `ASEL_DREG `DREG_Z)
-
-`MICROCODE( kMCA_e_push1, kMCA_e_fetch0, `SP_DEC `SYNC)
+`MICROCODE( kMCA_e_spdecsync, kMCA_e_fetch0, `SP_DEC `SYNC)
 
 `MICROCODE( kMCA_e_pull0, 0, `AB_SPn `SP_INC `NEXT_A1)
 
-// 6502 RTS has extra dummy stack read
-`MICROCODE( kMCA_n_pull0, kMCA_n_pull1, `AB_SPn)
-`MICROCODE( kMCA_n_pull1, 0, `AB_SPn `SP_INC `NEXT_A1)
+// 6502 Pull has extra dummy stack read
+`MICROCODE( kMCA_n_pull0, kMCA_e_pull0, `AB_SPn)
 
 `MICROCODE( kMCA_e_pull_p, kMCA_e_fetch0, `FLAGS_DB `SYNC)
-`MICROCODE( kMCA_e_pull_a, kMCA_e_fetch0, `BSEL_DB `LOAD_A `FLAGS_SBZN `SYNC)
-`MICROCODE( kMCA_e_pull_x, kMCA_e_fetch0, `BSEL_DB `LOAD_X `FLAGS_SBZN `SYNC)
-`MICROCODE( kMCA_e_pull_y, kMCA_e_fetch0, `BSEL_DB `LOAD_Y `FLAGS_SBZN `SYNC)
-`MICROCODE( kMCA_e_pull_z, kMCA_e_fetch0, `BSEL_DB `LOAD_Z `FLAGS_SBZN `SYNC)
 
 `MICROCODE( kMCA_e_jsr0, kMCA_e_jsr1, `PC_INC `AB_SPn `BSEL_DB `ADL_ALU `DBO_PCHn `WRITE)
 `MICROCODE( kMCA_e_jsr1, kMCA_e_jsr2, `AB_SPn `SP_DEC `ASEL_AREG `AREG_PCL `WRITE)
-`MICROCODE( kMCA_e_jsr2, kMCA_e_jsr3, `AB_PCn `SP_DEC)
-`MICROCODE( kMCA_e_jsr3, kMCA_e_fetch0, `BSEL_DB `PCH_ALU `PCL_ADL `SYNC)
+`MICROCODE( kMCA_e_jsr2, kMCA_e_pchfetch, `SP_DEC)
 
 // 6502 JSR.  Extra dummy stack read.  The rest is the same.
 `MICROCODE( kMCA_n_jsr0, kMCA_n_jsr1, `PC_INC `AB_SPn `BSEL_DB `ADL_ALU )
@@ -482,8 +439,7 @@ end
 
 `MICROCODE( kMCA_e_rti0, kMCA_e_rti1, `AB_SPn `SP_INC)
 `MICROCODE( kMCA_e_rti1, kMCA_e_rti2, `AB_SPn `SP_INC `FLAGS_RTI)
-`MICROCODE( kMCA_e_rti2, kMCA_e_rti3, `AB_SPn `SP_INC `ADL_ALU `BSEL_DB)
-`MICROCODE( kMCA_e_rti3, kMCA_e_fetch0, `ALU_ADC `BSEL_DB `CSEL_0 `PCH_ALU `PCL_ADL `SYNC)
+`MICROCODE( kMCA_e_rti2, kMCA_e_pchfetch, `AB_SPn `SP_INC `ADL_ALU `BSEL_DB)
 
 `MICROCODE( kMCA_e_neg, kMCA_e_fetch0, `ALU_ADC `ASEL_NDREG `DREG_A `CSEL_1 `LOAD_A `FLAGS_SBZN `SYNC)
 
@@ -491,29 +447,22 @@ end
 
 `MICROCODE( kMCA_e_bsr0, kMCA_e_bsr1, `PC_INC `AB_SPn `ADL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `DBO_PCHn `WRITE)
 `MICROCODE( kMCA_e_bsr1, kMCA_e_bsr2, `AB_SPn `SP_DEC `ASEL_AREG `AREG_PCL `WRITE)
-`MICROCODE( kMCA_e_bsr2, kMCA_e_bsr3, `AB_PCn `SP_DEC)
+`MICROCODE( kMCA_e_bsr2, kMCA_e_bsr3, `SP_DEC)
 `MICROCODE( kMCA_e_bsr3, kMCA_e_fetch0, `PCH_ALU `ALU_ADC `ASEL_AREG `AREG_PCH `BSEL_DB `CSEL_D `PCL_ADL `SYNC)
 
-`MICROCODE( kMCA_e_jsrind0, kMCA_e_jsrind1, `PC_INC `AB_SPn `ABL_ALU `BSEL_DB `DBO_PCHn `WRITE)
-`MICROCODE( kMCA_e_jsrind1, kMCA_e_jsrind2, `AB_SPn `SP_DEC `ASEL_AREG `AREG_PCL `WRITE)
-`MICROCODE( kMCA_e_jsrind2, kMCA_e_jsrind3, `AB_PCn `SP_DEC)
-`MICROCODE( kMCA_e_jsrind3, kMCA_e_jsrind4, `AB_ABn `ABH_ALU `BSEL_DB)
-`MICROCODE( kMCA_e_jsrind4, kMCA_e_jsrind5, `AB_ABn `AB_INC `ADL_ALU `BSEL_DB)
-`MICROCODE( kMCA_e_jsrind5, kMCA_e_fetch0, `AB_PCn `PCH_ALU `BSEL_DB `PCL_ADL `SYNC)
+`MICROCODE( kMCA_e_jsrind0, kMCA_e_jsrindx1, `PC_INC `AB_SPn `ABL_ALU `ALU_ADC `BSEL_DB `DBO_PCHn `WRITE)
 
 `MICROCODE( kMCA_e_jsrindx0, kMCA_e_jsrindx1, `PC_INC `AB_SPn `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_X `BSEL_DB `DBO_PCHn `WRITE)
 `MICROCODE( kMCA_e_jsrindx1, kMCA_e_jsrindx2, `AB_SPn `SP_DEC `ASEL_AREG `AREG_PCL `WRITE)
-`MICROCODE( kMCA_e_jsrindx2, kMCA_e_jsrindx3, `AB_PCn `SP_DEC)
-`MICROCODE( kMCA_e_jsrindx3, kMCA_e_jsrindx4, `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DB `CSEL_D )
-`MICROCODE( kMCA_e_jsrindx4, kMCA_e_jsrindx5, `AB_ABn `AB_INC `ADL_ALU `BSEL_DB)
-`MICROCODE( kMCA_e_jsrindx5, kMCA_e_fetch0, `AB_PCn `PCH_ALU `BSEL_DB `PCL_ADL `SYNC)
+`MICROCODE( kMCA_e_jsrindx2, kMCA_e_jsrindx3, `SP_DEC)
+`MICROCODE( kMCA_e_jsrindx3, kMCA_e_pclfetch, `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DB `CSEL_D )
 
 `MICROCODE( kMCA_e_rtn0, kMCA_e_rtn1, `ABL_ALU `ASEL_AREG `AREG_PCL)
 `MICROCODE( kMCA_e_rtn1, kMCA_e_rtn2, `AB_SPn `SP_INC `ABH_ALU `ASEL_AREG `AREG_PCH)
 `MICROCODE( kMCA_e_rtn2, kMCA_e_rtn3, `AB_SPn `SP_INC `PCL_ALU `ALU_ADC `BSEL_DB `CSEL_1)
 `MICROCODE( kMCA_e_rtn3, kMCA_e_rtn4, `AB_ABn `PCH_ALU `ALU_ADC `BSEL_DB `CSEL_D)
 `MICROCODE( kMCA_e_rtn4, kMCA_e_rtn5, `AB_ABn `SPL_ALU `ALU_ADC `ASEL_AREG `AREG_SPL `BSEL_DB `CSEL_0)
-`MICROCODE( kMCA_e_rtn5, kMCA_e_fetch0, `AB_PCn `SPH_ALU `ALU_ADC `ASEL_AREG `AREG_SPH `CSEL_D `SYNC)
+`MICROCODE( kMCA_e_rtn5, kMCA_e_fetch0, `SPH_ALU `ALU_ADC `ASEL_AREG `AREG_SPH `CSEL_D `SYNC)
 
 `MICROCODE( kMCA_e_inw0, kMCA_e_inw1, `AB_ABn `PC_INC `ABH_B `ABL_ALU `BSEL_DB)
 `MICROCODE( kMCA_e_inw1, kMCA_e_inw2, `AB_ABn `ALU_ADC `BSEL_DB `CSEL_1 `WRITE `FLAGS_SBZN)
@@ -525,29 +474,25 @@ end
 `MICROCODE( kMCA_e_dew2, kMCA_e_dew3, `AB_ABn `AB_INC)
 `MICROCODE( kMCA_e_dew3, kMCA_e_mem_fetch, `AB_ABn `ALU_ADC `ASEL_FF `BSEL_DB `CSEL_D `WRITE `FLAGS_SBZN `WORD_Z)
 
-`MICROCODE( kMCA_e_asw0, kMCA_e_asw1, `AB_PCn `PC_INC `ABL_ALU `BSEL_DB)
+`MICROCODE( kMCA_e_asw0, kMCA_e_asw1, `PC_INC `ABL_ALU `BSEL_DB)
 `MICROCODE( kMCA_e_asw1, kMCA_e_asw2, `AB_ABn `PC_INC `ABH_ALU `BSEL_DB)
 `MICROCODE( kMCA_e_asw2, kMCA_e_asw3, `AB_ABn `ALU_SHL `ASEL_DB `CSEL_0 `WRITE `FLAGS_CNZ)
 `MICROCODE( kMCA_e_asw3, kMCA_e_asw4, `AB_ABn `AB_INC)
 `MICROCODE( kMCA_e_asw4, kMCA_e_mem_fetch, `AB_ABn `ALU_SHL `ASEL_DB `CSEL_P `WRITE `FLAGS_CNZ `WORD_Z)
 
-`MICROCODE( kMCA_e_row0, kMCA_e_row1, `AB_PCn `PC_INC `ABL_ALU `BSEL_DB)
+`MICROCODE( kMCA_e_row0, kMCA_e_row1, `PC_INC `ABL_ALU `BSEL_DB)
 `MICROCODE( kMCA_e_row1, kMCA_e_row2, `AB_ABn `PC_INC `ABH_ALU `BSEL_DB)
-`MICROCODE( kMCA_e_row2, kMCA_e_row3, `AB_ABn `ALU_SHL `ASEL_DB `CSEL_P `WRITE `FLAGS_CNZ)
-`MICROCODE( kMCA_e_row3, kMCA_e_row4, `AB_ABn `AB_INC)
-`MICROCODE( kMCA_e_row4, kMCA_e_mem_fetch, `AB_ABn `ALU_SHL `ASEL_DB `CSEL_P `WRITE `FLAGS_CNZ `WORD_Z)
+`MICROCODE( kMCA_e_row2, kMCA_e_asw3, `AB_ABn `ALU_SHL `ASEL_DB `CSEL_P `WRITE `FLAGS_CNZ)
 
 `MICROCODE( kMCA_e_phwi0, kMCA_e_phwi1, `AB_SPn `PC_INC `DBO_DI `WRITE)
-`MICROCODE( kMCA_e_phwi1, kMCA_e_phwi2, `AB_PCn `SP_DEC)
-`MICROCODE( kMCA_e_phwi2, kMCA_e_phwi3, `AB_SPn `PC_INC `DBO_DI `WRITE)
-`MICROCODE( kMCA_e_phwi3, kMCA_e_fetch0, `AB_PCn `SP_DEC `SYNC)
+`MICROCODE( kMCA_e_phwi1, kMCA_e_phwi2, `SP_DEC)
+`MICROCODE( kMCA_e_phwi2, kMCA_e_spdecsync, `AB_SPn `PC_INC `DBO_DI `WRITE)
 
 `MICROCODE( kMCA_e_phw0, kMCA_e_phw1, `PC_INC `ABL_ALU `BSEL_DB)
 `MICROCODE( kMCA_e_phw1, kMCA_e_phw2, `PC_INC `AB_ABn `ABH_ALU `BSEL_DB)
 `MICROCODE( kMCA_e_phw2, kMCA_e_phw3, `AB_SPn `AB_INC `DBO_DI `WRITE)
 `MICROCODE( kMCA_e_phw3, kMCA_e_phw4, `AB_ABn `SP_DEC)
-`MICROCODE( kMCA_e_phw4, kMCA_e_phw5, `AB_SPn `DBO_DI `WRITE)
-`MICROCODE( kMCA_e_phw5, kMCA_e_fetch0, `AB_PCn `SP_DEC `SYNC)
+`MICROCODE( kMCA_e_phw4, kMCA_e_spdecsync, `AB_SPn `DBO_DI `WRITE)
 
 
 // I'm taking a wild guess that the 4510's mapper didn't involve major changes to the 65CE02 datapath, and
@@ -574,7 +519,7 @@ end
 `MICROCODE( kMCA_e_map3, kMCA_e_fetch0, `DBO_DREG `DREG_DO_Z `MC_MAP `SYNC)
 
 // Read zero (base) page
-`MICROCODE( kMCA_e_addr_r_zp0,      0, `PC_INC `AB_ABn `ABH_B `ABL_ALU `DBO_DREG `BSEL_DB `NEXT_A1)
+`MICROCODE( kMCA_e_addr_r_zp0,      0, `PC_INC `AB_ABn `ABH_B `ABL_ALU `BSEL_DB `NEXT_A1)
 
 // Write variants for zero page addressing
 `MICROCODE( kMCA_e_addr_w_zp0_a,    kMCA_e_mem_fetch, `PC_INC `AB_ABn `ABH_B `ABL_ALU `DBO_DREG `BSEL_DB  `WRITE `DREG_DO_A)
@@ -604,12 +549,10 @@ end
 `MICROCODE( kMCA_e_addr_w_absx1_z,  kMCA_e_mem_fetch, `PC_INC `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DB `CSEL_D `DBO_DREG `WRITE `DREG_DO_Z)
 
 // Read absolute,y
-`MICROCODE( kMCA_e_addr_r_absy0,    kMCA_e_addr_r_absy1, `PC_INC `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB)
-`MICROCODE( kMCA_e_addr_r_absy1,    0, `PC_INC `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DB `CSEL_D `DBO_DREG `NEXT_A1)
+`MICROCODE( kMCA_e_addr_r_absy0,    kMCA_e_addr_r_absx1, `PC_INC `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB)
 
 // Write absolute,y variants
 `MICROCODE( kMCA_e_addr_w_absy0,    0, `PC_INC `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB `NEXT_A1)
-`MICROCODE( kMCA_e_addr_w_absy1_a,  kMCA_e_mem_fetch, `PC_INC `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DB `CSEL_D `DBO_DREG `WRITE `DREG_DO_A)
 `MICROCODE( kMCA_e_addr_w_absy1_x,  kMCA_e_mem_fetch, `PC_INC `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DB `CSEL_D `DBO_DREG `WRITE `DREG_DO_X)
 
 // Read zp,x
@@ -642,27 +585,24 @@ end
 `MICROCODE( kMCA_e_addr_r_zpindy1,  kMCA_e_addr_r_zpindy2, `AB_ABn `AB_INC `ADL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB)
 `MICROCODE( kMCA_e_addr_r_zpindy2,  0, `AB_ADn `ADH_ALU `ALU_ADC `BSEL_DB `CSEL_D `DBO_DREG `NEXT_A1)
 
+// Read (zp),z
+`MICROCODE( kMCA_e_addr_r_zpindz0,  kMCA_e_addr_r_zpindz1, `PC_INC `AB_ABn `ABH_B `ABL_ALU `DBO_DREG `BSEL_DB)
+`MICROCODE( kMCA_e_addr_r_zpindz1,  kMCA_e_addr_r_zpindy2, `AB_ABn `AB_INC `ADL_ALU `ALU_ADC `ASEL_DREG `DREG_Z `BSEL_DB)
+
 // Write (zp),y - This only supports STA and so no microcode branching required
 `MICROCODE( kMCA_e_addr_w_zpindy0,  kMCA_e_addr_w_zpindy1, `PC_INC `AB_ABn `ABH_B `ABL_ALU `DBO_DREG `BSEL_DB)
 `MICROCODE( kMCA_e_addr_w_zpindy1,  kMCA_e_addr_w_zpindy2, `AB_ABn `AB_INC `ADL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB)
 `MICROCODE( kMCA_e_addr_w_zpindy2,  kMCA_e_mem_fetch, `AB_ADn `ADH_ALU `ALU_ADC `BSEL_DB `CSEL_D `DBO_DREG `WRITE `DREG_DO_A)
 
-// Read (zp),z
-`MICROCODE( kMCA_e_addr_r_zpindz0,  kMCA_e_addr_r_zpindz1, `PC_INC `AB_ABn `ABH_B `ABL_ALU `DBO_DREG `BSEL_DB)
-`MICROCODE( kMCA_e_addr_r_zpindz1,  kMCA_e_addr_r_zpindz2, `AB_ABn `AB_INC `ADL_ALU `ALU_ADC `ASEL_DREG `DREG_Z `BSEL_DB)
-`MICROCODE( kMCA_e_addr_r_zpindz2,  0, `AB_ADn `ADH_ALU `ALU_ADC `BSEL_DB `CSEL_D `DBO_DREG `NEXT_A1)
-
 // Write (zp),z - This only supports STA and so no microcode branching required
 `MICROCODE( kMCA_e_addr_w_zpindz0,  kMCA_e_addr_w_zpindz1, `PC_INC `AB_ABn `ABH_B `ABL_ALU `DBO_DREG `BSEL_DB)
-`MICROCODE( kMCA_e_addr_w_zpindz1,  kMCA_e_addr_w_zpindz2, `AB_ABn `AB_INC `ADL_ALU `ALU_ADC `ASEL_DREG `DREG_Z `BSEL_DB)
-`MICROCODE( kMCA_e_addr_w_zpindz2,  kMCA_e_mem_fetch, `AB_ADn `ADH_ALU `ALU_ADC `BSEL_DB `CSEL_D `DBO_DREG `WRITE `DREG_DO_A)
+`MICROCODE( kMCA_e_addr_w_zpindz1,  kMCA_e_addr_w_zpindy2, `AB_ABn `AB_INC `ADL_ALU `ALU_ADC `ASEL_DREG `DREG_Z `BSEL_DB)
 
 // stack indirect only supports STA and LDA and so microcode branching is just used to choose between those two after cycle 2
 `MICROCODE( kMCA_e_addr_spind0,     kMCA_e_addr_spind1, `PC_INC `AB_ABn `ABH_B `ABL_ALU `ALU_ADC `ASEL_AREG `AREG_SPL `BSEL_DB)
 `MICROCODE( kMCA_e_addr_spind1,     kMCA_e_addr_spind2, `AB_ABn `ABH_ALU `ALU_ADC `ASEL_AREG `AREG_SPH `CSEL_D)
 `MICROCODE( kMCA_e_addr_spind2,     0, `AB_ABn `AB_INC `ADL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB `NEXT_A1)
 `MICROCODE( kMCA_e_addr_r_spind3,   kMCA_e_lda, `AB_ADn `ADH_ALU `ALU_ADC `BSEL_DB `CSEL_D `DBO_DREG)
-`MICROCODE( kMCA_e_addr_w_spind3,   kMCA_e_mem_fetch, `AB_ADn `ADH_ALU `ALU_ADC `BSEL_DB `CSEL_D `DBO_DREG `WRITE `DREG_DO_A)
 
 `MICROCODE( kMCA_e_bbr0, kMCA_e_bbr1, `PC_INC `AB_ABn `ABH_B `ABL_ALU `BSEL_DB)
 `MICROCODE( kMCA_e_bbr1, kMCA_e_bbr2, `ALU_AND `ASEL_NDB `BSEL_BIT)
@@ -673,10 +613,9 @@ end
 `MICROCODE( kMCA_e_bbs2, kMCA_e_fetch0, `PC_INC `PCH_ADJ `PCL_ALU `ALU_ADC `ASEL_AREG `AREG_PCL `BSEL_DB `CSEL_1 `TF_B `TEST_FLAG0 `SYNC)
 
 `MICROCODE( kMCA_e_trb0, kMCA_e_trb1, `AB_ABn `ALU_AND `ASEL_NDREG `DREG_A `BSEL_DB `WRITE)
+`MICROCODE( kMCA_e_tsb0, kMCA_e_trb1, `AB_ABn `ALU_ORA `ASEL_DREG `DREG_A `BSEL_DB `WRITE)
 `MICROCODE( kMCA_e_trb1, kMCA_e_fetch0, `ALU_AND `ASEL_DREG `DREG_A `BSEL_DBD `FLAGS_Z `SYNC)
 
-`MICROCODE( kMCA_e_tsb0, kMCA_e_tsb1, `AB_ABn `ALU_ORA `ASEL_DREG `DREG_A `BSEL_DB `WRITE)
-`MICROCODE( kMCA_e_tsb1, kMCA_e_fetch0, `ALU_AND `ASEL_DREG `DREG_A `BSEL_DBD `FLAGS_Z `SYNC)
 
 `MICROCODE( kMCA_e_rmb0, kMCA_e_mem_fetch, `AB_ABn `ALU_AND `ASEL_DB `BSEL_BIT `BIT_INV `WRITE)
 `MICROCODE( kMCA_e_smb0, kMCA_e_mem_fetch, `AB_ABn `ALU_ORA `ASEL_DB `BSEL_BIT `WRITE)
@@ -693,13 +632,9 @@ end
 `MICROCODE( kMCA_n_addr_r_zpy0,     kMCA_n_addr_r_zpy1, `PC_INC `AB_ABn `ABH_B `ABL_ALU `ALU_ORA `BSEL_DB `DBO_DREG)
 `MICROCODE( kMCA_n_addr_r_zpy1,     0, `AB_ABn `ABH_B `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DBD `DBO_DREG `NEXT_A1)
 
-// 6502 write zp,x variants
-`MICROCODE( kMCA_n_addr_w_zpx0,     0, `PC_INC `AB_ABn `ABH_B `ABL_ALU `ALU_ORA `BSEL_DB `DBO_DREG `NEXT_A1)
+// 6502 write zp,x and zp,y variants
 `MICROCODE( kMCA_n_addr_w_zpx1_a,   kMCA_e_mem_fetch, `AB_ABn `ABH_B `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_X `BSEL_DBD `DBO_DREG `WRITE `DREG_DO_A)
 `MICROCODE( kMCA_n_addr_w_zpx1_y,   kMCA_e_mem_fetch, `AB_ABn `ABH_B `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_X `BSEL_DBD `DBO_DREG `WRITE `DREG_DO_Y)
-
-// 6502 write zp,y variants.
-`MICROCODE( kMCA_n_addr_w_zpy0,     0, `PC_INC `AB_ABn `ABH_B `ABL_ALU `ALU_ORA `BSEL_DB `DBO_DREG `NEXT_A1)
 `MICROCODE( kMCA_n_addr_w_zpy1_x,   kMCA_e_mem_fetch, `AB_ABn `ABH_B `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DBD `DBO_DREG `WRITE `DREG_DO_X)
 
 // 6502 RMW variant of zp,x
@@ -712,21 +647,18 @@ end
 `MICROCODE( kMCA_n_addr_r_absx2,    0, `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DBD `CSEL_1 `DBO_DREG `NEXT_A1)
 
 // 6502 read variant of read absolute,y.  This will add an extra cycle to increment the high address if there was a carry.
-`MICROCODE( kMCA_n_addr_r_absy0,    kMCA_n_addr_r_absy1, `PC_INC `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB)
-`MICROCODE( kMCA_n_addr_r_absy1,    kMCA_n_addr_r_absy2, `PC_INC `AB_ABn `ABH_ALU `ALU_ORA `BSEL_DB `CSEL_0 `DBO_DREG `NEXT_A1 `NEXT_COND_LC)
-`MICROCODE( kMCA_n_addr_r_absy2,    0, `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DBD `CSEL_1 `DBO_DREG `NEXT_A1)
+`MICROCODE( kMCA_n_addr_r_absy0,    kMCA_n_addr_r_absx1, `PC_INC `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB)
 
 // 6502 write absolute,x variants.  Always executes an extra dummy read with possibly uncorrected upper address byte
 `MICROCODE( kMCA_n_addr_w_absx0,    kMCA_n_addr_w_absx1, `PC_INC `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_X `BSEL_DB)
 `MICROCODE( kMCA_n_addr_w_absx1,    0, `PC_INC `AB_ABn `ABH_ALU `ALU_ORA `BSEL_DB `NEXT_A1)
+
 `MICROCODE( kMCA_n_addr_w_absx2_a,  kMCA_e_mem_fetch, `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DBD `CSEL_D `DBO_DREG `WRITE `DREG_DO_A)
 `MICROCODE( kMCA_n_addr_w_absx2_y,  kMCA_e_mem_fetch, `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DBD `CSEL_D `DBO_DREG `WRITE `DREG_DO_Y)
 `MICROCODE( kMCA_n_addr_w_absx2_z,  kMCA_e_mem_fetch, `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DBD `CSEL_D `DBO_DREG `WRITE `DREG_DO_Z)
 
 // 6502 write absolute,y variants.  Always executes an extra dummy read with possibly uncorrected upper address byte
-`MICROCODE( kMCA_n_addr_w_absy0,    kMCA_n_addr_w_absy1, `PC_INC `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB)
-`MICROCODE( kMCA_n_addr_w_absy1,    0, `PC_INC `AB_ABn `ABH_ALU `ALU_ORA `BSEL_DB `NEXT_A1)
-`MICROCODE( kMCA_n_addr_w_absy2_a,  kMCA_e_mem_fetch, `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DBD `CSEL_D `DBO_DREG `WRITE `DREG_DO_A)
+`MICROCODE( kMCA_n_addr_w_absy0,    kMCA_n_addr_w_absx1, `PC_INC `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB)
 `MICROCODE( kMCA_n_addr_w_absy2_x,  kMCA_e_mem_fetch, `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DBD `CSEL_D `DBO_DREG `WRITE `DREG_DO_X)
 
 // 6502 RMW variant of zp
@@ -742,24 +674,18 @@ end
 `MICROCODE( kMCA_n_addr_m_absx2,    kMCA_n_rmw_mem0, `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DBD `CSEL_D `DBO_DREG)             // Carry used here
 
 // 6502 RMW variant of absolute,y.  Uses extra cycle to ensure proper address generation after a carry.
-`MICROCODE( kMCA_n_addr_m_absy0,    kMCA_n_addr_m_absy1, `PC_INC `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB)         // Carry generated here
-`MICROCODE( kMCA_n_addr_m_absy1,    kMCA_n_addr_m_absy2, `PC_INC `AB_ABn `ABH_ALU `ALU_ORA `BSEL_DB `CSEL_0 `DBO_DREG)
-`MICROCODE( kMCA_n_addr_m_absy2,    kMCA_n_rmw_mem0, `AB_ABn `ABH_ALU `ALU_ADC `BSEL_DBD `CSEL_D `DBO_DREG)             // Carry used here
+`MICROCODE( kMCA_n_addr_m_absy0,    kMCA_n_addr_m_absx0, `PC_INC `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB)         // Carry generated here
 
 // First real cycle of 6502 RMW instruction just writes back whatever came in from the bus.  Then we go do the real work.
 `MICROCODE( kMCA_n_rmw_mem0,        0, `AB_ABn `DBO_DI `WRITE `NEXT_A1)
 
 // 6502 read (zp,x)
 `MICROCODE( kMCA_n_addr_r_zpxind0,  kMCA_n_addr_r_zpxind1, `PC_INC `AB_ABn `ABH_B `ABL_ALU `ALU_ORA `BSEL_DB)
-`MICROCODE( kMCA_n_addr_r_zpxind1,  kMCA_n_addr_r_zpxind2, `AB_ABn `ABH_B `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_X `BSEL_DBD)
-`MICROCODE( kMCA_n_addr_r_zpxind2,  kMCA_n_addr_r_zpxind3, `AB_ABn `AB_INC `ADL_ALU `BSEL_DB)
-`MICROCODE( kMCA_n_addr_r_zpxind3,  0, `AB_ADn `ADH_ALU `BSEL_DB `DBO_DREG `NEXT_A1)
+`MICROCODE( kMCA_n_addr_r_zpxind1,  kMCA_e_addr_r_zpxind1, `AB_ABn `ABH_B `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_X `BSEL_DBD)
 
 // 6502 write (zp,x) - This only supports STA and so no microcode branching required
 `MICROCODE( kMCA_n_addr_w_zpxind0,  kMCA_n_addr_w_zpxind1, `PC_INC `AB_ABn `ABH_B `ABL_ALU `ALU_ORA `BSEL_DB)
-`MICROCODE( kMCA_n_addr_w_zpxind1,  kMCA_n_addr_w_zpxind2, `AB_ABn `ABH_B `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_X `BSEL_DBD)
-`MICROCODE( kMCA_n_addr_w_zpxind2,  kMCA_n_addr_w_zpxind3, `AB_ABn `AB_INC `ADL_ALU `BSEL_DB)
-`MICROCODE( kMCA_n_addr_w_zpxind3,  kMCA_e_mem_fetch, `AB_ADn `ADH_ALU `BSEL_DB `DBO_DREG `WRITE `DREG_DO_A)
+`MICROCODE( kMCA_n_addr_w_zpxind1,  kMCA_e_addr_w_zpxind1, `AB_ABn `ABH_B `ABL_ALU `ALU_ADC `ASEL_DREG `DREG_X `BSEL_DBD)
 
 // 6502 read (zp),y - Uses extra cycle to deal with address generation after carry (if needed)
 `MICROCODE( kMCA_n_addr_r_zpindy0,  kMCA_n_addr_r_zpindy1, `PC_INC `AB_ABn `ABH_B `ABL_ALU `DBO_DREG `BSEL_DB)
@@ -772,6 +698,13 @@ end
 `MICROCODE( kMCA_n_addr_w_zpindy1,  kMCA_n_addr_w_zpindy2, `AB_ABn `AB_INC `ADL_ALU `ALU_ADC `ASEL_DREG `DREG_Y `BSEL_DB)
 `MICROCODE( kMCA_n_addr_w_zpindy2,  kMCA_n_addr_w_zpindy3, `AB_ADn `ADH_ALU `ALU_ORA `BSEL_DB `CSEL_0 `DBO_DREG)
 `MICROCODE( kMCA_n_addr_w_zpindy3,  kMCA_e_mem_fetch, `AB_ADn `ADH_ALU `ALU_ADC `BSEL_DBD `CSEL_D `DBO_DREG `WRITE `DREG_DO_A)
+
+// synthesis translate off
+for( i = 0; i < kMCA_end; i = i + 1 )
+begin
+  $display("mc: addr: %x %x",mc[i][`kNEXT_ADDR_BITS],mc[i]);
+end
+// synthesis translate on
 
 `define A0_A1_ADDR_4510(_opcode, _addr0, _addr1) a0_addr[{1'b0,_opcode}] = _addr0; a1_addr[{1'b0,_opcode}] = _addr1;
 `define A0_A1_ADDR_6502(_opcode, _addr0, _addr1) a0_addr[{1'b1,_opcode}] = _addr0; a1_addr[{1'b1,_opcode}] = _addr1;

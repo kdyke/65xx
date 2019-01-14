@@ -315,11 +315,8 @@
 `define kF_B        4
 
 // Flag test bit masks - could be done as a 3-bit bitfield + decoder to save two more microcode bits.
-`define kTF_C       (1 << `kF_C)
-`define kTF_Z       (1 << `kF_Z)
-`define kTF_N       (1 << `kF_N)
-`define kTF_V       (1 << `kF_V)
-`define kTF_B       (1 << `kF_B)
+`define kTF_IR        1
+`define kTF_B         2
 
 `define kNEXT_UC      0
 `define kNEXT_A0      1
@@ -327,7 +324,7 @@
 `define kNEXT_CC      3
 
 // Microcode test masks
-`define kTEST_FLAGS_BITS   47:43
+`define kTEST_FLAGS_BITS   44:43
 
 `define kTEST_FLAG0_BITS   48:48
 
@@ -337,9 +334,9 @@
 
 `define kMAP_BITS          53:53
 
-`define kNEXT_ADDR_BITS    62:54          // Currently 9 bits of microcode address
+`define kNEXT_ADDR_BITS    64:56          // Currently 9 bits of microcode address
 
-`define kNEXT_ADDR_SEL_BITS 64:63
+`define kNEXT_ADDR_SEL_BITS 55:54
 
 `define kNEXT_COND_BITS     67:65
 

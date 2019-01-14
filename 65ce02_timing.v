@@ -278,39 +278,65 @@ end
 
 endmodule
 
-(* keep_hierarchy = "yes" *) module `cond_control(reg_p, dld_z, test_flags, test_bit, cond_met);
+(* keep_hierarchy = "yes" *) module `cond_control(reg_p, dld_z, ir, test_flags, test_bit, cond_met);
 input [7:0] reg_p;
-input [4:0] test_flags;
+input [7:5] ir;
+input [1:0] test_flags;
 input test_bit;
 input dld_z;
 output reg cond_met;
 
 wire no_flag;
 
-assign no_flag = ~|test_flags;
+reg [4:0] test_mask;
+
+reg test_polarity;
 
 always @(*)
 begin
-  cond_met = ~(~test_bit ^ (no_flag | 
-                          (test_flags[`kF_Z] & reg_p[`kPF_Z]) |
-                          (test_flags[`kF_V] & reg_p[`kPF_V]) |
-                          (test_flags[`kF_C] & reg_p[`kPF_C]) |
-                          (test_flags[`kF_N] & reg_p[`kPF_N]) |
-                          (test_flags[`kF_B] & dld_z)));
+  test_mask = 0;
+  test_polarity = 0;
+  if(test_flags[0])
+  begin
+    test_polarity = ~ir[5];
+    case(ir[7:6])
+  		2'b00: test_mask[`kF_N] = 1;
+  		2'b01: test_mask[`kF_V] = 1;
+  		2'b10: test_mask[`kF_C] = 1;
+  		2'b11: test_mask[`kF_Z] = 1;
+    endcase
+   end
+   
+   else if(test_flags[1]) begin
+     test_polarity = test_bit;
+     test_mask[`kF_B] = 1;
+    end
+end
+ 
+assign no_flag = ~|test_mask;
+
+always @(*)
+begin
+  cond_met = ~(~test_polarity ^ (no_flag | 
+                          (test_mask[`kF_Z] & reg_p[`kPF_Z]) |
+                          (test_mask[`kF_V] & reg_p[`kPF_V]) |
+                          (test_mask[`kF_C] & reg_p[`kPF_C]) |
+                          (test_mask[`kF_N] & reg_p[`kPF_N]) |
+                          (test_mask[`kF_B] & dld_z)));
 `ifdef NOTDEF
-  $display("cond_met: %d  bit: %d no_flag: %d z: %d:%d v: %d:%d c: %d:%d n: %d:%d b: %d:%d x: %d  page_cross: %d",
-    cond_met,test_bit,no_flag,
-    test_flags[`kF_Z],reg_p[`kPF_Z],
-    test_flags[`kF_V],reg_p[`kPF_V],
-    test_flags[`kF_C],reg_p[`kPF_C],
-    test_flags[`kF_N],reg_p[`kPF_N],
-    test_flags[`kF_B],dld_z,
+  $display("cond_met: %d  ir: %x bit: %d no_flag: %d z: %d:%d v: %d:%d c: %d:%d n: %d:%d b: %d:%d x: %d",
+    cond_met,ir,test_polarity,no_flag,
+    test_mask[`kF_Z],reg_p[`kPF_Z],
+    test_mask[`kF_V],reg_p[`kPF_V],
+    test_mask[`kF_C],reg_p[`kPF_C],
+    test_mask[`kF_N],reg_p[`kPF_N],
+    test_mask[`kF_B],dld_z,
     (no_flag | 
-                              (test_flags[`kF_Z] & reg_p[`kPF_Z]) |
-                              (test_flags[`kF_V] & reg_p[`kPF_V]) |
-                              (test_flags[`kF_C] & reg_p[`kPF_C]) |
-                              (test_flags[`kF_N] & reg_p[`kPF_N]) |
-                              (test_flags[`kF_B] & dld_z)));
+                              (test_mask[`kF_Z] & reg_p[`kPF_Z]) |
+                              (test_mask[`kF_V] & reg_p[`kPF_V]) |
+                              (test_mask[`kF_C] & reg_p[`kPF_C]) |
+                              (test_mask[`kF_N] & reg_p[`kPF_N]) |
+                              (test_mask[`kF_B] & dld_z)));
 `endif
 end
 
