@@ -36,7 +36,7 @@
                   input ext_irq, input ext_nmi, output cpu_irq, output cpu_nmi,
                   `MARK_DEBUG input hyper_mode, input map_insn, input [1:0] t,
                   output reg [7:0] map_reg_data, output reg mapper_busy,
-                  output reg [19:0] address, output reg [19:0] address_next, input [15:0] core_address_next, 
+                  output reg [19:0] address, input [15:0] core_address_next, 
                   `MARK_DEBUG output reg map_next, output reg map,
                   output wire [11:0] monitor_map_offset_low,
                   output wire [11:0] monitor_map_offset_high,
@@ -52,11 +52,13 @@ reg enable_i, disable_i;
 `MARK_DEBUG reg load_a, load_x, load_y, load_z;
 `MARK_DEBUG reg load_map_sel;
 
+reg [19:0] address_next;
+
 // It's not clear whether NMI should be done this way or not. The C65 docs aren't clear on if the MAP instruction masks off NMIs.
 assign cpu_irq = ext_irq & int_enable;
 assign cpu_nmi = ext_nmi & int_enable;
 
-`define FAST_MAPPER
+//`define FAST_MAPPER
 `ifdef FAST_MAPPER
 reg [19:8] map_offset_fast[0:15]; // Two sets of 8
 reg map_enable_fast[0:15]; // Two sets of 8
@@ -160,6 +162,7 @@ always @(*) begin
 `else
   map_offset_index = core_address_next[15];
   map_enable_index = core_address_next[14:13];
+  //$display("off_idx: %d en_idx: %d en: %d offset: %03x",map_offset_index,map_enable_index,map_enable[{hyper_mode,map_offset_index}][map_enable_index],map_offset[{hyper_mode,map_offset_index}]);
   // Mapper can be disabled by external (hypervisor) logic when needed.
   if(map_enable[{hyper_mode,map_offset_index}][map_enable_index]) begin
     current_offset = map_offset[{hyper_mode,map_offset_index}];
@@ -254,6 +257,7 @@ always @* begin
       endcase
     end
   end
+  //$display("load: %d%d%d%d data: %02x t: %d  rdy: %d",load_a,load_x,load_y,load_z,data_o,t,ready);
 end
 
 endmodule

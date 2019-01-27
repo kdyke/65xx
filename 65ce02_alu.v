@@ -130,26 +130,26 @@ endmodule
   assign overflow_out = a[7] == b[7] && a[7] != add_out[7];
   
   always @(*) begin
-    c = adder_carry_out; // default case
 	  casez(op)
   		`kALU_ORA , `kALU_ORA2:
         begin
   			tmp = a | b;
+        c = adder_carry_out; // default case
   			end
   		`kALU_AND: 
         begin
   			tmp = a & b;
-        //c = adder_carry_out; // default case
+        c = adder_carry_out; // default case
   			end
   		`kALU_EOR: 
         begin
   			tmp = a ^ b;
-        //c = adder_carry_out; // default case
+        c = adder_carry_out; // default case
   			end
   		`kALU_ADC: 
         begin
         tmp = add_out;
-        //c = adder_carry_out; // default case
+        c = adder_carry_out; // default case
   			end
   		`kALU_SHR: 
         begin
@@ -182,7 +182,7 @@ assign alu_z = ~|aluy;
 
 always @(posedge clk)
 begin
-  if(op != `ALU_ORA && ready)
+  if(op != `kALU_ORA && ready)
     dld_z <= alu_z;
 end
 

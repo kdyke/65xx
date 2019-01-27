@@ -27,7 +27,11 @@
                 input reset,
                 input ready,
                 input slow,
-                input [7:0] ir,
+                input [7:0] data_i,
+                input sync,
+                input phase0,
+                input phase3,
+                input [7:0] ir,                
                 input [8:0] next_mca,
                 // It's not clear yet that anything outside will actually 
                 // need these yet, but it might be useful for debugging.
@@ -246,6 +250,7 @@ reg [8:0] a0_addr[0:511];
 reg [8:0] a1_addr[0:511];
             
 reg [`kMICROCODE_BITS] mc_out;
+reg [`kMICROCODE_BITS] mc_out_pre;
 
 (* rom_style = "block" *) reg [`kMICROCODE_BITS] mc[0:kMCA_end-1];
 
@@ -700,10 +705,10 @@ end
 `MICROCODE( kMCA_n_addr_w_zpindy3,  kMCA_e_mem_fetch, `AB_ADn `ADH_ALU `ALU_ADC `BSEL_DBD `CSEL_D `DBO_DREG `WRITE `DREG_DO_A)
 
 // synthesis translate off
-for( i = 0; i < kMCA_end; i = i + 1 )
-begin
-  $display("mc: addr: %x %x",mc[i][`kNEXT_ADDR_BITS],mc[i]);
-end
+//for( i = 0; i < kMCA_end; i = i + 1 )
+//begin
+//  $display("mc: addr: %x %x",mc[i][`kNEXT_ADDR_BITS],mc[i]);
+//end
 // synthesis translate on
 
 `define A0_A1_ADDR_4510(_opcode, _addr0, _addr1) a0_addr[{1'b0,_opcode}] = _addr0; a1_addr[{1'b0,_opcode}] = _addr1;
@@ -715,8 +720,9 @@ end
 end
 
 always @(*) begin
-  next_mca_a0 = a0_addr[{slow,ir}];
+  next_mca_a0 = a0_addr[{slow,data_i}];
   next_mca_a1 = a1_addr[{slow,ir}];
+  //$display("ir_next: %02x slow: %d a0: %03x a1: %03x",ir,slow,next_mca_a0,next_mca_a1);
 end
 
 // microcode outputs wired to specific bits
@@ -753,17 +759,32 @@ assign test_flag0 = mc_out[`kTEST_FLAG0_BITS];
 assign map        = mc_out[`kMAP_BITS];
 assign mc_cond      = mc_out[`kNEXT_COND_BITS];
 
+reg [8:0] phi3_mca;
+
 always @(posedge clk)
 begin
-  //$display("mc[%03x] ir: %02x next: %03x mc_sync: %01d alu: %03b bits: %065b",next_mca,ir,mc[next_mca][`kNEXT_ADDR_BITS],mc[next_mca][`kSYNC_BITS],mc[next_mca][`kALU_BITS],mc[next_mca]);
-  if(ready | reset)
+    //$display("ph0: %d ph3: %d mc[%03x] data_i: %02x sync: %d ir: %02x a0: %02x a1: %02x mc_next: %03x mc_sync: %01d alu: %03b bits: %065b",
+    //  phase0,phase3,next_mca,data_i,sync,ir,next_mca_a0,next_mca_a1,mc[next_mca][`kNEXT_ADDR_BITS],mc[next_mca][`kSYNC_BITS],mc[next_mca][`kALU_BITS],mc[next_mca]);
+  if(phase0)
   begin
-    mc_out <= mc[next_mca];
+    //mc_out <= mc[next_mca];
+    mc_out <= mc_out_pre;
     if(mc[next_mca][`kLOAD_REG_BITS] == `kLOAD_KILL)
     begin
       $display("unimplemented microcode insn: %03x",next_mca);
       $finish;
     end
+    //if(next_mca != phi3_mca)
+    //  $stop;
+    //if(mc[next_mca] != mc_out_pre)
+    //  $stop;
+  end
+  if(phase3 | reset) begin
+    phi3_mca <= next_mca;
+    mc_out_pre <= mc[next_mca];
+    //mc_out <= mc_out_pre;
+    //$display("ph0: %d ph3: %d mc[%03x] data_i: %02x sync: %d ir: %02x a0: %02x a1: %02x mc_next: %03x mc_sync: %01d alu: %03b bits: %065b",
+    //  phase0,phase3,next_mca,data_i,sync,ir,next_mca_a0,next_mca_a1,mc_out_pre[`kNEXT_ADDR_BITS],mc_out_pre[`kSYNC_BITS],mc_out_pre[`kALU_BITS],mc_out_pre);
   end
 //  if(write == 1)
 //  begin

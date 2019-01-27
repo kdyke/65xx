@@ -2117,8 +2117,10 @@ end
 
 always @(posedge clk)
 begin
-    if(we)
+    if(we) begin    
         ram[addr] = di;
+        //$display("MEM [%05x] W: %02x",addr,di);
+    end
     if(we && addr == 16'h0200)
         $display("last test: %d",di);
     do = ram[addr];

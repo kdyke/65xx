@@ -49,6 +49,22 @@ end
 
 endmodule
 
+(* keep_hierarchy = "yes" *) module clocked_reset_reg8_ir(input clk, input reset, input ready, 
+                                           input [7:0] register_in, output reg [7:0] register_out);
+
+always @(posedge clk)
+begin
+  if(reset)
+    register_out <= 0;
+  else if(ready)
+  begin
+    register_out <= register_in;
+    //$display("IR <= %02x",register_in);
+  end
+end
+
+endmodule
+
 (* keep_hierarchy = "yes" *) module `ab_reg(input clk, input ready, input ab_inc, input [1:0] abh_sel, input abl_sel,
                                input [7:0] b, input[7:0] alu_ea, input [7:0] vector_hi, output reg [15:0] ab_next, output reg [15:0] ab);
 

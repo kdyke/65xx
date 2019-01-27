@@ -37,15 +37,12 @@ reg [7:0] data_i_reg;
 
 always @(*)
 begin
-  if(ready)
-    data_i_mux = data_i;
-  else
     data_i_mux = data_i_reg;
 end
 
 always @(posedge clk)
 begin
-  data_i_reg = data_i_mux;
+  data_i_reg = data_i;
 end
 endmodule
 
@@ -95,16 +92,16 @@ end
 
 always @(*)
 begin
-  if(ready)
-    abus_next = tmp;
-  else
+  //if(ready)
+  //  abus_next = tmp;
+  //else
     abus_next = abus;
 end
 
 always @(posedge clk)
 begin
   begin
-    abus <= abus_next;
+    abus <= tmp; //abus_next;
   end
 end
 

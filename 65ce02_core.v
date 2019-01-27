@@ -33,10 +33,10 @@
 
 //`SCHEM_KEEP_HIER 
 (* keep_hierarchy = "yes" *) module cpu65CE02(input clk, input reset, input nmi, input irq, input hyp, input ready, input slow,
-                  output reg write, output wire write_next, output wire sync,
+                  output reg write, output wire write_next, output wire sync, output wire phase1, output wire phase3,
                   output wire [15:0] address, output wire [15:0] address_next, 
                   input [7:0] data_i, output wire [7:0] data_o, output wire [7:0] data_o_next, 
-                  output wire hyper_mode, output wire map, `MARK_DEBUG output wire [2:0] t,
+                  output wire hyper_mode, output reg map, `MARK_DEBUG output reg [2:0] t,
                   // Monitor outputs - Not everything that the gs4510 implementation supported is implemented,
                   // and some things are implemented elsewhere.
                   output wire [7:0] monitor_a, 
@@ -156,6 +156,7 @@ wire [1:0] next_mca_sel;
 
 wire [7:0] vector_hi;
 wire [7:0] vector_lo;
+wire phase0, phase2;
 
 reg branch_page_cross;
 
@@ -172,10 +173,12 @@ assign monitor_opcode = ir;
 assign monitor_state = mca;
 assign monitor_hypervisor_mode = hyper_mode;
 assign monitor_proceed = ready_int;
-assign t = mca[1:0];
+
+  state_ctl state_ctl_inst(.clk(clk), .reset(reset), .ready(ready_int), /* .dead_cycle(dead_cycle), */
+      .phase0(phase0), .phase1(phase1), .phase2(phase2), .phase3(phase3));
 
   // Note: microcode outputs are *synchronous* and show up on following clock and thus are always driven directly by t_next and not t.
-  `microcode mc_inst(.clk(clk), .ready(ready_int), .reset(reset), .ir(ir_next), .slow(slow),
+  `microcode mc_inst(.clk(clk), .ready(phase0), .phase0(phase0), .data_i(data_i), .sync(sync), .phase3(phase3), .reset(reset), .ir(ir), .slow(slow),
                   .next_mca(next_mca), .next_mca_ucode(next_mca_ucode),
                   .next_mca_a0(next_mca_a0), .next_mca_a1(next_mca_a1),
                   .next_mca_sel(next_mca_sel),
@@ -187,7 +190,7 @@ assign t = mca[1:0];
                   .ab_inc(ab_inc), .abh_sel(abh_sel), .abl_sel(abl_sel),
                   .adh_sel(adh_sel), .adl_sel(adl_sel),
                   .load_reg(load_reg), .load_flags(load_flags), .test_flags(test_flags), .test_flag0(test_flag0),
-                  .word_z(word_z), .write(write_cycle), .map(map),
+                  .word_z(word_z), .write(write_cycle), .map(mc_map),
                   .mc_cond(mc_cond));
 
   //always @(mc_sync)
@@ -205,12 +208,13 @@ assign t = mca[1:0];
   
   `ir_next_mux ir_next_mux(sync, intg|hyperg, data_i_mux, ir, ir_next);
 
-  assign write_next = ready_int ? (write_cycle & ~resp) : write;  
+  assign write_next = phase0 ? (write_cycle & ~resp) : write; 
   assign mc_sync_override = mc_sync & ~mc_cond_met;
   
+  // TODO: How to cleanly handle a full on dead "cycle" since it means staying in the state machine for 4 extra clocks?
   always @(posedge clk)
   begin
-    if(ready) begin
+    if(phase0) begin
       if(sync & onecycle & slow & ~dead_cycle)
          dead_cycle <= 1;
       else
@@ -221,33 +225,40 @@ assign t = mca[1:0];
   // Internal ready signal is external ready and'd with !dead_cycle
   always @(*)
   begin
-    ready_int = ready & ~dead_cycle;
+    ready_int = ready; // & ~dead_cycle;  FIXME
   end
   
   always @(posedge clk)
   begin
-    write <= write_next;
+    if(phase0) begin
+      t <= mca[1:0];
+      map <= mc_map;
+    end
+    if(phase0)  // Delayed until phase1 to align with mapper.  FIXME.
+      write <= write_next;
+    else if(phase3)
+      write <= 1'b0;  // Always clear at end of phase3
   end
   
-  `dbi_mux   dbi_mux(clk, ready_int, data_i, data_i_mux);
+  `dbi_mux   dbi_mux(clk, phase3, data_i, data_i_mux);
   `dreg_mux  dreg_do_mux(dreg_do, reg_a, reg_x, reg_y, reg_z, dreg_do_bus);
-  `dbo_mux   dbo_mux(clk, ready_int, dbo_sel, data_i_mux, dreg_do_bus, alu_out, pc_next[15:8], data_o_next);
+  `dbo_mux   dbo_mux(clk, phase0, dbo_sel, data_i_mux, dreg_do_bus, alu_out, pc_next[15:8], data_o_next);
     
   `predecode predecode(data_i_mux, sync & ~intg, onecycle);
 
-  `interrupt_control interrupt_control(clk, ready_int, reset, irq, nmi, mc_sync_override, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp,
+  `interrupt_control interrupt_control(clk, phase3, reset, irq, nmi, mc_sync_override, reg_p, load_flags_decode[`kLF_I_1], intg, nmig, resp,
                                       hyp, hyperg, hyper_mode, hyper_rti, pc_hold, vector_hi, vector_lo);
 
   // Timing control state machine
-  `timing_ctrl timing(.clk(clk), .reset(reset), .ready(ready_int), 
+  `timing_ctrl timing(.clk(clk), .reset(reset), .ready(phase0), 
                   .mca(mca), .next_mca(next_mca), .next_mca_ucode(next_mca_ucode),
                   .next_mca_a0(next_mca_a0), .next_mca_a1(next_mca_a1),
                   .next_mca_sel(next_mca_sel), .mc_sync(mc_sync_override), .sync(sync), .onecycle(onecycle), 
                   .mc_cond_met(mc_cond_met));
 
-  `clocked_reset_reg8 ir_reg(clk, reset, sync & ready_int, ir_next, ir);
+  clocked_reset_reg8_ir ir_reg(clk, reset, sync & phase0, ir_next, ir);
 
-  `addrbus_mux addrbus_mux(clk, ready_int, ab_sel, ad_next, ab_next, sp_next, pc_next, address_next, address);
+  `addrbus_mux addrbus_mux(clk, phase0, ab_sel, ad_next, ab_next, sp_next, pc_next, address_next, address);
   
   wire [7:0] pcl_alu_out;
   wire pcl_alu_carry;
@@ -266,16 +277,16 @@ assign t = mca[1:0];
     //  $display("pc: %04x pc_next: %04x off: %02x carry: %d cross: %d cond: %d pch: %d",pc,pc_next,data_i_mux,pcl_alu_carry,branch_page_cross,cond_met,pch_sel);
   end
   
-  `ab_reg reg_ab(clk, ready_int, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, vector_hi, ab_next, ab);
-  `ad_reg reg_ad(clk, ready_int, adh_sel, adl_sel, alu_ea, ad_next, ad);
-  `pc_reg reg_pc(clk, ready_int, pc_inc & ~pc_hold, cond_met, pch_sel, pcl_sel, ad[7:0], alu_ea, alu_ea_c, data_i_mux[7], pcl_alu_out, pcl_alu_carry, pc_next, pc);
-  `sp_reg reg_usp(clk, reset, ready_int & ~stack_sel, reg_p[`kPF_E], sp_incdec, sph_sel, spl_sel, alu_ea, usp_next, usp, 1'b0);
+  `ab_reg reg_ab(clk, phase0, ab_inc, abh_sel, abl_sel, reg_b, alu_ea, vector_hi, ab_next, ab);
+  `ad_reg reg_ad(clk, phase0, adh_sel, adl_sel, alu_ea, ad_next, ad);
+  `pc_reg reg_pc(clk, phase0, pc_inc & ~pc_hold, cond_met, pch_sel, pcl_sel, ad[7:0], alu_ea, alu_ea_c, data_i_mux[7], pcl_alu_out, pcl_alu_carry, pc_next, pc);
+  `sp_reg reg_usp(clk, reset, phase0 & ~stack_sel, reg_p[`kPF_E], sp_incdec, sph_sel, spl_sel, alu_ea, usp_next, usp, 1'b0);
 
   // For now the hypervisor stack is forced to work in 8-bit mode since I'm using the E bit in hypervisor mode to control
   // which stack gets used.   Leaving the true hypervisor stack in 8-bit mode is probably not a big deal, but it's easy
   // enough to change it to always run in 16-bit mode if it becomes a big limitation.  In any case it doesn't seem like it
   // needs to be switchable on the fly.   It was only done that way on the 65CE02 for backwards compatibility reasons.
-  `sp_reg reg_hsp(clk, reset, ready_int & stack_sel, 1'b1, sp_incdec, sph_sel, spl_sel, alu_ea, hsp_next, hsp, 1'b1);
+  `sp_reg reg_hsp(clk, reset, phase0 & stack_sel, 1'b1, sp_incdec, sph_sel, spl_sel, alu_ea, hsp_next, hsp, 1'b1);
   
   // In hypervisor mode, the E bit controls whether we are accessing the hypervisor (1) or user (0) stack registers.
   assign stack_sel = hyper_mode & reg_p[`kPF_E];
@@ -292,13 +303,13 @@ assign t = mca[1:0];
   `alub_mux alub_mux(alub_sel, data_i_mux, dbd, reg_p, reg_b, ir[6:4], bit_inv, alub_bus);
   `aluc_mux aluc_mux(aluc_sel, reg_p[`kPF_C], alu_carry_out_last, aluc_bus);
     
-  `clocked_reg8 dbd_reg(clk, ready_int, data_i_mux, dbd);
-  `clocked_reg8 a_reg(clk, load_reg_decode[`kLR_A] && ready_int, alu_out, reg_a);
-  `clocked_reg8 x_reg(clk, load_reg_decode[`kLR_X] && ready_int, alu_out, reg_x);
-  `clocked_reg8 y_reg(clk, load_reg_decode[`kLR_Y] && ready_int, alu_out, reg_y);
-  `clocked_reset_reg8 z_reg(clk, reset, load_reg_decode[`kLR_Z] && ready_int, alu_out, reg_z);
-  `clocked_reset_reg8 b_reg(clk, reset, load_reg_decode[`kLR_B] && ready_int, alu_out, reg_b);
-  `clocked_reg8 do_reg(clk, ready_int, data_o_next, data_o);
+  `clocked_reg8 dbd_reg(clk, phase0, data_i_mux, dbd);
+  `clocked_reg8 a_reg(clk, load_reg_decode[`kLR_A] && phase0, alu_out, reg_a);
+  `clocked_reg8 x_reg(clk, load_reg_decode[`kLR_X] && phase0, alu_out, reg_x);
+  `clocked_reg8 y_reg(clk, load_reg_decode[`kLR_Y] && phase0, alu_out, reg_y);
+  `clocked_reset_reg8 z_reg(clk, reset, load_reg_decode[`kLR_Z] && phase0, alu_out, reg_z);
+  `clocked_reset_reg8 b_reg(clk, reset, load_reg_decode[`kLR_B] && phase0, alu_out, reg_b);
+  `clocked_reg8 do_reg(clk, phase0, data_o_next, data_o);
     
   // FIXME - This is kinda hacky right now.  Really should have a pair of dedicated microcode bits for this but
   // I'm currently out of spare microcode bits.   This probably only requires a couple of LUTs though.
@@ -307,15 +318,15 @@ assign t = mca[1:0];
   assign dec_add = dec_op & (ir[7] == 0);
   assign dec_sub = dec_op & (ir[7] == 1);
 
-  `z_unit z_unit(clk, ready_int, alu_sel, alu_out, sb_z, dld_z, word_z);
+  `z_unit z_unit(clk, phase0, alu_sel, alu_out, sb_z, dld_z, word_z);
 
   assign sb_n = alu_out[7];
 
-  `p_reg p_reg(clk, reset, ready_int, intg, hyperg, hyper_mode, hyper_rti, sync & ready_int, load_flags_decode, data_i_mux, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], ir[0], reg_p);
+  `p_reg p_reg(clk, reset, phase0, intg, hyperg, hyper_mode, hyper_rti, sync & phase0, load_flags_decode, data_i_mux, sb_z, sb_n, alu_carry_out, alu_overflow_out, ir[5], ir[0], reg_p);
 
   always @(posedge clk)
   begin
-    if(ready_int && alu_sel[2] != 0)    // Only update delayed carry for add/shift ops
+    if(phase0 && alu_sel[2] != 0)    // Only update delayed carry for add/shift ops
       alu_carry_out_last <= alu_carry_out;
   end
 
@@ -324,7 +335,7 @@ assign t = mca[1:0];
   reg [15:0] last_fetch_addr;
   always @(posedge clk)
   begin
-    if(sync & ready_int)
+    if(sync & phase3)
     begin
       if(last_fetch_addr == address)
       begin

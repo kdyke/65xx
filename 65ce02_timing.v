@@ -29,11 +29,65 @@
 `define MARK_DEBUG
 `endif
 
-// This may be also defined to "fix" the original 6502 BRK/NMI bug without enabling the full CMOS stuff
-`ifdef CMOS
-`define NMI_BUG_FIX 1
-`endif
-`define NMI_BUG_FIX 1
+// Description of phases and transitions
+//
+// phase0 - right after latching data.   This is where we will load the microcode so the datapath happens during phase 1
+// phase1 - driving datapath and then updating address/data outputs at the rising edge of the clk going into phase 2
+// phase2 - driving address/data/etc bus signals.  always proceeds to phase 3?
+// phase3 - waiting for data to arrive.   Latches data and stops driving bus if ready is asserted during this phase.
+
+// TODO - Determine if we should run the datapath during phase0.  This would imply that the microcode is updated directly
+// from the data bus, allowing the address to show up one full external cycle before phase2.  Still TBD.
+
+// The output signals are driven high when we're basically "completing" that state and can be thought of as clock enables
+// for the external flip flops.  There's a separate internal state vector that's combined as needed with things like the
+// ready signal to generate the outputs and next state transitions.
+(* keep_hierarchy = "yes" *) module state_ctl(input clk, input reset, `MARK_DEBUG input ready,
+  `MARK_DEBUG output reg phase0, `MARK_DEBUG output reg phase1, `MARK_DEBUG output reg phase2, `MARK_DEBUG output reg phase3);
+
+parameter PHASE0 = 2'b00, PHASE1 = 2'b01, PHASE2 = 2'b10, PHASE3 = 2'b11;
+
+reg [1:0] state, next;
+
+always @(posedge clk) begin
+  if(reset)
+    state <= PHASE0;
+  else begin
+    state <= next;
+    //$display("state: %d",next);
+  end
+end
+
+always @(*) begin
+  next = 1'bx;
+  phase0 = 1'b0;
+  phase1 = 1'b0;
+  phase2 = 1'b0;
+  phase3 = 1'b0;
+  case(state)
+    PHASE0: begin
+              phase0 = 1;
+              next = PHASE1;
+            end
+    PHASE1: begin
+              phase1 = 1;
+              next = PHASE2;
+            end
+    PHASE2: begin
+              phase2 = 1;
+              next = PHASE3;
+            end
+    PHASE3: begin
+              phase3 = ready;
+              if(ready)
+                next = PHASE0;
+              else
+                next = PHASE3;
+            end
+  endcase
+end    
+  
+endmodule
 
 //`define M65
 `ifdef M65
@@ -68,9 +122,9 @@ end
 
 always @(*)
 begin
-  next_mca = mca;
-  sync_next = sync;
-  if(ready) begin
+  next_mca = 1'b0;//mca;
+  sync_next = 1'b0;//sync;
+  if(1) begin
     sync_next = 0;
     if(onecycle) begin
       //next_mca = next_mca_a0;
@@ -91,7 +145,7 @@ begin
   if(reset) begin
     next_mca = 9'h00;
   end
-      
+  //$display("timing: next_mca: %02x   mca: %02x sync: %d onecycle: %d mc_sync: %d ucode: %02x sn: %d sel: %d cond: %d",next_mca,mca,sync,onecycle,mc_sync,next_mca_ucode,sync_next,next_mca_sel,mc_cond_met);
   // synthesis translate_off
   //if(t == 7 && !mc_sync)
   //begin
@@ -172,7 +226,8 @@ reg hyper_mode_int;
 // upon exit.  The internal flip flop will lag by one cycle.
 always @(*)
 begin
-  hyper_mode = hyper_mode_int & ~(hyper_rti&mc_sync);
+  //hyper_mode = hyper_mode_int & ~(hyper_rti&mc_sync);
+  hyper_mode <= hyper_mode_int; // & ~(hyper_rti&mc_sync);
 end
 
 always @(posedge clk)

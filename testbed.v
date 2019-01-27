@@ -13,7 +13,6 @@ reg [15:0] memory_address;
 wire [19:0] cpu_address;
 wire [19:0] cpu_address_next;
 reg [7:0] cpu_data_in;
-wire [7:0] cpu_data_out;
 wire cpu_write;
 wire cpu_write_next;
 reg cpu_clock_enable;
@@ -54,22 +53,23 @@ wire [7:0] hyper_data_o;
 wire [7:0] map_reg_data;
 wire hypervisor_load_user_reg;
 wire hyp; // Hypervisor interrupt line
-wire map_next;
+wire map_out;
 wire [15:0] monitor_state;
 wire mapper_busy;
+wire phase3;
 reg bus_ready;
 
-	memory memory_inst(.clk(clk), .we(memory_write), .addr(cpu_address_next[15:0]), .di(memory_in), .do(memory_out));
+	memory memory_inst(.clk(clk), .we(memory_write & phase3), .addr(cpu_address[15:0]), .di(memory_in), .do(memory_out));
 
-  cpu4510 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .hyp(hyp), .ready(ready), .write_next(cpu_write_next), .write_out(cpu_write),
-            .map_next(map_next), .mapper_busy(mapper_busy), .slow(1'b1),
-            .address(cpu_address), .address_next(cpu_address_next), .sync(sync), .data_i(cpu_data_in), .data_o_next(cpu_data_out), .data_o(cpu_data_out_reg),
+  cpu4510 cpu_inst(.clk(clk), .reset(reset), .nmi(nmi), .irq(irq), .hyp(hyp), .ready(ready), .write(cpu_write),
+            .map_out(map_out), .mapper_busy(mapper_busy), .slow(1'b0), .phase1(phase1), .phase3(phase3),
+            .address(cpu_address), .sync(sync), .data_i(cpu_data_in), .data_o(cpu_data_out_reg),
             .map_reg_data(map_reg_data), .hypervisor_load_user_reg(hypervisor_load_user_reg), .hyper_mode(hyper_mode),
             .monitor_state(monitor_state), .monitor_a(a_out), .monitor_x(x_out), .monitor_y(y_out), .monitor_z(z_out),
             .monitor_sp(sp_out));
 
-  hyper_ctrl hyper_ctrl0(.clk(clk), .reset(reset), .hyper_cs(hyper_cs), .hyper_addr(cpu_address_next[7:0]), .hyper_io_data_i(cpu_data_out), 
-                    .hyper_data_o(hyper_data_o), .cpu_write(cpu_write_next), .ready(ready), .hyper_mode(hyper_mode),
+  hyper_ctrl hyper_ctrl0(.clk(clk), .reset(reset), .hyper_cs(hyper_cs), .hyper_addr(cpu_address[7:0]), .hyper_io_data_i(cpu_data_out_reg), 
+                    .hyper_data_o(hyper_data_o), .cpu_write(cpu_write), .ready(ready), .phase3(phase3), .hyper_mode(hyper_mode),
                     .hyp(hyp), .load_user_reg(hypervisor_load_user_reg), .user_mapper_reg(map_reg_data));
 
 	initial begin
@@ -107,10 +107,10 @@ reg bus_ready;
     hyper_cs = 0;
     io_port_cs = 0;
 
-    if(cpu_address_next[19:6] == {12'h0D6,2'b01})
+    if(cpu_address[19:6] == {12'h0D6,2'b01})
       hyper_cs = 1;
 
-    if(cpu_address_next == 16'hbffc)
+    if(cpu_address == 16'hbffc)
       io_port_cs = 1;
   end
   
@@ -126,15 +126,15 @@ reg bus_ready;
   
   always @(*)
   begin
-    memory_write = cpu_write_next & ready & (!(io_port_cs|hyper_cs));
+    memory_write = cpu_write & ready & (!(io_port_cs|hyper_cs)) & phase3;
   end
   
   always @(*)
   begin
     if(cpu_clock_enable)
     begin
-      memory_in = cpu_data_out;
-      io_port_in = cpu_data_out;
+      memory_in = cpu_data_out_reg;
+      io_port_in = cpu_data_out_reg;
     end
   end  
   
@@ -148,8 +148,8 @@ reg bus_ready;
   always begin
 //`define LOGADDR
 `ifdef LOGADDR
-    $monitor($time,,"%m. clk = %b rst: %d cnt: %d rdy: %d sync: %d t: %x addr: %x addrn: %x hm: %d mapn: %d mem: %02x do: %02x wn: %d w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x P: %02x SP: %04x",
-      clk,reset,clock_count[31:0],ready,sync,monitor_state,cpu_address,cpu_address_next,hyper_mode,map_next,cpu_data_in,cpu_data_out_reg,cpu_write_next,cpu_write,cpu_clock_enable,irq,nmi,reset,
+    $monitor($time,,"%m. clk = %b rst: %d cnt: %d rdy: %d sync: %d t: %x addr: %x hm: %d mapn: %d mem: %02x do: %02x w: %d ce: %d irq: %d nmi: %d rst: %d A: %02x X: %02x Y: %02x Z: %02x P: %02x SP: %04x",
+      clk,reset,clock_count[31:0],ready,sync,monitor_state,cpu_address,hyper_mode,map_out,cpu_data_in,cpu_data_out_reg,cpu_write,cpu_clock_enable,irq,nmi,reset,
         a_out,x_out,y_out,z_out,cpu_state,sp_out);
 `endif
 //    if(cpu_clock_enable)
@@ -172,7 +172,7 @@ reg bus_ready;
     if((clock_count & 1) == 0)
       bus_ready <= 1;
     else
-      bus_ready <= 0;
+      bus_ready <= 1;
     if(clock_count == 2)
 	    reset <= 1;
     if(clock_count == 16)
@@ -191,10 +191,10 @@ reg bus_ready;
   always @(posedge clk)
   begin
     //$display("io_port ? %04x %08b w: %d",cpu_address,cpu_data_out,cpu_write);
-    if(cpu_address_next == 16'hbffc && (cpu_write_next & ready))
+    if(cpu_address == 16'hbffc && (cpu_write & ready & phase3))
     begin
-      io_port = cpu_data_out;
-      $display("io_port <= %08b",cpu_data_out);
+      io_port = cpu_data_out_reg;
+      $display("io_port <= %08b",cpu_data_out_reg);
     end
   end
   
