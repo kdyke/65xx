@@ -88,38 +88,28 @@
 `define kAB_SPn       3
 
 // ALU A select
-`define kASEL_BITS     5:3
-
-`define kASEL_0       0
-`define kASEL_AREG    1
-`define kASEL_DREG    2
-`define kASEL_VEC     3
-`define kASEL_FF      4
-`define kASEL_DB      5
-`define kASEL_NDREG   6
-`define kASEL_NDB     7
-
-// ALU D reg select
-`define kDREG_BITS     7:6
-
-`define kDREG_A       0
-`define kDREG_X       1
-`define kDREG_Y       2
-`define kDREG_Z       3
+`define kASEL_BITS     6:3
 
 `define kDREG_DO_BITS  32:31
 
-// ALU A reg select
+`define kASEL_0       0
+`define kASEL_FF      1
+`define kASEL_A       2
+`define kASEL_NOTA    3
+`define kASEL_DB      4
+`define kASEL_NDB     5
+`define kASEL_xx6     6
+`define kASEL_xx7     7
+`define kASEL_VEC     8
+`define kASEL_X       9
+`define kASEL_Y       10
+`define kASEL_Z       11
+`define kASEL_SPL     12
+`define kASEL_SPH     13
+`define kASEL_PCL     14
+`define kASEL_PCH     15
 
-// Note: We don't really need both AREG and DREG fields since the ASEL mux can only source from one or the other,
-// and so we could share the two select bits between the AREG and DREG muxes if we ever get really desperate for
-// more microcode bits and would like to potentially save routing resources.
-`define kAREG_BITS     9:8
-
-`define kAREG_SPL     2'b00
-`define kAREG_SPH     2'b01
-`define kAREG_PCL     2'b10
-`define kAREG_PCH     2'b11
+`define kUNUSED_BITS  9:7
 
 // ALU_B input select
 `define kBSEL_BITS     12:10
@@ -131,6 +121,11 @@
 `define kBSEL_DBD     5
 `define kBSEL_B       6
 `define kBSEL_P       7
+
+`define kDREG_A       0
+`define kDREG_X       1
+`define kDREG_Y       2
+`define kDREG_Z       3
 
 // 3:8 Decoder bit invert
 `define kBIT_INV_BITS  13:13

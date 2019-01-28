@@ -63,12 +63,10 @@ wire [7:0] data_i_mux;
 
 // microcode output signals
 wire mc_sync, mc_sync_override; 
-wire [2:0] alua_sel;
+wire [3:0] alua_sel;
 wire [2:0] alub_sel;
 wire [1:0] aluc_sel;
-wire [1:0] dreg;
 wire [1:0] dreg_do;
-wire [1:0] areg;
 wire [2:0] alu_sel;
 wire [1:0] dbo_sel;
 wire [1:0] ab_sel;
@@ -121,7 +119,6 @@ wire [15:0] hsp_next;
 // ALU inputs and outputs
 wire [7:0] abus;
 wire [7:0] alua_bus;
-wire [7:0] areg_bus;
 wire [7:0] dreg_bus;
 wire [7:0] dreg_do_bus;
 wire [7:0] alub_bus;
@@ -181,7 +178,7 @@ assign t = mca[1:0];
                   .next_mca_sel(next_mca_sel),
                   .mc_sync(mc_sync), .alua_sel(alua_sel), .alub_sel(alub_sel),
                   .aluc_sel(aluc_sel), .bit_inv(bit_inv),
-                  .dreg(dreg), .dreg_do(dreg_do), .areg(areg), .alu_sel(alu_sel), .dbo_sel(dbo_sel), .ab_sel(ab_sel),
+                  .dreg_do(dreg_do), .alu_sel(alu_sel), .dbo_sel(dbo_sel), .ab_sel(ab_sel),
                   .pc_inc(pc_inc), .pch_sel(pch_sel), .pcl_sel(pcl_sel), 
                   .sp_incdec(sp_incdec), .sph_sel(sph_sel), .spl_sel(spl_sel),
                   .ab_inc(ab_inc), .abh_sel(abh_sel), .abl_sel(abl_sel),
@@ -252,11 +249,10 @@ assign t = mca[1:0];
   wire [7:0] pcl_alu_out;
   wire pcl_alu_carry;
   
-  // Instantiate ALU
-  `alu_unit alu_inst(alua_bus, alub_bus, alu_out, aluc_bus, dec_add, dec_sub, alu_sel, alu_carry_out, alu_overflow_out);
+  `alu_unit alu_inst(alua_bus, alub_bus, aluc_bus, dec_add, dec_sub, alu_sel, alu_overflow_out, alu_out, alu_carry_out);
 
   // A couple of dedicated adders for effective address calculations.
-  `ea_adder pcl_adder(areg[1] == 1 /* areg ==`kAREG_PCL */ ? pc[7:0] : 8'h00, data_i_mux, aluc_sel[0], pcl_alu_out, pcl_alu_carry);
+  `ea_adder pcl_adder(alua_sel ==`kASEL_PCL ? pc[7:0] : 8'h00, data_i_mux, aluc_sel[0], pcl_alu_out, pcl_alu_carry);
   `ea_adder ea_adder(alua_bus,alub_bus,aluc_bus,alu_ea,alu_ea_c);
   
   always @(posedge clk)
@@ -281,14 +277,13 @@ assign t = mca[1:0];
   assign stack_sel = hyper_mode & reg_p[`kPF_E];
   
   `sp_sel_mux sp_next_mux(stack_sel, usp_next, hsp_next, sp_next);
+  
   `sp_sel_mux sp_mux(stack_sel, usp, hsp, sp);
   
   wire [7:0] ir_dec;
 
-  `dreg_mux dreg_mux(dreg, reg_a, reg_x, reg_y, reg_z, dreg_bus);
-  `areg_mux areg_mux(areg, pc[15:8], sp[15:8], pc[7:0], sp[7:0], areg_bus);
+  `alua_mux alua_mux(alua_sel, 8'h00, 8'hff, reg_a, ~reg_a, reg_x, reg_y, reg_z, 8'h00, 8'h00, sp[7:0], sp[15:8], pc[7:0], pc[15:8], data_i_mux, ~data_i_mux, vector_lo, alua_bus);
   
-  `alua_mux alua_mux(alua_sel, areg_bus, dreg_bus, data_i_mux, vector_lo, alua_bus);
   `alub_mux alub_mux(alub_sel, data_i_mux, dbd, reg_p, reg_b, ir[6:4], bit_inv, alub_bus);
   `aluc_mux aluc_mux(aluc_sel, reg_p[`kPF_C], alu_carry_out_last, aluc_bus);
     
