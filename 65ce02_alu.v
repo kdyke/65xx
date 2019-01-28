@@ -76,8 +76,8 @@ module `alu_adder(add_in1, add_in2, add_cin, dec_add, dec_sub, add_out, carry_ou
   input dec_add;
   input dec_sub;
 
-  output [7:0] add_out;
-  output carry_out;
+  (* dont_touch = "yes" *) output [7:0] add_out;
+  (* dont_touch = "yes" *) output carry_out;
   
   wire half_carry;
   
@@ -99,78 +99,94 @@ assign add_out = ea_add[7:0];
 assign carry_out = ea_add[8];
 endmodule
 
+(* keep_hierarchy = "yes" *) module alu_out_mux(input [2:0] op, input [8:0] alu_ora, input [8:0] alu_xxx, input [8:0] alu_and, input [8:0] alu_eor, input [8:0] alu_adc,
+                                                input [8:0] alu_shr, input [8:0] alu_asr, input [8:0] alu_shl, output reg [8:0] alu_out);
+
+  always @(*) begin // synthesis parallel_case full_case
+	  case(op)
+  		`kALU_ORA:
+        begin
+  			alu_out = alu_ora;
+  			end
+  		`kALU_ORA2:
+        begin
+  			alu_out = alu_xxx;
+  			end
+  		`kALU_AND: 
+        begin
+  			alu_out = alu_and;
+  			end
+  		`kALU_EOR: 
+        begin
+  			alu_out = alu_eor;
+  			end
+  		`kALU_ADC: 
+        begin
+  			alu_out = alu_adc;
+  			end
+  		`kALU_SHR: 
+        begin
+  			alu_out = alu_shr;
+        end
+  		`kALU_ASR: 
+        begin
+  			alu_out = alu_asr;
+        end
+  		`kALU_SHL: 
+        begin
+  			alu_out = alu_shl;
+        end
+    endcase
+  end
+endmodule            
+                  
 // Input muxing is done outside of the core ALU unit.
-(* keep_hierarchy = "yes" *) module `alu_unit(a,b,alu_out,c_in,dec_add,dec_sub,op,carry_out,overflow_out);
+(* keep_hierarchy = "yes" *) module `alu_unit(a,b,c_in,dec_add,dec_sub,alu_sel,overflow_out, alu_out, alu_carry_out);
   input [7:0] a;
   input [7:0] b;
-	input [2:0] op;
 	input c_in;
 	input dec_add;
 	input dec_sub;
 
-  output [7:0] alu_out;
+  input [2:0] alu_sel;
+  output wire [7:0] alu_out;
+  output wire alu_carry_out;
   
-  output carry_out;
-  output overflow_out;
-  
-	reg c;
+  wire [8:0] alu_ora;
+  wire [8:0] alu_and;
+  wire [8:0] alu_eor;
+  wire [8:0] alu_adc;
+  wire [8:0] alu_shr;
+  wire [8:0] alu_asr;
+  wire [8:0] alu_shl;
+
+  //output wire carry_out;
+  output wire overflow_out;
   
 	wire [7:0] add_out;
-  //wire [8:0] ea_add;
-	reg [7:0] tmp;
- 	reg [7:0] alu_out;
 
   wire adder_carry_out;
-  
-  wire overflow_out;  
-  reg carry_out;
   
 	`alu_adder add_u(a, b, c_in, dec_add, dec_sub, add_out, adder_carry_out);
 	  
   assign overflow_out = a[7] == b[7] && a[7] != add_out[7];
+    
+  assign alu_ora = {1'b0, a|b};
+  assign alu_and = {1'b0, a&b};
+  assign alu_eor = {1'b0, a^b};
+  assign alu_adc = {adder_carry_out, add_out};
+  assign alu_shr = {a[0],c_in,a[7:1]};
+  assign alu_asr = {a[0],a[7],a[7:1]};
+  assign alu_shl = {a[7:0],c_in};
+
+  wire [8:0] alu_mux_out;
+
+  assign alu_out = alu_mux_out[7:0];
+  assign alu_carry_out = alu_mux_out[8];
   
-  always @(*) begin
-	  casez(op)
-  		`kALU_ORA , `kALU_ORA2:
-        begin
-  			tmp = a | b;
-        c = adder_carry_out; // default case
-  			end
-  		`kALU_AND: 
-        begin
-  			tmp = a & b;
-        c = adder_carry_out; // default case
-  			end
-  		`kALU_EOR: 
-        begin
-  			tmp = a ^ b;
-        c = adder_carry_out; // default case
-  			end
-  		`kALU_ADC: 
-        begin
-        tmp = add_out;
-        c = adder_carry_out; // default case
-  			end
-  		`kALU_SHR: 
-        begin
-  			{tmp,c} = {c_in,a[7:0]};
-        end
-  		`kALU_ASR: 
-        begin
-  			{tmp,c} = {a[7],a[7:0]};
-        end
-  		`kALU_SHL: 
-        begin
-  			{c,tmp} = {a[7:0],c_in};
-        end
-    endcase
+  alu_out_mux alu_out_mux(alu_sel, alu_ora, 9'b00, alu_and, alu_eor, alu_adc, alu_shr, alu_asr, alu_shl, alu_mux_out);
 
   //$display("ALU op: %x a: %02x b: %02x c_in: %d -> %02x daa: %d dsa: %d flags vc: %d%d add: %02x",op,a,b,c_in,tmp,dec_add,dec_sub,overflow_out,c,add_out);
-
-	alu_out = tmp;
-  carry_out = c;
-  
-	end
 
 endmodule
 

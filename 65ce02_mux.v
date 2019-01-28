@@ -122,25 +122,22 @@ end
 
 endmodule
 
-(* keep_hierarchy = "yes" *) module `areg_mux(input [1:0] areg, input [7:0] pch, input [7:0] sph, input [7:0] pcl, input [7:0] spl, output reg [7:0] areg_bus);
-
-always @(*)
-begin
-  case(areg)
-    `kAREG_PCH   : areg_bus = pch;
-    `kAREG_SPH   : areg_bus = sph;
-    `kAREG_PCL   : areg_bus = pcl;
-    `kAREG_SPL   : areg_bus = spl;
-  endcase
-  //$display("aluabus: %02x",aluabus);
-end
-
-endmodule
-
-(* keep_hierarchy = "yes" *) module `alua_mux(input [2:0] alua_sel, 
-                                 input [7:0] areg_bus,
-                                 input [7:0] dreg_bus,
+(* keep_hierarchy = "yes" *) module `alua_mux(input [3:0] alua_sel, 
+                                 input [7:0] zero,
+                                 input [7:0] one,
+                                 input [7:0] reg_a,
+                                 input [7:0] reg_na,
+                                 input [7:0] reg_x,
+                                 input [7:0] reg_y,
+                                 input [7:0] reg_z,
+                                 input [7:0] reg_6,
+                                 input [7:0] reg_7,
+                                 input [7:0] spl,
+                                 input [7:0] sph,
+                                 input [7:0] pcl,
+                                 input [7:0] pch,
                                  input [7:0] db,
+                                 input [7:0] ndb,
                                  input [7:0] vector_lo,
                                  output reg [7:0] alua);
    
@@ -148,14 +145,59 @@ endmodule
 always @(*)
 begin
   case(alua_sel)
-    `kASEL_0      : alua = 8'h00;
-    `kASEL_AREG   : alua = areg_bus;
-    `kASEL_DREG   : alua = dreg_bus;
-    `kASEL_VEC    : alua = vector_lo;
-    `kASEL_FF     : alua = 8'hff;
-    `kASEL_DB     : alua = db;
-    `kASEL_NDREG  : alua = ~dreg_bus;
-    `kASEL_NDB    : alua = ~db;
+//`define INLINE 1
+`ifdef INLINE
+    `kASEL_0     : alua = zero;
+    `kASEL_FF    : alua = one;
+    `kASEL_VEC   : alua = vector_lo;
+    `kASEL_NOTA  : alua = reg_na;
+    `kASEL_DB    : alua = db;
+    `kASEL_NDB   : alua = ndb;
+    `kASEL_xx6   : alua = reg_6;
+    `kASEL_xx7   : alua = reg_7;
+    `kASEL_A     : alua = reg_a;
+    `kASEL_X     : alua = reg_x;
+    `kASEL_Y     : alua = reg_y;
+    `kASEL_Z     : alua = reg_z;
+    `kASEL_SPL   : alua = spl;
+    `kASEL_SPH   : alua = sph;
+    `kASEL_PCL   : alua = pcl;
+    `kASEL_PCH   : alua = pch;
+`else
+    `kASEL_0     : alua = 8'h00;
+    `kASEL_FF    : alua = 8'hFF;
+    `kASEL_VEC   : alua = vector_lo;
+    `kASEL_NOTA  : alua = ~reg_a;
+    `kASEL_DB    : alua = db;
+    `kASEL_NDB   : alua = ~db;
+    `kASEL_xx6   : alua = 8'hxx;
+    `kASEL_xx7   : alua = 8'hxx;
+    `kASEL_A     : alua = reg_a;
+    `kASEL_X     : alua = reg_x;
+    `kASEL_Y     : alua = reg_y;
+    `kASEL_Z     : alua = reg_z;
+    `kASEL_SPL   : alua = spl;
+    `kASEL_SPH   : alua = sph;
+    `kASEL_PCL   : alua = pcl;
+    `kASEL_PCH   : alua = pch;
+`endif
+  endcase
+  //$display("alua_sel: %d result: %02x reg: %02x nreg: %02x vec: %02x",alua_sel,alua,alua_reg,~alua_reg,vector_lo);
+end
+
+endmodule
+
+(* keep_hierarchy = "yes" *) module alua_sp_mux(input [3:0] alua_sel, 
+                                 input [7:0] spl,
+                                 input [7:0] sph,
+                                 output reg [7:0] alua);
+   
+// ALU A input select
+always @(*)
+begin
+  case(alua_sel[0])
+    1'b0 : alua = spl;
+    1'b1 : alua = sph;
   endcase
   //$display("alua_sel: %d result: %02x reg: %02x nreg: %02x vec: %02x",alua_sel,alua,alua_reg,~alua_reg,vector_lo);
 end
