@@ -1,0 +1,26 @@
+This is a collection of various 6502 (and derivative) CPU cores I implemented in my spare time.
+
+The 6502 and 65C02 variants were done mostly just for fun as a way to fool around with Verilog.  They both pass Klaus Dormann's 6502/65C02 test suites, except for the WDC WAI and STP instructions for the latter.   I did not attempt to implement any of the "undocumented/illegal/undefined" instructions for the 6502, but it probably wouldn't be too hard to do.
+
+The 65CE02 was somewhat of a do-over in antcipation of eventually doing a 4510 core to be used with the Mega65 project.  I did successfully get that working (see my other repo) but my branch wound up diverging wildly from the original project because the CPU and bus architectures wound up being very different.
+
+Interesting random notes in no particular order:
+
+All of the implementations *should* be cycle accurate with the originals.   The 6502 even seems to be bug-for-bug compatible with the original in terms of NMI+IRQs stepping on each other, along with a few of the other quirks in the NMOS version of the CPU.
+
+I tried to remain *somewhat* faithful to the original 6502 datapath, but in the end it's not really possible to do it because FPGAs don't really support bidirection buses.
+
+I used block rams to store "microcode" that is indexed very simply in the 6502/65C02 versions as a combination of the current timing state and instruction byte.  This hurt timing slightly but saves some LUTs/area.
+
+The 65CE02 data paths were influenced by the original CSG documentation/diagrams, but at the end of the day I wound up just sorta doing my own thing.   There were a bunch of tweaks I made to try to get the timing to allow for faster clock speeds by not sharing the ALU between normal execution and addressing.
+
+The 4510 includes the original MAPPER support from the C65.   It also adds some stuff to support the Mega65 hypervisor functionality, but I approached this in a wildly different way than the mainline version of that project.   I really tried to do much more of that in software than in hardware.   Most of that wound up entailing having a separate hypervisor stack and some registers to control they hypervisor vectoring stuff.
+
+The 4510 also includes support for running both the 65CE02/4510 instruction set (and it's faster execution timings) and (more or less) the original 6502 instruction set, also with its slower execution timings.   Essentially there are two sets of microcode and which one gets used can be switched on the fly at instruction boundaries under control of an external signal to the core.
+
+From a digital design standpoint, all of the cores commit some pretty bad sins.  Because I went with a scheme where the CPU clock is 1:1 with the originals, doing single cycle memory accesses (especially with FPGA style block rams, which are synchronous) means that there is always a combinatorial path from the CPU data input signals back out to the CPU data output and address lines.
+
+I started to play around with using multiple clock phases in a few of the branches to try to move away from this, because it's really pretty horrible and required no end of insanely complicated external logic for it to function correctly (see the experimental_cpu_merge branch of my Mega65 fork if you're curious).
+
+Anyway, all of this was done mostly just for my own fun and amusement.  Maybe you'll find something interesting in here, or maybe some inspiration.   Please don't use any of it as an example of "good Verilog".  It's not my day job... 
+
