@@ -2,7 +2,7 @@ This is a collection of various 6502 (and derivative) CPU cores I implemented in
 
 The 6502 and 65C02 variants were done mostly just for fun as a way to fool around with Verilog.  They both pass Klaus Dormann's 6502/65C02 test suites, except for the WDC WAI and STP instructions for the latter.   I did not attempt to implement any of the "undocumented/illegal/undefined" instructions for the 6502, but it probably wouldn't be too hard to do.
 
-The 65CE02 was somewhat of a do-over in antcipation of eventually doing a 4510 core to be used with the Mega65 project.  I did successfully get that working (see my other repo) but my branch wound up diverging wildly from the original project because the CPU and bus architectures wound up being very different.
+The 65CE02 was somewhat of a do-over in anticipation of eventually doing a 4510 core to be used with the Mega65 project.  I did successfully get that working (see my other repo) but my branch wound up diverging wildly from the original project because the CPU and bus architectures wound up being very different.
 
 Interesting random notes in no particular order:
 
